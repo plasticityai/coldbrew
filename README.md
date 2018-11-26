@@ -2,8 +2,7 @@
 
 ## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)</div>
 
-Coldbrew is Python (CPython 3.5.2 specifically) compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and WebAssembly/`asm.js`. It is *the easiest way* to run Python code in JavaScript (a web browser). This library also supports Python modules that use native C code.
-
+Coldbrew is Python (CPython 3.5.2 specifically) compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and WebAssembly/`asm.js`. It is *the easiest way* to run Python (including native Python modules) code in JavaScript (a web browser) and is developed by [Plasticity](https://www.plasticity.ai/).
 ## Using the library
 
 ### Installation
