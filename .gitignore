@@ -1,0 +1,16 @@
+build
+downloads
+installs
+dist
+
+**/*.bc
+**/*.js
+**/*.wasm
+**/*.so
+**/*.data
+**/*.zip
+**/*.pre
+**/*.wast
+**/*.map
+**/*.make
+**/root
