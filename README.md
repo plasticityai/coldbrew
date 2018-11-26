@@ -1,4 +1,6 @@
-# Coldbrew: Run Python in JavaScript
+<div align="center"><img src="https://gitlab.com/Plasticity/coldbrew/raw/master/images/coldbrew.png" alt="coldbrew" height="50"></div>
+
+## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)</div>
 
 Coldbrew is Python (CPython 3.5.2 specifically) compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and WebAssembly/`asm.js`. It is *the easiest way* to run Python code in JavaScript (a web browser). This library also supports Python modules that use native C code.
 
@@ -40,7 +42,7 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 * Python can interface with the operating system and shell. JavaScript cannot. Functions like `os.system`, `os.fork`, or `multiprocessing` are not appropriate as there is no notion of a host environment shell or processes as these are operating system level constructs.
 
 ## Contributing
-The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/magnitude).
+The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/coldbrew).
 
 **Please note**: This library is being actively maintained as we use it. However, due to the nature of compiling a whole other language's interpereter into JavaScript using a tool like Emscripten, certain things might not work or be accessible due to Emscripten's limitations. If you want to contribute a PR to fix something, please feel free to, but if we have no need for whatever happens to be broken we will not fix or provide support for those issues ourselves.
 
