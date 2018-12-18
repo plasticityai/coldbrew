@@ -14,6 +14,8 @@ TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tgz
 URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION).tgz
 LIB=libpython$(PYMINOR).a
 
+PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
+
 
 all: install
 
@@ -22,7 +24,7 @@ install: $(BUILD)/$(LIB)
 	( \
 		cd $(BUILD); \
 		sed -i -e 's/libinstall:.*/libinstall:/' Makefile; \
-		emmake make HOSTPYTHON=$(HOSTPYTHON) PYTHON_FOR_BUILD=$(HOSTPYTHON) CROSS_COMPILE=yes inclinstall libinstall $(LIB) && \
+		emmake make HOSTPYTHON=$(HOSTPYTHON) PYTHON_FOR_BUILD=$(HOSTPYTHON) CROSS_COMPILE=yes inclinstall libinstall $(LIB) CFLAGS='$(PTHREAD_CFLAGS)' && \
 		emar d $(LIB) _math.o _functoolsmodule.o _collectionsmodule.o _operator.o itertoolsmodule.o timemodule.o && \
 		cp $(LIB) $(INSTALL)/lib/ && \
 		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata.py $(INSTALL)/lib/python$(PYMINOR)/ \
@@ -54,7 +56,11 @@ $(HOSTPYTHON) $(HOSTPGEN): $(TARBALL)
 
 $(BUILD)/.patched: $(TARBALL)
 	[ -d $(BUILD) ] || (mkdir -p $(dir $(BUILD)); tar -C $(dir $(BUILD)) -xf $(TARBALL))
-	cat patches/*.patch | (cd $(BUILD) ; patch -p1)
+	cat patches/*.patch | (cd $(BUILD) ; patch -b -p1)
+	( \
+		cd $(BUILD); \
+		patch -b Python/ceval.c ../../../$(PYVERSION)/patches/add-interpreter-loop-yield.diffpatch; \
+	)
 	touch $@
 
 
@@ -62,7 +68,7 @@ $(BUILD)/Makefile: $(BUILD)/.patched
 	cp config.site $(BUILD)/
 	( \
 		cd $(BUILD); \
-		CONFIG_SITE=./config.site READELF=true emconfigure ./configure --without-threads --without-pymalloc --disable-shared --disable-ipv6 --without-gcc --host=asmjs-unknown-emscripten --build=$(shell $(BUILD)/config.guess) --prefix=$(INSTALL) ; \
+		CONFIG_SITE=./config.site READELF=true emconfigure ./configure --without-pymalloc --disable-shared --disable-ipv6 --without-gcc --host=asmjs-unknown-emscripten --build=$(shell $(BUILD)/config.guess) --prefix=$(INSTALL) ; \
 	)
 
 

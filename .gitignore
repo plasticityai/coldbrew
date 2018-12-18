@@ -4,13 +4,20 @@ installs
 dist
 
 **/*.bc
-**/*.js
+**/*.asm.js
+**/*.orig.js
 **/*.wasm
 **/*.so
+**/*.o
 **/*.data
 **/*.zip
 **/*.pre
 **/*.wast
 **/*.map
 **/*.make
+**/*.tmp
 **/root
+
+src/index.html
+src/module.js
+src/prejs.js
