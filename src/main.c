@@ -8,6 +8,7 @@
 #define STRINGIFY(X) STRINGIFY2(X)
 
 // Control variables for async-ifying the Python interpreter
+int _lock_interp = 0;
 int _coldbrew_async = 0;
 int _coldbrew_is_async = 0;
 int _coldbrew_async_yield_ops = 100; // By default, yield back to the JavaScript event loop every 100 Python bytecode instructions
@@ -19,6 +20,7 @@ void EMSCRIPTEN_KEEPALIVE _coldbrew_yield_to_javascript() {
 
 // Forward Declare Patched Python Functions
 int PyRun_SimpleString_coldbrew_async(char *prog);
+int PyRun_AnyFileEx_coldbrew_async(FILE *fp, const char *filename, int closeit);
 
 
 // Forward Declare Python Builtin Modules
@@ -39,7 +41,6 @@ int EMSCRIPTEN_KEEPALIVE export_run(char *str) {
     if (guard_concurrency() < 0) return -1;
     _coldbrew_async = 0;
     _coldbrew_is_async = 0;
-    printf("BEFORE RUNSIMPLE\n");
     return PyRun_SimpleString(str);
 }
 
@@ -47,7 +48,6 @@ int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
     if (guard_concurrency() < 0) return -1;
     _coldbrew_async = 1;
     _coldbrew_is_async = 1;
-    printf("BEFORE RUNSIMPLEASYNC\n");
     int rval = PyRun_SimpleString_coldbrew_async(str);
     _coldbrew_is_async = 0;
     return rval;
@@ -69,21 +69,25 @@ int EMSCRIPTEN_KEEPALIVE export_chdir(char *path) {
 }
 
 int EMSCRIPTEN_KEEPALIVE export__runFile(char *path) {
-    char result[10000] = {0};
-    snprintf(result, sizeof(result), "%s%s%s", "Coldbrew._run_file('", path, "')");
-    return export_run(result);
+    if (guard_concurrency() < 0) return -1;
+    FILE* fp = fopen(path, "r");
+    if (fp == NULL) {
+        return export_runAsync("Coldbrew._error('The Python file to be run could not be found in the current working directory.')");
+    }
+    _coldbrew_async = 0;
+    _coldbrew_is_async = 0;
+    return PyRun_AnyFileEx(fp, path, 1);
 }
 
-int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *str) {
-    // if (guard_concurrency() < 0) return -1;
-    // char result[10000] = {0};
-    // snprintf(result, sizeof(result), "%s%s%s", "Coldbrew._run_file('", path, "')");
-    // printf("BEFORE RUN ASYNC\n");
+int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
     if (guard_concurrency() < 0) return -1;
+    FILE* fp = fopen(path, "r");
+    if (fp == NULL) {
+        return export_runAsync("Coldbrew._error('The Python file to be run could not be found in the current working directory.')");
+    }
     _coldbrew_async = 1;
     _coldbrew_is_async = 1;
-    printf("BEFORE RUNSIMPLEASYNC\n");
-    int rval = PyRun_SimpleString_coldbrew_async("Coldbrew._run_file('add.py')");
+    int rval = PyRun_AnyFileEx_coldbrew_async(fp, path, 1);
     _coldbrew_is_async = 0;
     return rval;
 }
@@ -109,7 +113,8 @@ int _coldbrew_python_initialize() {
         "            del sys.modules[__name__].__dict__[n]\n\n"
     );
     int rcode3 = PyRun_SimpleString("_coldbrew_save_context()");
-    return rcode1 | rcode2 | rcode3;
+    int rcode4 = PyRun_SimpleString("Coldbrew._builtins = __builtins__; Coldbrew._setup_import_handler()");
+    return rcode1 | rcode2 | rcode3 | rcode4;
 }
 
 int EMSCRIPTEN_KEEPALIVE export_reset() {

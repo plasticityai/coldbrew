@@ -60,6 +60,7 @@ $(BUILD)/.patched: $(TARBALL)
 	( \
 		cd $(BUILD); \
 		patch -b Python/ceval.c ../../../$(PYVERSION)/patches/add-interpreter-loop-yield.diffpatch; \
+		patch -b Objects/funcobject.c ../../../$(PYVERSION)/patches/log-func-call.diffpatch; \
 	)
 	touch $@
 

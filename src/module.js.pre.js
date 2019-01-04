@@ -305,9 +305,7 @@ var MODULE_NAME = {
         MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
       }
       MODULE_NAME.onReady(function() {
-        console.log('BEFORE');
         MODULE_NAME.runFunction('Coldbrew._append_argv', '<coldbrew>');
-        console.log('AFTER');
       });
       MODULE_NAME.onReady(onReadyFunc);
     });

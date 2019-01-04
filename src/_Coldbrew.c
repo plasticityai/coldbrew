@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <Python.h>
 
+extern int _lock_interp;
+extern int _coldbrew_async;
 extern int _coldbrew_is_async;
 
 static PyObject*
@@ -12,6 +14,35 @@ _Coldbrew_is_async(PyObject* self, PyObject* args)
   } else {
     Py_RETURN_FALSE;
   }
+}
+
+static PyObject*
+_Coldbrew__async_off(PyObject* self, PyObject* args)
+{
+    _lock_interp++;
+    printf("HERE0 %d\n", _lock_interp);
+    if (_coldbrew_async == 1) {
+      _coldbrew_async = 0;
+      Py_RETURN_TRUE;
+    } else {
+      Py_RETURN_FALSE;
+    }
+}
+
+static PyObject*
+_Coldbrew__async_on(PyObject* self, PyObject* args)
+{
+    _lock_interp--;
+    int off_res;
+    if (!PyArg_ParseTuple(args, "i", &off_res))
+        return NULL;
+    printf("HERE1 %d, %d\n", _lock_interp, off_res);
+    if (!_lock_interp && _coldbrew_async == 0 && off_res) {
+      _coldbrew_async = 1;
+      Py_RETURN_TRUE;
+    } else {
+      Py_RETURN_FALSE;     
+    }
 }
 
 static PyObject*
@@ -51,6 +82,8 @@ _Coldbrew__sleep(PyObject* self, PyObject* args)
 static PyMethodDef _ColdbrewMethods[] =
 {
      {"is_async", _Coldbrew_is_async, METH_VARARGS, NULL},
+     {"_async_off", _Coldbrew__async_off, METH_VARARGS, NULL},
+     {"_async_on", _Coldbrew__async_on, METH_VARARGS, NULL},
      {"run", _Coldbrew_run, METH_VARARGS, NULL},
      {"run_string", _Coldbrew_run_string, METH_VARARGS, NULL},
      {"_sleep", _Coldbrew__sleep, METH_VARARGS, NULL},

@@ -32,6 +32,9 @@ RUN rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
 # Install Makefile dependencies
 RUN apt-get install rsync -y
 
+# Install wasm-nm
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
 
 VOLUME /BUILD
 
