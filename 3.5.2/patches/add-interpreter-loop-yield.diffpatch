@@ -1,5 +1,5 @@
 --- build/3.5.2/Python-3.5.2/Python/ceval.c.orig	2016-06-25 14:38:38.000000000 -0700
-+++ build/3.5.2/Python-3.5.2/Python/ceval.c	2019-01-04 12:58:09.000000000 -0800
++++ build/3.5.2/Python-3.5.2/Python/ceval.c	2019-01-04 16:54:21.000000000 -0800
 @@ -17,6 +17,7 @@
  #include "opcode.h"
  #include "setobject.h"
@@ -34,15 +34,3 @@
  #ifdef WITH_TSC
          if (inst1 == 0) {
              /* Almost surely, the opcode executed a break
-@@ -3227,6 +3240,11 @@
-         }
- 
-         TARGET(CALL_FUNCTION) {
-+            printf("BEFORE CALL FUNCTION\n");
-+            if (_coldbrew_async) {
-+              emscripten_sleep(0);
-+            }
-+            printf("AFTER CALL FUNCTION\n");
-             PyObject **sp, *res;
-             PCALL(PCALL_ALL);
-             sp = stack_pointer;

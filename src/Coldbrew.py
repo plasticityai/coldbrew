@@ -5,7 +5,6 @@ import sys
 import time
 
 from _Coldbrew import *
-from _Coldbrew import _async_off, _async_on
 
 _slot_id = 1
 _exception = None
@@ -39,23 +38,6 @@ def exception_handler(exctype, value, tb):
 
 
 sys.excepthook = exception_handler
-
-_old___import__ = None
-def import_handler(*args):
-    off_res = _async_off()
-    print("ASYNC OFF", off_res)
-    try:
-        res = _old___import__(*args)
-    finally:
-        print("ASYNC ON", _async_on(off_res))
-    return res
-
-def _setup_import_handler():
-    global _builtins
-    global _old___import__
-    if _old___import__ is None:
-        _old___import__ = _builtins.__import__
-    _builtins.__import__ = import_handler
 
 def get_variable(expression):
     return json.loads(run_string("JSON.stringify("+expression+") || null"))

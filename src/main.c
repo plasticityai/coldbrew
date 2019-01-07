@@ -8,7 +8,6 @@
 #define STRINGIFY(X) STRINGIFY2(X)
 
 // Control variables for async-ifying the Python interpreter
-int _lock_interp = 0;
 int _coldbrew_async = 0;
 int _coldbrew_is_async = 0;
 int _coldbrew_async_yield_ops = 100; // By default, yield back to the JavaScript event loop every 100 Python bytecode instructions
@@ -21,7 +20,6 @@ void EMSCRIPTEN_KEEPALIVE _coldbrew_yield_to_javascript() {
 // Forward Declare Patched Python Functions
 int PyRun_SimpleString_coldbrew_async(char *prog);
 int PyRun_AnyFileEx_coldbrew_async(FILE *fp, const char *filename, int closeit);
-
 
 // Forward Declare Python Builtin Modules
 PyMODINIT_FUNC PyInit__Coldbrew(void);
@@ -72,7 +70,8 @@ int EMSCRIPTEN_KEEPALIVE export__runFile(char *path) {
     if (guard_concurrency() < 0) return -1;
     FILE* fp = fopen(path, "r");
     if (fp == NULL) {
-        return export_runAsync("Coldbrew._error('The Python file to be run could not be found in the current working directory.')");
+        emscripten_run_script("console.error('Coldbrew Error: The Python file to be run could not be found in the current working directory.')");
+        return -1;
     }
     _coldbrew_async = 0;
     _coldbrew_is_async = 0;
@@ -83,7 +82,8 @@ int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
     if (guard_concurrency() < 0) return -1;
     FILE* fp = fopen(path, "r");
     if (fp == NULL) {
-        return export_runAsync("Coldbrew._error('The Python file to be run could not be found in the current working directory.')");
+        emscripten_run_script("console.error('Coldbrew Error: The Python file to be run could not be found in the current working directory.')");
+        return -1;
     }
     _coldbrew_async = 1;
     _coldbrew_is_async = 1;
@@ -113,8 +113,7 @@ int _coldbrew_python_initialize() {
         "            del sys.modules[__name__].__dict__[n]\n\n"
     );
     int rcode3 = PyRun_SimpleString("_coldbrew_save_context()");
-    int rcode4 = PyRun_SimpleString("Coldbrew._builtins = __builtins__; Coldbrew._setup_import_handler()");
-    return rcode1 | rcode2 | rcode3 | rcode4;
+    return rcode1 | rcode2 | rcode3;
 }
 
 int EMSCRIPTEN_KEEPALIVE export_reset() {
