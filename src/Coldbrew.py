@@ -13,8 +13,8 @@ _builtins = None
 
 pyversion = os.environ['PYVERSION']
 version = os.environ['COLDBREW_VERSION']
-moduleName = os.environ['COLDBREW_MODULE_NAME']
-moduleNameLower = os.environ['COLDBREW_MODULE_NAME_LOWER']
+module_name = os.environ['COLDBREW_MODULE_NAME']
+module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 
 def sleep(time):
     if is_async():
@@ -51,15 +51,33 @@ def run_function_async(functionExpression, *args, **kwargs):
     uid = '_internal_pyslot_'+str(_slot_id)
     if is_async():
         run(functionExpression+'('+','.join([json.dumps(arg) for arg in args])+''').then(function(val) {
-                '''+moduleName+'''._slots["'''+uid+'''"] = val;
-                '''+moduleName+'''._resume_ie = true;
-                '''+moduleName+'''.resume(false);
+                '''+module_name+'''._slots["'''+uid+'''"] = val;
+                '''+module_name+'''._resume_ie = true;
+                '''+module_name+'''.resume(false);
             });''')
-        while get_variable('''(typeof '''+moduleName+'''._slots["'''+uid+'''"] === 'undefined')'''):
+        while get_variable('''(typeof '''+module_name+'''._slots["'''+uid+'''"] === 'undefined')'''):
             sleep(-1)
-        return get_variable(moduleName+'''._slots["'''+uid+'''"]''')
+        return get_variable(module_name+'''._slots["'''+uid+'''"]''')
     else:
         _error("Python tried to call an async JavaScript function "+json.dumps(functionExpression)+". Since you are not running in asynchronous mode, this is not allowed.")
+
+class StandardInput():
+    def readline(self):
+        linebuffer = ''
+        while True:
+            c = self.read(1)
+            linebuffer += c
+            if c == '\n' or c == '':
+                break
+        return linebuffer
+        
+    def read(self, size):
+        if is_async():
+            return run_function_async(module_name+'''.onStandardInReadAsync''', size)
+        else:
+            return run_function(module_name+'''.onStandardInRead''', size)
+
+sys.stdin = StandardInput()
 
 def _clear_argv():
     sys.argv.clear()
@@ -68,7 +86,7 @@ def _append_argv(arg):
     sys.argv.append(arg)
 
 def reset():
-    return run_function(moduleName+'.reset')
+    return run_function(module_name+'.reset')
 
 def _warn(message):
     if os.environ['COLDBREW_WARNINGS'] == '1':

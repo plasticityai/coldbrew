@@ -105,6 +105,8 @@ var MODULE_NAME = {
   forwardOut: true,
   forwardErr: true,
   _queuedOnReady: [],
+  standardInBuffer: 'This is the first line of standard input.\nTo override this, either set `MODULE_NAME.standardInBuffer` to the full standard input OR set `MODULE_NAME.onStandardInRead(int size)` to respond interactively to standard input reads OR set `MODULE_NAME.onStandardInReadAsync(int size)` to respond interactively and asynchronously (by returning a Promise).',
+  _standardInTell: 0,
   _resumeWarn: function(warn=true) { if (warn) { return MODULE_NAME.run('Coldbrew._warn("The Coldbrew Python interpreter is not currently sleeping. Resuming has no effect.")'); } else return 0; },
   resume: function(...args) { return MODULE_NAME._resumeWarn(...args); },
   _mountFS: function(Module) {},
@@ -112,6 +114,14 @@ var MODULE_NAME = {
   preRun: function(Module) {},
   onStandardOut: function(text) { console.log(text); },
   onStandardErr: function(text) { console.warn(text); },
+  onStandardInRead: function(size) { 
+    var read = MODULE_NAME.standardInBuffer.substring(MODULE_NAME._standardInTell, MODULE_NAME._standardInTell+size);
+    MODULE_NAME._standardInTell += size;
+    return read;
+  },
+  onStandardInReadAsync: function(size) { 
+    return Promise.resolve(MODULE_NAME.onStandardInRead(size));
+  },
   _onRuntimeInitialized: function(Module) {
     Module.callMain();
     MODULE_NAME._ORIGINAL_ENV_ = Object.assign({}, Module.ENV);
@@ -300,12 +310,22 @@ var MODULE_NAME = {
           }
         });
       };
-      MODULE_NAME.reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
+      MODULE_NAME._initializer = function() {
+        MODULE_NAME.run('Coldbrew._clear_argv()');
+        MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
+      };
+      MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
+      MODULE_NAME.reset = function() {
+        MODULE_NAME._standardInTell = 0;
+        var ret = MODULE_NAME._reset();
+        MODULE_NAME._initializer();
+        return ret;
+      };
       if (finalizedOptions.hideWarnings) {
         MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
       }
       MODULE_NAME.onReady(function() {
-        MODULE_NAME.runFunction('Coldbrew._append_argv', '<coldbrew>');
+        MODULE_NAME._initializer();
       });
       MODULE_NAME.onReady(onReadyFunc);
     });

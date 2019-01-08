@@ -13,7 +13,9 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 ### Demo
 ### Installation
 ### Running Python in JavaScript
+#### Running Python Asynchronously
 ### Running Python Files in JavaScript
+#### Running Python Files Asynchronously
 ### Running JavaScript in Python
 ### Communicating between JavaScript and Python
 ### Accessing the Virtual Filesystem
@@ -41,7 +43,7 @@ This isn't the most efficient way to run code in a browser. It is an interpreted
 
 2. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser.
 
-3. A quick-and-dirty solution to porting over Python code to the browser that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. Write once. Deploy anywhere.
+3. A quick-and-dirty solution to porting over Python code to the browser that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. (Write once. Deploy anywhere.)
 
 4. Access the [thousands of Python libraries](https://pypi.org/) that are not available in JavaScript. 
 
@@ -51,7 +53,7 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 
 * Python can access the system's file system. JavaScript cannot. However, a virtual file system is created and Python is run at the root of that virtual file system (`/`).
 
-* Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon that bug will be fixed and `threading` Coldbrew will support threading.
+* Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon that bug will be fixed and Coldbrew will support `threading`.
 
 * Python can access low-level networking like sockets. JavaScript cannot.
 
@@ -59,10 +61,14 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 
 A lot of these things can be "shimmed" in the future just like the virtual file system. Things like `/dev/random` and `/dev/urandom` are actually available even though there is no operating system because Emscripten shims these devices.
 
+## Security
+
+All Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
+
 ## Contributing
 The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/coldbrew).
 
-**Please note**: This library is being actively maintained as we use it. However, due to the nature of compiling a whole other language's interpreter into JavaScript using a tool like Emscripten, certain things might not work or be accessible due to Emscripten's limitations. If you want to contribute a PR to fix something, please feel free to, but if we have no need for whatever happens to be broken we will not fix or provide support for those issues ourselves.
+**Please note**: This library is being actively maintained as we use it. However, due to the nature of compiling a whole other language's interpreter into JavaScript using a tool like Emscripten, certain things might not work or be accessible due to Emscripten's limitations. If you want to contribute a PR to fix something, please feel free to, but if we have no need for whatever happens to be broken we will likely not fix or provide support for those issues ourselves. If it is simply a matter of exposing a library / function that wasn't exposed or another simple change, open an issue or PR and we'll see if we can add support.
 
 You can contact us at [opensource@plasticity.ai](mailto:opensource@plasticity.ai).
 

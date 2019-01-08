@@ -9,6 +9,8 @@ PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/');
 
 PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
+ROOT=$(abspath ..)
+BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 CUSTOMIZED_FILES=../customize/files
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
@@ -42,7 +44,7 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	cp $(MODULE_NAME_LOWER).* ../dist
 
 $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make prejs.js.pre.js module.js.pre.js Makefile
-	llvm-link $(filter %.bc,$^) > sources.o
+	llvm-link $(filter %.bc,$^) $(BUILD)/Modules/_sqlite/_sqlite.o > sources.o
 	llvm-extract -rglob="\.str*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > asyncpython-strings.o
 	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > sources+python.o
 	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o

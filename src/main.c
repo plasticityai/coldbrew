@@ -23,6 +23,7 @@ int PyRun_AnyFileEx_coldbrew_async(FILE *fp, const char *filename, int closeit);
 
 // Forward Declare Python Builtin Modules
 PyMODINIT_FUNC PyInit__Coldbrew(void);
+PyMODINIT_FUNC PyInit__sqlite3(void);
 
 // Gaurd for concurrency
 
@@ -141,6 +142,7 @@ int main(int argc, char** argv) {
     rmdir("/home/web_user");
     Py_SetProgramName((wchar_t*) STRINGIFY(MODULE_NAME_LOWER));
     PyImport_AppendInittab("_Coldbrew", PyInit__Coldbrew);
+    PyImport_AppendInittab("_sqlite3", PyInit__sqlite3);
     Py_InitializeEx(0);
     _coldbrew_python_initialize();
     emscripten_exit_with_live_runtime();
