@@ -39,6 +39,20 @@ def exception_handler(exctype, value, tb):
 
 sys.excepthook = exception_handler
 
+import importlib.abc
+import importlib.machinery
+import sys
+
+class ImportFinder(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        if fullname in sys.builtin_module_names:
+            return importlib.machinery.ModuleSpec(
+                fullname,
+                importlib.machinery.BuiltinImporter,
+            )
+
+sys.meta_path.append(ImportFinder())
+
 def get_variable(expression):
     return json.loads(run_string("JSON.stringify("+expression+") || null"))
 

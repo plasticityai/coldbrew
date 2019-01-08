@@ -1,1 +1,3 @@
 # Add requirements below in the standard `requirements.txt` format, these modules will be added to the Coldbrew Python environment so that they can be imported using `import`
+
+lz4

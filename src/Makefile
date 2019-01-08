@@ -11,6 +11,7 @@ PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
 ROOT=$(abspath ..)
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
+INSTALLS=$(ROOT)/installs
 CUSTOMIZED_FILES=../customize/files
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
@@ -32,6 +33,8 @@ EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHI
 SRCS := $(wildcard *.c)
 BCS := $(SRCS:.c=.bc)
 
+rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
+
 
 all: ../dist $(MODULE_NAME_LOWER).asm.js index.html
 
@@ -43,10 +46,10 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	mkdir -p ../dist
 	cp $(MODULE_NAME_LOWER).* ../dist
 
-$(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make prejs.js.pre.js module.js.pre.js Makefile
-	llvm-link $(filter %.bc,$^) $(BUILD)/Modules/_sqlite/_sqlite.o > sources.o
+$(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile
+	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so)) > sources.o
 	llvm-extract -rglob="\.str*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > asyncpython-strings.o
-	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > sources+python.o
+	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so) > sources+python.o
 	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
@@ -58,7 +61,6 @@ ifeq ($(BROWSERFS),true)
 	echo "" >> $@
 	cat ../third_party/browserfs/browserfs.min.js >> $@
 endif
-
 
 clean:
 	rm -rf ../build || true
@@ -82,8 +84,13 @@ clean:
 	rm index.html 2>/dev/null || true
 	rm module.js 2>/dev/null || true
 	rm prejs.js 2>/dev/null || true
+	rm main.c 2>/dev/null || true
 
-%.bc: %.c $(PYLIB) Makefile
+main.c: add_requirements.py main.c.pre.c
+	python add_requirements.py main.c.pre.c main.c
+
+
+%.bc: %.c $(PYLIB) Makefile main.c
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefile Coldbrew.py examples/add.py
@@ -93,6 +100,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefil
 	rm root/files/.gitkeep 2>/dev/null || true
 	mkdir -p root/usr/local/lib
 	rsync -rv --exclude=.DS_Store $(dir $(PYLIB))/python$(PYMINOR) root/usr/local/lib
+	rsync -rv --exclude=.DS_Store --exclude=".pyc" --exclude="*.so" ../customize/requirements/lib/python/site-packages/ root/usr/local/lib/python$(PYMINOR)/site-packages || true
 	rsync -rv --exclude=".pyc" examples root/coldbrew
 	cp Coldbrew.py root/usr/local/lib/python$(PYMINOR)/site-packages/Coldbrew.py
 	# Clean up unused modules
@@ -104,9 +112,26 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefil
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefile Coldbrew.py
 	touch root.make
 
-
 $(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/AsyncPathCreator.cpp ../$(PYVERSION)/Setup.local
 	make -C ../$(PYVERSION)
+
+requirements.make: ../customize/requirements.txt
+	( \
+		rm -rf ../customize/requirements || true; \
+		python -m venv ../customize/requirements; \
+		mv /usr/local/include/python* /usr/local/include/python.bak || true; \
+		/bin/bash -c "source ../customize/requirements/bin/activate && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip install -r ../customize/requirements.txt -vvv --no-binary :all:"; \
+		mv ../customize/requirements/lib/python*/ ../customize/requirements/lib/python/ || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/*.dist-info || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/*.egg-info || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/pkg_resources || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/setuptools || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/setuptools* || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/pip || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/pip* || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/*.py || true; \
+		rm -rf ../customize/requirements/lib/python/site-packages/__pycache__ || true; \
+	)
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)
 	( \

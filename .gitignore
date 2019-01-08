@@ -21,3 +21,4 @@ dist
 src/index.html
 src/module.js
 src/prejs.js
+src/main.c

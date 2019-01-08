@@ -24,9 +24,7 @@ int PyRun_AnyFileEx_coldbrew_async(FILE *fp, const char *filename, int closeit);
 // Forward Declare Python Builtin Modules
 PyMODINIT_FUNC PyInit__Coldbrew(void);
 PyMODINIT_FUNC PyInit__sqlite3(void);
-PyMODINIT_FUNC PyInit__version(void);
-PyMODINIT_FUNC PyInit__block(void);
-PyMODINIT_FUNC PyInit__frame(void);
+// ***REQUIREMENTS_PYINITS*** *DO NOT TOUCH*
 
 // Gaurd for concurrency
 
@@ -146,9 +144,7 @@ int main(int argc, char** argv) {
     Py_SetProgramName((wchar_t*) STRINGIFY(MODULE_NAME_LOWER));
     PyImport_AppendInittab("_Coldbrew", PyInit__Coldbrew);
     PyImport_AppendInittab("_sqlite3", PyInit__sqlite3);
-        PyImport_AppendInittab("lz4._version", PyInit__version);
-    PyImport_AppendInittab("lz4.block._block", PyInit__block);
-    PyImport_AppendInittab("lz4.frame._frame", PyInit__frame);
+    // ***REQUIREMENTS_IMPORTS*** *DO NOT TOUCH*
     Py_InitializeEx(0);
     _coldbrew_python_initialize();
     emscripten_exit_with_live_runtime();
