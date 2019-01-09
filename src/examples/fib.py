@@ -3,9 +3,9 @@
 # native CPython interpreter.
 #
 # There are 3 Fibonacci implementations that test various types of workloads
-# 1) Recursive Fibonacci - Helps tests workloads that are that are CPU bound and function call heavy
-# 2) Iterative Fibonacci - Helps tests workloads that are CPU bound and not function call heavy
-# 3) FileIO Iterative Fibonacci - Helps tests workloads that are IO bound
+# 1) Recursive Fibonacci - Helps test workloads that are that are CPU bound and function call heavy
+# 2) Iterative Fibonacci - Helps test workloads that are CPU bound and not function call heavy
+# 3) FileIO Iterative Fibonacci - Helps test workloads that are IO bound
 
 import argparse
 import json
