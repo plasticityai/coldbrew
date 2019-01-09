@@ -1,6 +1,7 @@
 COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import version; print(version.__version__)")
 MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
+DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
@@ -21,7 +22,7 @@ CC=emcc
 OPTFLAGS=-O3
 CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS)
 LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
-  -s TOTAL_MEMORY=268435456 \
+  -s TOTAL_MEMORY=$(DEFAULT_MEMORY) \
   -s EMULATE_FUNCTION_POINTER_CASTS=1 \
   -s EXPORTED_FUNCTIONS='["_main"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "ENV"]' \
   $(PTHREAD_LDFLAGS) \
@@ -109,12 +110,12 @@ main.c: add_requirements.py main.c.pre.c ../customize/requirements.txt
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py examples/add.py slim_data_bundle.py
 	rm -rf root
 	mkdir -p root/files || true
-	rsync -rv --exclude=.DS_Store --exclude=".pyc" $(CUSTOMIZED_FILES) root/files
+	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root/files
 	rm root/files/.gitkeep 2>/dev/null || true
 	mkdir -p root/usr/local/lib
 	rsync -rv --exclude=.DS_Store $(dir $(PYLIB))/python$(PYMINOR) root/usr/local/lib
-	rsync -rv --exclude=.DS_Store --exclude=".pyc" --exclude="*.so" ../customize/requirements/lib/python/site-packages/ root/usr/local/lib/python$(PYMINOR)/site-packages || true
-	rsync -rv --exclude=".pyc" examples root/coldbrew
+	rsync -rv --exclude=.DS_Store --exclude="*.pyc" --exclude="*.so" ../customize/requirements/lib/python/site-packages/ root/usr/local/lib/python$(PYMINOR)/site-packages || true
+	rsync -rv --exclude="*.pyc" examples root/coldbrew
 	cp Coldbrew.py root/usr/local/lib/python$(PYMINOR)/site-packages/Coldbrew.py
 	# Clean up unused modules
 	( \
