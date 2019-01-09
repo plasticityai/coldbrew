@@ -1,8 +1,14 @@
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+
 build
 cache
 downloads
 installs
 dist
+customize/requirements
 
 **/*.bc
 **/*.asm.js
