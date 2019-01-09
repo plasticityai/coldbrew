@@ -1,8 +1,11 @@
 # If you want to customize the module name, edit the line below
 MODULE_NAME = "Coldbrew"
 
-# Disables BrowserFS attachment
+# Controls whether to enable the BrowserFS attachment
 BROWSERFS = False
+
+# Controls whether to enable the JSZip attachment
+JSZIP = True
 
 # This can be helpful for asm.js, but does more harm than good when using WASM
 # AGGRESSIVE_VARIABLE_ELIMINATION="-s AGGRESSIVE_VARIABLE_ELIMINATION=1"

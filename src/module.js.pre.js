@@ -221,6 +221,7 @@ var MODULE_NAME = {
     }
     MODULE_NAME._fsReady(function(err, mountPoints) {
       MODULE_NAME._slots = {};
+      MODULE_NAME._textDecoder = new TextDecoder("utf-8");
       MODULE_NAME.mountPoints = mountPoints;
       MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
       MODULE_NAME.pyversion =  "PYVERSION";
@@ -261,6 +262,132 @@ var MODULE_NAME = {
       MODULE_NAME.setenv = MODULE_NAME.Module.cwrap('export_setenv', 'number', ['string', 'string']);
       MODULE_NAME.unsetenv = MODULE_NAME.Module.cwrap('export_unsetenv', 'number', ['string']);
       MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
+      MODULE_NAME.listFiles = function(path='/') {
+        return MODULE_NAME.Module.FS.readdir(path)
+          .filter(function(file) {
+            return file !== '.' && file !== '..';
+          })
+          .map(function (file) {
+            var analyzed = MODULE_NAME.Module.FS.analyzePath(path+'/'+file);
+            return {
+              file: file,
+              isFolder: analyzed.object.isFolder,
+              isFile: !analyzed.object.isFolder,
+              mode: analyzed.object.mode,
+              timestamp: analyzed.object.timestamp,
+            }
+          });
+      };
+      MODULE_NAME.addFile = function(path, data) {
+        if (path.indexOf('/') >= 0) {
+          MODULE_NAME.Module.FS.mkdirTree(path.split('/').slice(0,-1).join("/"));
+        }
+        MODULE_NAME.Module.FS.writeFile(path, data);
+      };
+      if (JSZIP) {
+        MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
+          return new JSZip.external.Promise(function (resolve, reject) {
+            JSZipUtils.getBinaryContent(urlToZip, function(err, data) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data);
+                }
+            });
+          })
+          .then(JSZip.loadAsync)
+          .then(function(zip) {
+            return Promise.all(Object.keys(zip.files).map(function(file) {
+              if (!zip.files[file].dir) {
+                return zip.files[file].async("string").then(function(textData) {
+                  MODULE_NAME.addFile(path+'/'+file, textData);
+                });
+              } else {
+                return Promise.resolve(undefined);
+              }
+            }));
+          });
+        };
+      }
+      MODULE_NAME.readFile = function(path) {
+        return MODULE_NAME._textDecoder.decode(MODULE_NAME.Module.FS.readFile(path));
+      };
+      MODULE_NAME.readBinaryFile = function(path) {
+        return MODULE_NAME.Module.FS.readFile(path);
+      };
+      MODULE_NAME.pathExists = function(path) {
+        var analyzed = MODULE_NAME.Module.FS.analyzePath(path);
+        var exists = analyzed.exists;
+        if (!exists) {
+          return null;
+        } else {
+          return {
+              isFolder: analyzed.object.isFolder,
+              isFile: !analyzed.object.isFolder,
+              mode: analyzed.object.mode,
+              timestamp: analyzed.object.timestamp,
+          };
+        }
+      };
+      MODULE_NAME.deletePath = function(path) {
+        var deleteHelper = function(path) {
+          if (MODULE_NAME.Module.FS.analyzePath(path).object 
+            && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
+            var fileList = MODULE_NAME.listFiles(path);
+            if (fileList.length > 0) {
+              fileList.forEach(function (file) {
+                deleteHelper(path+'/'+file.file);
+              });
+            }
+            MODULE_NAME.Module.FS.rmdir(path);
+          } else {
+            MODULE_NAME.Module.FS.unlink(path);
+          }
+        };
+        if (path.length > 0 && path.slice(-1) === '/') {
+          path = path.slice(0, -1);
+        }
+        deleteHelper(path);
+        return true;
+      };
+      MODULE_NAME.saveFiles = function() {
+        var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
+          var isPersist = mountPoints[mountPoint] & 2;
+          return !!isPersist;
+        }).includes(true);
+        return new Promise(function (resolve, reject) {
+          if (isPersistable) {
+            return MODULE_NAME.Module.FS.syncfs(0, function(err) {
+              if (err) {
+                  reject(err);
+              } else {
+                  resolve(true);
+              }
+            });
+          } else {
+            reject(new Error("The file system was not configured to persist any paths."));
+          }
+        });
+      };
+      MODULE_NAME.loadFiles = function() {
+        var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
+          var isPersist = mountPoints[mountPoint] & 2;
+          return !!isPersist;
+        }).includes(true);
+        return new Promise(function (resolve, reject) {
+          if (isPersistable) {
+            return MODULE_NAME.Module.FS.syncfs(1, function(err) {
+              if (err) {
+                  reject(err);
+              } else {
+                  resolve(true);
+              }
+            });
+          } else {
+            reject(new Error("The file system was not configured to persist any paths."));
+          }
+        });
+      };
       MODULE_NAME.runFile = function(path, options={}) {
         var defaultOptions = {
           cwd: null,

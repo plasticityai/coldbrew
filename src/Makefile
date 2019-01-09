@@ -4,6 +4,7 @@ MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
+JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
 
@@ -51,8 +52,8 @@ $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pr
 	llvm-extract -rglob="\.str*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > asyncpython-strings.o
 	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so) > sources+python.o
 	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o
-	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
-	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
+	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
+	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
 	$(CC) -o $@ sources+python+strings.o $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
 		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
 	echo "" >> $@
@@ -60,6 +61,11 @@ $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pr
 ifeq ($(BROWSERFS),true)
 	echo "" >> $@
 	cat ../third_party/browserfs/browserfs.min.js >> $@
+endif
+ifeq ($(JSZIP),true)
+	echo "" >> $@
+	cat ../third_party/jszip/jszip.min.js >> $@
+	cat ../third_party/jszip/jszip-utils.min.js >> $@
 endif
 
 clean:
@@ -93,7 +99,7 @@ main.c: add_requirements.py main.c.pre.c
 %.bc: %.c $(PYLIB) Makefile main.c
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefile Coldbrew.py examples/add.py
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py examples/add.py
 	rm -rf root
 	mkdir -p root/files || true
 	rsync -rv --exclude=.DS_Store --exclude=".pyc" $(CUSTOMIZED_FILES) root/files
@@ -109,7 +115,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefil
 		rm -fr $(UNUSED_MODULES); \
 	)
 
-root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Makefile Coldbrew.py
+root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
 
 $(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/AsyncPathCreator.cpp ../$(PYVERSION)/Setup.local
