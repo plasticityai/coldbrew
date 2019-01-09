@@ -19,3 +19,7 @@ UNUSED_MODULES = "test distutils ensurepip idlelib __pycache__ tkinter"
 # PTHREAD_LDFLAGS = "-s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4"
 PTHREAD_CFLAGS = ""
 PTHREAD_LDFLAGS = ""
+
+
+# Controls whether to enable debugging symbols and assertions
+DEBUG_MODE = False

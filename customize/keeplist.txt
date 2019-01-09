@@ -1,0 +1,4 @@
+# If you want to slim the `.data` bundle to a smaller file size by removing un-needed library files that your program doesn't use, list the files below (one pattern per line) from `/usr/local/lib/` that you do want to keep. Any other files will be removed at build time. You can also use glob patterns (`*` or `**`) if needed. By default, all library files are kept (`/usr/local/lib/*`, `/usr/local/lib/**/*`). Coldbrew can help you generate a good `keeplist.txt` by using the `monitorFileUsage: true` option in the Coldbrew constructor options dictionary and the `Coldbrew.getUsedFiles()` method after running through all code paths in your program.
+
+/usr/local/lib/* # Keeps all library files, by default
+/usr/local/lib/**/* # Keeps all library files, by default

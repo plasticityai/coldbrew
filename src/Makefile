@@ -7,6 +7,8 @@ BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from 
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
+SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g3 ' if DEBUG_MODE else '  ')")
+ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE else '  ')")
 
 PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
@@ -18,14 +20,14 @@ PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
 OPTFLAGS=-O3
 CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS)
-LDFLAGS=$(OPTFLAGS) -g3 \
+LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
   -s TOTAL_MEMORY=268435456 \
   -s EMULATE_FUNCTION_POINTER_CASTS=1 \
   -s EXPORTED_FUNCTIONS='["_main"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "ENV"]' \
   $(PTHREAD_LDFLAGS) \
   $(AGGRESSIVE_VARIABLE_ELIMINATION) \
   --memory-init-file 0 \
-  --llvm-lto 1 -s ASSERTIONS=1
+  --llvm-lto 1 $(ASSERTIONS_DEBUG_MODE)
 ALLOWMEMORYGROWTHFLAGS = -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy
 PREJSFLAGS = --pre-js prejs.js
 MODULARIZEFLAGS = -s MODULARIZE=1 -s EXPORT_NAME="'_$(MODULE_NAME)_coldbrew_internal_'"
@@ -46,6 +48,10 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	rm -rf ../dist
 	mkdir -p ../dist
 	cp $(MODULE_NAME_LOWER).* ../dist
+	cp index.html ../dist
+	rm ../dist/*.wasm.pre
+	rm ../dist/*.orig.js
+	rm ../dist/*.wast
 
 $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile
 	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so)) > sources.o
@@ -69,6 +75,7 @@ ifeq ($(JSZIP),true)
 endif
 
 clean:
+	rm -rf ../cache || true
 	rm -rf ../build || true
 	rm -rf ../downloads || true
 	rm -rf ../installs || true
@@ -92,14 +99,14 @@ clean:
 	rm prejs.js 2>/dev/null || true
 	rm main.c 2>/dev/null || true
 
-main.c: add_requirements.py main.c.pre.c
+main.c: add_requirements.py main.c.pre.c ../customize/requirements.txt
 	python add_requirements.py main.c.pre.c main.c
 
 
 %.bc: %.c $(PYLIB) Makefile main.c
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py examples/add.py
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py examples/add.py slim_data_bundle.py
 	rm -rf root
 	mkdir -p root/files || true
 	rsync -rv --exclude=.DS_Store --exclude=".pyc" $(CUSTOMIZED_FILES) root/files
@@ -114,6 +121,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 		cd root/usr/local/lib/python$(PYMINOR); \
 		rm -fr $(UNUSED_MODULES); \
 	)
+	python slim_data_bundle.py
 
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
@@ -137,6 +145,7 @@ requirements.make: ../customize/requirements.txt
 		rm -rf ../customize/requirements/lib/python/site-packages/pip* || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.py || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/__pycache__ || true; \
+		touch requirements.make \
 	)
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)

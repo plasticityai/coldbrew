@@ -212,8 +212,9 @@ var MODULE_NAME = {
       onReadyFunc = arg2;
     }
     var defaultOptions = {
-      preRun: function(Module) {},
-      configureFS: null,
+      fsOptions: {},
+      hideWarnings: false,
+      monitorFileUsage: false,
     };
     var finalizedOptions = Object.assign({}, defaultOptions, options);
     if (finalizedOptions.fsOptions) {
@@ -222,6 +223,7 @@ var MODULE_NAME = {
     MODULE_NAME._fsReady(function(err, mountPoints) {
       MODULE_NAME._slots = {};
       MODULE_NAME._textDecoder = new TextDecoder("utf-8");
+      MODULE_NAME._usedFiles = new Set();
       MODULE_NAME.mountPoints = mountPoints;
       MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
       MODULE_NAME.pyversion =  "PYVERSION";
@@ -440,6 +442,9 @@ var MODULE_NAME = {
       MODULE_NAME._initializer = function() {
         MODULE_NAME.run('Coldbrew._clear_argv()');
         MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
+        if (finalizedOptions.hideWarnings) {
+          MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
+        }
       };
       MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
       MODULE_NAME.reset = function() {
@@ -448,9 +453,19 @@ var MODULE_NAME = {
         MODULE_NAME._initializer();
         return ret;
       };
-      if (finalizedOptions.hideWarnings) {
-        MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
+      if (finalizedOptions.monitorFileUsage) {
+        console.warn('Coldbrew is monitoring file usage...use `MODULE_NAME.getUsedFiles()` after running through all relevant code paths in your Python program.');
+        var _oldOpen = MODULE_NAME.Module.FS.open.bind(MODULE_NAME.Module.FS);
+        MODULE_NAME.Module.FS.open = function(...args) {
+          if (args[0].startsWith && args[0].startsWith('/usr/local/lib/python')) {
+            MODULE_NAME._usedFiles.add(args[0]);
+          }
+          return _oldOpen(...args)
+        };
       }
+      MODULE_NAME.getUsedFiles = function() {
+        return Array.from(MODULE_NAME._usedFiles).join('\n');
+      };
       MODULE_NAME.onReady(function() {
         MODULE_NAME._initializer();
       });
