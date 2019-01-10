@@ -112,3 +112,6 @@ def _warn(message):
 def _error(message):
     run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
     raise RuntimeError()
+
+# Import Shims
+import ColdbrewHTTPShim

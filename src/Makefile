@@ -119,6 +119,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" --exclude="*.so" ../customize/requirements/lib/python/site-packages/ root/usr/local/lib/python$(PYMINOR)/site-packages || true
 	rsync -rv --exclude="*.pyc" examples root/coldbrew
 	cp Coldbrew.py root/usr/local/lib/python$(PYMINOR)/site-packages/Coldbrew.py
+	cp Coldbrew*Shim.py root/usr/local/lib/python$(PYMINOR)/site-packages/
 	# Clean up unused modules
 	( \
 		cd root/usr/local/lib/python$(PYMINOR); \

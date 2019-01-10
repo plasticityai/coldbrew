@@ -27,4 +27,6 @@ _sha256 sha256module.c
 _sha512 sha512module.c
 _md5 md5module.c
 
+mmap mmapmodule.c
+
 #future_builtins future_builtins.c
