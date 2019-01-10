@@ -26,6 +26,7 @@
                 MODULE_NAME.load(function() { console.log("Finished loading MODULE_NAME!") });
             </code>
         </p>
+        <hr />
         <p>
             Once loaded, you can interact with Python. For example, to print the version of Python run the following in the browser console:<br/>
             <div class="pre-code"></div>
@@ -34,6 +35,7 @@
                 MODULE_NAME.run("print('The current Python version is:', sys.version)");
             </code>
         </p>
+        <hr />
         <p>
             You can also issue multiple commands in the same function call, to see this, run the following in the browser console:<br/>
             <div class="pre-code"></div>
@@ -41,6 +43,7 @@
                 MODULE_NAME.run(["x = [i for i in range(10)]","print(x)"].join("\n"));
             </code>
         </p>
+        <hr />
         <p>
             You can run a Python file with arguments and environment variables specified, to see this, run the following in the browser console:<br/>
             <div class="pre-code"></div>
@@ -48,6 +51,7 @@
                 MODULE_NAME.runFile('add.py', {cwd:'/coldbrew/examples', env:{}, args:['5', '15']});
             </code>
         </p>
+        <hr />
         <p>
             You can run Python code asynchronously, which won't lock up the browser for long-running code. <br/>See the difference between running this:<br/>
             <div class="pre-code"></div>
@@ -62,6 +66,7 @@
                 MODULE_NAME.run('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
         </p>
+        <hr />
         <p>
             See more documentation on <a href="https://github.com/plasticityai/coldbrew">GitHub</a> on interacting with the virtual filesystem, installing modules, interacting with the environment, running Python asynchronously, communicating bi-directionally between the two languages, building a custom Coldbrew Python environment, and more.
         </p>
