@@ -11,10 +11,6 @@
                 font-family: Roboto, Avenir, Myriad Pro, Futura, "Helvetica Neue", Helvetica, Arial, sans-serif;
             }
 
-            p {
-                padding: 10px 0;
-            }
-
             .pre-code {
                 padding: 5px 0;
             }
@@ -25,14 +21,14 @@
         <h1>Coldbrew: Run Python in JavaScript</h1>
         <p>
             MODULE_NAME is installed on this page through <a href="MODULE_NAME_LOWER.asm.js"><code>MODULE_NAME_LOWER.asm.js</code></a>.<br/>Open the browser console and load Coldbrew with:
-            <div class=".pre-code"></div>
+            <div class="pre-code"></div>
             <code>
                 MODULE_NAME.load(function() { console.log("Finished loading MODULE_NAME!") });
             </code>
         </p>
         <p>
             Once loaded, you can interact with Python. For example, to print the version of Python run the following in the browser console:<br/>
-            <div class=".pre-code"></div>
+            <div class="pre-code"></div>
             <code>
                 MODULE_NAME.run("import sys");<br/>
                 MODULE_NAME.run("print('The current Python version is:', sys.version)");
@@ -40,9 +36,30 @@
         </p>
         <p>
             You can also issue multiple commands in the same function call, to see this, run the following in the browser console:<br/>
-            <div class=".pre-code"></div>
+            <div class="pre-code"></div>
             <code>
                 MODULE_NAME.run(["x = [i for i in range(10)]","print(x)"].join("\n"));
+            </code>
+        </p>
+        <p>
+            You can run a Python file with arguments and environment variables specified, to see this, run the following in the browser console:<br/>
+            <div class="pre-code"></div>
+            <code>
+                MODULE_NAME.runFile('add.py', {cwd:'/coldbrew/examples', env:{}, args:['5', '15']});
+            </code>
+        </p>
+        <p>
+            You can run Python code asynchronously, which won't lock up the browser for long-running code. <br/>See the difference between running this:<br/>
+            <div class="pre-code"></div>
+            <code>
+                for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
+                MODULE_NAME.runAsync('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
+            </code>
+            <p>And this:</p>
+            <div class="pre-code"></div>
+            <code>
+                for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
+                MODULE_NAME.run('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
         </p>
         <p>
