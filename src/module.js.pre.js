@@ -201,6 +201,9 @@ var MODULE_NAME = {
     );
   },
   load: function(arg1, arg2) {
+    if (window.location.protocol === 'file:') {
+      throw new Error("You are trying to run this HTML file under a `file://` URL. This is not supported. You must run this file under a HTTP server under a `http://` or `https://` protocol. On most computers, you can do this by opening terminal, navigating to where this HTML file is, and running either `python -m SimpleHTTPServer` for Python 2 or `python3 -m http.server` for Python 3. Then, you can navigate to `http://localhost:8000` in a web browser to see this file. Alternatively, if you have downloaded the Coldbrew source code, you can just run `./serve.sh` from the project root and navigate to `http://localhost:8000` in a web browser to see this file after building.");
+    } 
     var onReadyFunc = null;
     var options = {};
     if (!arg2 && typeof arg1 == 'function') {

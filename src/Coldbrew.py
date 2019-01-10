@@ -16,11 +16,14 @@ version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 
-def sleep(time):
+def sleep(t):
     if is_async():
-        _Coldbrew._sleep(time)
+        _Coldbrew._sleep(t)
     else:
-        _warn("Python tried to call sleep(). Since you are not running in asynchronous mode, sleep() has no effect.")
+        _warn("Python tried to call sleep("+str(t)+"). Since you are not running in asynchronous mode, sleep() will busy wait (https://en.wikipedia.org/wiki/Busy_waiting) and lock the browser until the sleep is completed.")
+        stime = time.time()
+        while time.time()-stime < t:
+            pass
 
 time.sleep = sleep # Monkey patch the Python sleep() to run our version sleep()
 

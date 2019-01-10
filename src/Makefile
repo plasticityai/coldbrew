@@ -108,7 +108,9 @@ main.c: add_requirements.py main.c.pre.c ../customize/requirements.txt
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py examples/add.py slim_data_bundle.py
-	rm -rf root
+	rm -rf root || true
+	rm -rf root || true
+	rm -rf root || true
 	mkdir -p root/files || true
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root/files
 	rm root/files/.gitkeep 2>/dev/null || true

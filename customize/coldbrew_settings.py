@@ -1,8 +1,8 @@
 # If you want to customize the module name, edit the line below
 MODULE_NAME = "Coldbrew"
 
-# Controls the default amount of memory to allocate for the program (it can grow beyond this)
-DEFAULT_MEMORY = 268435456
+# Controls the default amount of memory (must be a multiple of 64KB or 524288) to allocate for the program (it can grow beyond this)
+DEFAULT_MEMORY = 524288 * 512
 
 # Controls whether to enable the BrowserFS attachment
 BROWSERFS = False
