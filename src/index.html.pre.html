@@ -57,13 +57,13 @@
             <div class="pre-code"></div>
             <code>
                 for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
-                MODULE_NAME.runAsync('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
+                MODULE_NAME.<b>runAsync</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
             <p>And this:</p>
             <div class="pre-code"></div>
             <code>
                 for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
-                MODULE_NAME.run('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
+                MODULE_NAME.<b>run</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
         </p>
         <hr />
