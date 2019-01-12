@@ -1,5 +1,34 @@
 (function() {
 
+class JavaScriptError extends Error {
+  constructor(...args) {
+    super(...args)
+    Error.captureStackTrace(this, JavaScriptError);
+  }
+}
+
+class HTTPResponseError extends Error {
+  constructor(...args) {
+    super(...args)
+    Error.captureStackTrace(this, HTTPResponseError);
+  }
+}
+
+class HTTPAbortError extends Error {
+  constructor(...args) {
+    super(...args)
+    Error.captureStackTrace(this, HTTPAbortError);
+  }
+}
+
+class HTTPTimeoutError extends Error {
+  constructor(...args) {
+    super(...args)
+    Error.captureStackTrace(this, HTTPTimeoutError);
+  }
+}
+
+
 function randid() {
   return 'rxxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -29,6 +58,73 @@ function base64decode(string) {
                 : String.fromCharCode(bitmap >> 16 & 255, bitmap >> 8 & 255, bitmap & 255);
     }
     return result;
+}
+
+function sendRequest(method, url, body, headers, timeout) {
+  return new Promise(function (resolve, reject) {
+    var request = new XMLHttpRequest();
+    if (timeout !== null) {
+      request.timeout = timeout * 1000;
+    }
+    request.open(method, url, true);
+    Object.keys(headers).forEach(function(header) {
+      if (!["host", "connection", "user-agent"].includes(header.toLowerCase())) {
+        request.setRequestHeader(header, headers[header]);
+      }
+    });
+    request.onreadystatechange = function () {
+      var headers = this.getAllResponseHeaders();
+      headers += 'content-length: '+this.responseText.length.toString()+'\r\n';
+      if (this.readyState === 4) {
+        if (this.status >= 200 && this.status < 400) {
+          resolve({
+            status: this.status,
+            statusText: this.statusText,
+            responseText: this.responseText,
+            responseType: this.responseType,
+            responseURL: this.responseURL,
+            headers: headers,
+          });
+        } else {
+          var e = new HTTPResponseError("The request has failed.");
+          e.errorData = {
+            status: this.status,
+            statusText: this.statusText,
+            responseText: this.responseText,
+            responseType: this.responseType,
+            responseURL: this.responseURL,
+            headers: headers,
+          }
+          reject(e);
+        }
+      }
+    };
+    request.ontimeout = function () {
+      var e = new HTTPTimeoutError("The request has timed out.");
+      e.errorData = {
+        status: 0,
+        statusText: "",
+        responseText: "",
+        responseType: "",
+        responseURL: url,
+        headers: this.getAllResponseHeaders(),
+      }
+      reject(e);
+    };
+    request.onabort = function () {
+      var e = new HTTPAbortError("The request has been aborted.");
+      e.errorData = {
+        status: 0,
+        statusText: "",
+        responseText: "",
+        responseType: "",
+        responseURL: url,
+        headers: this.getAllResponseHeaders(),
+      }
+      reject(e);
+    };
+    request.send(body);
+  });
 }
 
 var global = (typeof window === 'object') ? window : global;
@@ -484,6 +580,7 @@ var MODULE_NAME = {
       }
     }
   },
+  _sendRequest: sendRequest,
 };
 
 if (typeof module !== 'undefined') module.exports = MODULE_NAME;
