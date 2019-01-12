@@ -23,7 +23,8 @@ class SSLContext():
     def load_cert_chain(self, *args):
         return None
 
-def _send_request(self, method, url, body, headers):
+def putrequest(self, method, url, skip_host=False, skip_accept_encoding=False):
+    self._coldbrew_method = method
     if type(self) == http.client.HTTPConnection:
         new_url = 'http://'+self.host
         if self.port != 80:
@@ -36,12 +37,24 @@ def _send_request(self, method, url, body, headers):
             new_url += ':'+str(self.port)
         new_url += url
         url = new_url
+    self._coldbrew_url = url
+
+def putheader(self, header, *args):
+    if not hasattr(self, '_coldbrew_headers'):
+        self._coldbrew_headers = {}
+    self._coldbrew_headers[header] = '\r\n\t'.join(args)
+
+def endheaders(self, message_body=None, *, encode_chunked=False):
+    self._coldbrew_body = message_body or ""
     timeout = None
     if type(self.timeout) == int:
         timeout = self.timeout
-    self.sock = Socket(Coldbrew.run_function_async(Coldbrew.module_name+'._sendRequest', method, url, body, headers, timeout))
+    self.sock = Socket(Coldbrew.run_function_async(Coldbrew.module_name+'._sendRequest', self._coldbrew_method, self._coldbrew_url, self._coldbrew_body, self._coldbrew_headers, timeout))
     self.__state = http.client._CS_REQ_SENT
     self.__response = None
+
+def send(self, *args, **kwargs):
+    pass
 
 def getresponse(self, *args):
     if self.debuglevel > 0:
@@ -74,18 +87,31 @@ def getresponse(self, *args):
 def connect(self):
     pass
 
+def set_tunnel(self, *args, **kwargs):
+    return None
+
 def close(self):
     if hasattr(self, 'sock') and self.sock is not None:
         self.sock.close()
 
-http.client.HTTPConnection._send_request = _send_request
+
+
+http.client.HTTPConnection.putrequest = putrequest
+http.client.HTTPConnection.putheader = putheader
+http.client.HTTPConnection.endheaders = endheaders
+http.client.HTTPConnection.send = send
 http.client.HTTPConnection.getresponse = getresponse
 http.client.HTTPConnection.connect = connect
+http.client.HTTPConnection.set_tunnel = set_tunnel
 http.client.HTTPConnection.close = close
 
-http.client.HTTPSConnection._send_request = _send_request
+http.client.HTTPSConnection.putrequest = putrequest
+http.client.HTTPSConnection.putheader = putheader
+http.client.HTTPSConnection.endheaders = endheaders
+http.client.HTTPSConnection.send = send
 http.client.HTTPSConnection.getresponse = getresponse
 http.client.HTTPSConnection.connect = connect
+http.client.HTTPSConnection.set_tunnel = set_tunnel
 http.client.HTTPSConnection.close = close
 
 ssl._create_default_https_context = lambda *args: SSLContext()
