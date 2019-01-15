@@ -196,6 +196,23 @@ global._MODULE_NAME_coldbrew_internal_fs_configure = (function() {
 })();
 
 var MODULE_NAME = {
+  _convertError: function (e) {
+    return {
+      '_internal_coldbrew_error': true,
+      'type': e.constructor.name,
+      'name': e.name,
+      'message': e.message,
+      'stack': e.stack,
+      'data': (typeof e.errorData !== 'undefined') ? e.errorData : null,
+    };
+  },
+  _try: function(func) {
+    try {
+      return func();
+    } catch (e) {
+      return MODULE_NAME._convertError(e);
+    }
+  },
   loaded: false,
   exited: false,
   forwardOut: true,

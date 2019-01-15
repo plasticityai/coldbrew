@@ -43,6 +43,8 @@ def exception_handler(exctype, value, tb):
             'filename': tb.tb_frame.f_code.co_filename,
             'tb_lineno': tb.tb_lineno,
         }
+    if hasattr(value, 'error_data'):
+        _exception['error_data'] = value.error_data
     _old_excepthook(exctype, value, tb)
 
 
@@ -62,11 +64,26 @@ class ImportFinder(importlib.abc.MetaPathFinder):
 
 sys.meta_path.append(ImportFinder())
 
+class JavaScriptError(Exception):
+    pass
+
 def get_variable(expression):
-    return json.loads(run_string("JSON.stringify("+expression+") || null"))
+    val = json.loads(run_string("JSON.stringify("+expression+") || null"))
+    if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
+        error = JavaScriptError(val['type']+": "+val['message'])
+        error.error_data = {
+            'type': val['type'],
+            'name': val['name'],
+            'message': val['message'],
+            'stack': val['stack'],
+            'data': val['data'],
+        }
+        raise error
+    else:
+        return val
 
 def run_function(functionExpression, *args):
-    return get_variable(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')');
+    return get_variable(module_name+'._try(function () {'+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
 
 def run_function_async(functionExpression, *args, **kwargs):
     global _slot_id
@@ -75,6 +92,10 @@ def run_function_async(functionExpression, *args, **kwargs):
     if is_async():
         run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
                 '''+module_name+'''._slots["'''+uid+'''"] = val;
+                '''+module_name+'''._resume_ie = true;
+                '''+module_name+'''.resume(false);
+            }).catch(function(e) {
+                '''+module_name+'''._slots["'''+uid+'''"] = '''+module_name+'''._convertError(e);
                 '''+module_name+'''._resume_ie = true;
                 '''+module_name+'''.resume(false);
             });''')
