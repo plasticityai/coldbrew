@@ -122,7 +122,7 @@ Coldbrew.run(
 `def foo(x, y):
   return x**y
 `);
-Coldbrew.runFunction("foo", 5, 2); // Returns 25
+Coldbrew.runFunction("foo", 5, 2); // Resolves to 25
 ```
 
 Note: This only works if the data returned by the function is JSON serializable.
@@ -134,7 +134,7 @@ Coldbrew.run(
 `def foo(x, y):
   return x**y
 `);
-Coldbrew.runFunctionAsync("foo", 5, 2); // Returns 25
+Coldbrew.runFunctionAsync("foo", 5, 2); // Resolves to 25
 ```
 
 Note: This only works if the data returned by the function is JSON serializable.
