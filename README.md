@@ -11,17 +11,17 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 ## Using the Library
 
 ### Demo
-You find a demo at [http://coldbrew.plasticity.ai.com](http://coldbrew.plasticity.ai.com).
+You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai.com](http://coldbrew.plasticity.ai.com).
 
 ### Installation
 You can import the CDN version of this library using the following code:
 
-You can also [build it yourself from source and use resulting `dist` folder](#deploying).
+You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
 
 ### Loading the Environment
 You can load the Python environment with `Coldbrew.load`:
 
-```python
+```javascript
 Coldbrew.load(function() { 
   console.log("Finished loading Coldbrew!"); 
 }, options);
@@ -98,45 +98,183 @@ The `runFileAsync` function returns a Promise that resolves to `0` when successf
 ### Communicating between JavaScript and Python
 
 #### Get Python Variable in JavaScript
+You can access a variable from Python in JavaScript like so:
+```javascript
+Coldbrew.run("x = 5**2");
+Coldbrew.getVariable("x"); // Returns 25
+```
+
+Note: This only works if the data in the variable is JSON serializable.
+
 #### Get JavaScript Variable in Python
+You can access a variable from JavaScript in Python like so:
+```javascript
+var x = Math.pow(5, 2);
+Coldbrew.run("print(Coldbrew.get_variable('x'))") // Prints 25
+```
+
+Note: This only works if the data in the variable is JSON serializable.
+
 #### Run Python Function in JavaScript
+You can run a function from Python in JavaScript like so:
+```javascript
+Coldbrew.run(
+`def foo(x, y):
+  return x**y
+`);
+Coldbrew.runFunction("foo", 5, 2); // Returns 25
+```
+
+Note: This only works if the data returned by the function is JSON serializable.
+
 #### Run Python Function Asynchronously in JavaScript
+You can run a function from Python asynchronously in JavaScript like so:
+```javascript
+Coldbrew.run(
+`def foo(x, y):
+  return x**y
+`);
+Coldbrew.runFunctionAsync("foo", 5, 2); // Returns 25
+```
+
+Note: This only works if the data returned by the function is JSON serializable.
+
 #### Run JavaScript Function in Python
+You can run a function from JavaScript in Python like so:
+```javascript
+function foo(x, y) {
+  return Math.pow(x, y);
+}
+Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
+```
+
+Note: This only works if the data returned by the function is JSON serializable.
+
 #### Run Asynchronous JavaScript Function in Python
+You can run a asynchronous function from JavaScript (that returns a Promise) in Python like so:
+```javascript
+function foo(x, y) {
+  return Promise.resolve(Math.pow(x, y));
+}
+Coldbrew.run("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 25
+```
+
+Note: This only works if the data returned by the function is JSON serializable.
 
 ### Error Handling
+
 #### Catching Python Errors in JavaScript
-#### Catching JavaScript Errors in JavaScript
+If you recieve a `-1` from a run function from Coldbrew, the Python code has experienced a failure. You can get information about the last Python exception thrown in JavaScript like so:
+```javascript
+Coldbrew.getExceptionInfo(); // Returns a dictionary with information from the last Python exception
+```
+
+#### Catching JavaScript Errors in Python
+If you are running a JavaScript function in Python that encounters an error a `Coldbrew.JavaScriptError` will be raised in Python. You can then use `e.error_data` on the error object `e` to get more information about the JavaScript context where the error occurred.
 
 ### Accessing HTTP in Python
+Python is able to access HTTP connections in Coldbrew and the requests will be shimmed by JavaScript's XHR requests:
+```
+Coldbrew.runAsync(`
+import urllib.request
+print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())
+`);
+```
 
 ### Accessing the Virtual Filesystem
+Python is not able to access the system's actual file system due to the limitations of the browser, but it can access a virtual file system.
 
 #### Listing files under a directory
+You can list files under a directory like so:
+```javascript
+Coldbrew.listFiles('/')
+```
 
-#### Create Folder
+#### Create a Folder
 
 #### Adding a File
+You can add a file like so:
+```javascript
+Coldbrew.addFile('/test.txt', 'Hello World!')
+```
 
-#### Check if Path Exists
+#### Check if a Path Exists
+You can get the information of a path like so:
+```javascript
+Coldbrew.pathExists('/home');
+```
+If it exists, a dictionary of path information is returned. If it doesn't exist, `null` is returned.
 
 #### Reading a File
+You can read a file like so:
+```javascript
+Coldbrew.addFile('/test.txt', 'Hello World!');
+Coldbrew.readFile('/test.txt');
+```
 
-#### Deleting a File
+You can also read file back in bytes for binary files like so:
+```javascript
+Coldbrew.addFile('/test.txt', 'Hello World!');
+Coldbrew.readFileBinary('/test.txt');
+```
+
+#### Deleting a Path
+You can delete a file or path to a folder like so:
+```javascript
+Coldbrew.addFile('/test.txt', 'Hello World!');
+Coldbrew.deletePath('/test.txt');
+```
 
 #### Adding a `.zip` File
+You can bulk add files from a ZIP file like so:
+```javascript
+Coldbrew.addFilesFromZip('/home', 'http://coldbrew.plasticity.ai/example_project.zip').then(function() {
+  Coldbrew.runFile('multiply.py', {
+    cwd: '/home/example_project',
+    env: {},
+    args: ['5', '15']
+  });
+});
+```
 
 #### Saving and Loading Files to Browser Storage
+If using `persistTmp` or `persistHome` options, you can save files to the browser storage like so:
+```javascript
+Coldbrew.saveFiles();
+```
+
+To load saved files from browser storage back to the virtual file system later you can use:
+```javascript
+Coldbrew.loadFiles();
+```
 
 ### Accessing the Environment
 
+#### Get the Current Working Directory
+
 #### Change Current Working Directory
+You can change the current working directory path like so:
+```javascript
+Coldbrew.chdir('/home');
+```
 
 #### Set Environment Variable
+You can add/overwrite an environment variable like so:
+```javascript
+Coldbrew.setenv('FOO', '1');
+```
 
-#### Get Environment Variable
+#### Get Environment Variables
+You can get back a dictionary of all environment variables like so:
+```javascript
+Coldbrew.getenv();
+```
 
 #### Resetting Environment Variables
+You can reset environment variables like so:
+```javascript
+Coldbrew.resetenv();
+```
 
 #### Access Standard Output
 
@@ -147,6 +285,12 @@ The `runFileAsync` function returns a Promise that resolves to `0` when successf
 #### Respond to Standard Input Asynchronously
 
 ### Resetting Coldbrew Environment
+You can reset the Coldbrew Python environment like so:
+```javascript
+Coldbrew.reset()
+```
+
+This clears any imports, Python variables, and resets the environment variables and the current working directory path.
 
 
 ### Can I install Python modules at run time?
@@ -192,11 +336,11 @@ This isn't the most efficient way to run code in a browser. It is an interpreted
 
 Any limitations imposed by the browser will be imposed by Python running in the browser (of course). Here are some known limitations:
 
-* Python can access the system's file system. JavaScript cannot. However, a virtual file system is created and Python is run at the root of that virtual file system (`/`).
+* Python can access the system's file system. JavaScript cannot. However, a virtual file system is created and Python is run at the files directory of that virtual file system (`/files`).
 
 * Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon that bug will be fixed and Coldbrew will support `threading`.
 
-* Python can access low-level networking like sockets. JavaScript cannot.
+* Python can access low-level networking like sockets. JavaScript cannot. We have, however, [shimmed HTTP support](#accessing-http-in-python) into Python.
 
 * Python can interface with the operating system and shell. JavaScript cannot. Functions like `os.system`, `os.fork`, or `multiprocessing` are not appropriate as there is no notion of a host environment shell or processes as these are operating system level constructs.
 
