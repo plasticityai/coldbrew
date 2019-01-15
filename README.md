@@ -19,32 +19,135 @@ You can import the CDN version of this library using the following code:
 You can also [build it yourself from source and use resulting `dist` folder](#deploying).
 
 ### Loading the Environment
+You can load the Python environment with `Coldbrew.load`:
+
+```python
+Coldbrew.load(function() { 
+  console.log("Finished loading Coldbrew!"); 
+}, options);
+```
+
+The `load` method optionally takes a callback and a dictionary of options. The `options` dictionary can contain some or all of the following options (when omitted the values default to the ones shown below):
+```javascript
+{
+  fsOptions: {
+    sharedHome: false, /* Makes the /home/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
+    sharedTmp: false, /* Makes the /tmp/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
+    persistHome: false, /* Makes the /home/ directory persistable to browser storage */
+    persistTmp: false, /* Makes the /tmp/ directory persistable to browser storage */
+  },
+  hideWarnings: false, /* Hides warnings */
+  monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
+}
+```
 
 ### Running Python in JavaScript
+You can run Python in JavaScript like so:
+```javascript
+Coldbrew.run("import sys");
+Coldbrew.run("print('The current Python version is:', sys.version)");
+```
+
+The `run` function returns `0` when successful or `-1` if there was an error.
 
 #### Running Python Asynchronously
+Python code is run synchronously and will lock up the browser for long running code. To run Python code asynchronously and concurrently with JavasScript, you can run it like so:
+
+```javascript
+for(var i=0; i<5; i++) {
+  setTimeout(function() { 
+    console.log("Every 1 second for 5 seconds from JavaScript.") 
+    }, (i+1)*1000); 
+}
+Coldbrew.runAsync(
+`from time import sleep
+for i in range(5):
+  sleep(1)
+  print("Every 1 second for 5 seconds from Python.")
+`);
+```
+
+The `runAsync` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
 ### Running Python Files in JavaScript
+You can also run Python files in JavaScript:
+```javascript
+Coldbrew.runFile('add.py', {
+  cwd: '/coldbrew/examples',
+  env: {},
+  args: ['5', '15']
+});
+```
+
+The `cwd` option is the path to the folder containing the Python file, the `env` option is a dictionary of environment variables, the `args` is a list of arguments to pass to the Python file.
+
+The `runFile` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
 #### Running Python Files Asynchronously
+You can also run Python files in JavaScript asynchronously:
+```javascript
+Coldbrew.runFileAsync('add.py', {
+  cwd: '/coldbrew/examples',
+  env: {},
+  args: ['5', '15']
+});
+```
 
-### Running JavaScript in Python
+The `runFileAsync` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
 ### Communicating between JavaScript and Python
+
+#### Get Python Variable in JavaScript
+#### Get JavaScript Variable in Python
+#### Run Python Function in JavaScript
+#### Run Python Function Asynchronously in JavaScript
+#### Run JavaScript Function in Python
+#### Run Asynchronous JavaScript Function in Python
 
 ### Error Handling
 #### Catching Python Errors in JavaScript
 #### Catching JavaScript Errors in JavaScript
 
+### Accessing HTTP in Python
+
 ### Accessing the Virtual Filesystem
 
 #### Listing files under a directory
 
+#### Create Folder
+
 #### Adding a File
+
+#### Check if Path Exists
+
+#### Reading a File
+
+#### Deleting a File
 
 #### Adding a `.zip` File
 
-### Accessing environment variables
+#### Saving and Loading Files to Browser Storage
+
+### Accessing the Environment
+
+#### Change Current Working Directory
+
+#### Set Environment Variable
+
+#### Get Environment Variable
+
+#### Resetting Environment Variables
+
+#### Access Standard Output
+
+#### Access Standard Error
+
+#### Respond to Standard Input
+
+#### Respond to Standard Input Asynchronously
+
+### Resetting Coldbrew Environment
+
 
 ### Can I install Python modules at run time?
 Coldbrew only comes with a standard Python installation, with no third-party modules. There is no way to add modules at run time to this environment using something like `pip install`. You can also, however, instead [build a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment) yourself (it's easy!) which allows you to specify a `requirements.txt` file to pre-load your modules into the environment. 
@@ -100,7 +203,6 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 A lot of these things can be "shimmed" in the future just like the virtual file system. Things like `/dev/random` and `/dev/urandom` are actually available even though there is no operating system because Emscripten shims these devices.
 
 ## Security
-
 All Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
 
 ## Contributing
