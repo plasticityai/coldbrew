@@ -28,5 +28,6 @@ _sha512 sha512module.c
 _md5 md5module.c
 
 mmap mmapmodule.c
+unicodedata unicodedata.c
 
 #future_builtins future_builtins.c

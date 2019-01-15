@@ -1,37 +1,22 @@
 import Coldbrew
 import http.client
-import io
+import socket
+import _socket
 import ssl
-
-class Socket():
-    def __init__(self, data):
-        self.fp = io.BytesIO()
-        response = 'HTTP/1.1 '+str(data['status'])+' '+data['statusText']+'\n'+data['headers']+'\r\n'+data['responseText']
-        self.fp.write(bytes(response, "utf8"))
-        self.fp.seek(0)
-
-    def makefile(self, mode):
-        return self.fp
-
-    def close(self):
-        pass
-
-class SSLContext():
-    verify_mode = None
-    check_hostname = None
-
-    def load_cert_chain(self, *args):
-        return None
+import _ssl
 
 def putrequest(self, method, url, skip_host=False, skip_accept_encoding=False):
     self._coldbrew_method = method
-    if type(self) == http.client.HTTPConnection:
+    self._coldbrew_url = None 
+    self._coldbrew_body = None
+    self._coldbrew_headers = None
+    if isinstance(self, http.client.HTTPConnection) and not((hasattr(self, 'default_port') and self.default_port == 443)):
         new_url = 'http://'+self.host
         if self.port != 80:
             new_url += ':'+str(self.port)
         new_url += url
         url = new_url
-    if type(self) == http.client.HTTPSConnection:
+    if isinstance(self, http.client.HTTPSConnection) or (hasattr(self, 'default_port') and self.default_port == 443):
         new_url = 'https://'+self.host
         if self.port != 443:
             new_url += ':'+str(self.port)
@@ -40,7 +25,7 @@ def putrequest(self, method, url, skip_host=False, skip_accept_encoding=False):
     self._coldbrew_url = url
 
 def putheader(self, header, *args):
-    if not hasattr(self, '_coldbrew_headers'):
+    if not hasattr(self, '_coldbrew_headers') or self._coldbrew_headers is None:
         self._coldbrew_headers = {}
     self._coldbrew_headers[header] = '\r\n\t'.join(args)
 
@@ -49,7 +34,7 @@ def endheaders(self, message_body=None, *, encode_chunked=False):
     timeout = None
     if type(self.timeout) == int:
         timeout = self.timeout
-    self.sock = Socket(Coldbrew.run_function_async(Coldbrew.module_name+'._sendRequest', self._coldbrew_method, self._coldbrew_url, self._coldbrew_body, self._coldbrew_headers, timeout))
+    self.sock = _socket.socket(self, Coldbrew.run_function_async(Coldbrew.module_name+'._sendRequest', self._coldbrew_method, self._coldbrew_url, self._coldbrew_body, self._coldbrew_headers, timeout))
     self.__state = http.client._CS_REQ_SENT
     self.__response = None
 
@@ -114,4 +99,17 @@ http.client.HTTPSConnection.connect = connect
 http.client.HTTPSConnection.set_tunnel = set_tunnel
 http.client.HTTPSConnection.close = close
 
-ssl._create_default_https_context = lambda *args: SSLContext()
+ssl._create_default_https_context = lambda *args, **kwargs: _ssl._SSLContext()
+ssl.CERT_CERT_REQUIRED = ssl.CERT_REQUIRED
+
+def SSLContext__init(self, protocol, *args, **kwargs):
+    self.protocol = protocol
+    self.options = 0
+
+def wrap_socket(self, sock, *args, **kwargs):
+    return sock
+
+ssl.SSLContext.__init__ = SSLContext__init
+ssl.SSLContext.wrap_socket = wrap_socket
+
+socket.inet_pton = lambda *args, **kwargs: None

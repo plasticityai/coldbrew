@@ -16,6 +16,12 @@ version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 
+def _barg(arg):
+    if type(arg) == bytes:
+        return arg.decode('utf8')
+    else:
+        return arg
+
 def sleep(t):
     if is_async():
         _Coldbrew._sleep(t)
@@ -60,14 +66,14 @@ def get_variable(expression):
     return json.loads(run_string("JSON.stringify("+expression+") || null"))
 
 def run_function(functionExpression, *args):
-    return get_variable(functionExpression+'('+','.join([json.dumps(arg) for arg in args])+')');
+    return get_variable(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')');
 
 def run_function_async(functionExpression, *args, **kwargs):
     global _slot_id
     _slot_id += 1
     uid = '_internal_pyslot_'+str(_slot_id)
     if is_async():
-        run(functionExpression+'('+','.join([json.dumps(arg) for arg in args])+''').then(function(val) {
+        run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
                 '''+module_name+'''._slots["'''+uid+'''"] = val;
                 '''+module_name+'''._resume_ie = true;
                 '''+module_name+'''.resume(false);

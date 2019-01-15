@@ -68,7 +68,7 @@ function sendRequest(method, url, body, headers, timeout) {
     }
     request.open(method, url, true);
     Object.keys(headers).forEach(function(header) {
-      if (!["host", "connection", "user-agent"].includes(header.toLowerCase())) {
+      if (!["host", "connection", "user-agent", "accept-encoding", "content-length"].includes(header.toLowerCase())) {
         request.setRequestHeader(header, headers[header]);
       }
     });

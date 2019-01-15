@@ -4,10 +4,26 @@ OPENSSL_VERSION_NUMBER = None
 OPENSSL_VERSION_INFO = None
 OPENSSL_VERSION = None
 class _SSLContext(object):
-    __slots__ = []
+    __slots__ = ['options', 'verify_mode', 'check_hostname']
+
     def __new__(cls, *args, **kwargs):
         self = object.__new__(cls)
         return self
+
+    def __init__(self, *args, **kwargs):
+        self.options = None
+        self.verify_mode = None
+        self.check_hostname = None
+
+    def load_cert_chain(self, *args, **kwargs):
+        return None
+
+    def set_ciphers(self, *args, **kwargs):
+        return None
+
+    def load_verify_locations(self, *args, **kwargs):
+        return None
+
 MemoryBIO = None
 SSLError = None
 SSLZeroReturnError = None
@@ -34,3 +50,4 @@ _OPENSSL_API_VERSION = None
 HAS_TLS_UNIQUE = None
 
 PROTOCOL_SSLv23 = None
+CERT_CERT_REQUIRED = None

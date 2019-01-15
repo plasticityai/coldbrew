@@ -25,7 +25,7 @@ PTHREAD_LDFLAGS = ""
 
 
 # Controls whether to enable debugging symbols
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False
