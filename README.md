@@ -8,15 +8,71 @@ Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing nati
 
 Coldbrew also allows you to bundle your own Python application, script, library along with its required modules and dependencies to the environment. See the section on [building a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment). The build is [Docker](https://www.docker.com/get-started)-ized so it is very easy to build! 🐳 
 
-## Using the Library
+## Table of Contents
+- [Demo](#demo)
+- [Installation](#installation)
+- [Using the Library](#using-the-library)
+  * [Loading the Environment](#loading-the-environment)
+  * [Running Python in JavaScript](#running-python-in-javascript)
+    + [Running Python Asynchronously](#running-python-asynchronously)
+  * [Running Python Files in JavaScript](#running-python-files-in-javascript)
+    + [Running Python Files Asynchronously](#running-python-files-asynchronously)
+  * [Communicating between JavaScript and Python](#communicating-between-javascript-and-python)
+    + [Get Python Variable in JavaScript](#get-python-variable-in-javascript)
+    + [Get JavaScript Variable in Python](#get-javascript-variable-in-python)
+    + [Run Python Function in JavaScript](#run-python-function-in-javascript)
+    + [Run Python Function Asynchronously in JavaScript](#run-python-function-asynchronously-in-javascript)
+    + [Run JavaScript Function in Python](#run-javascript-function-in-python)
+    + [Run Asynchronous JavaScript Function in Python](#run-asynchronous-javascript-function-in-python)
+  * [Error Handling](#error-handling)
+    + [Catching Python Errors in JavaScript](#catching-python-errors-in-javascript)
+    + [Catching JavaScript Errors in Python](#catching-javascript-errors-in-python)
+  * [Accessing HTTP in Python](#accessing-http-in-python)
+  * [Accessing the Virtual Filesystem](#accessing-the-virtual-filesystem)
+    + [Listing files under a directory](#listing-files-under-a-directory)
+    + [Create a Folder](#create-a-folder)
+    + [Adding a File](#adding-a-file)
+    + [Check if a Path Exists](#check-if-a-path-exists)
+    + [Reading a File](#reading-a-file)
+    + [Deleting a Path](#deleting-a-path)
+    + [Adding a `.zip` File](#adding-a--zip--file)
+    + [Saving and Loading Files to Browser Storage](#saving-and-loading-files-to-browser-storage)
+  * [Accessing the Environment](#accessing-the-environment)
+    + [Get the Current Working Directory](#get-the-current-working-directory)
+    + [Change Current Working Directory](#change-current-working-directory)
+    + [Set Environment Variable](#set-environment-variable)
+    + [Get Environment Variables](#get-environment-variables)
+    + [Resetting Environment Variables](#resetting-environment-variables)
+    + [Access Standard Output](#access-standard-output)
+    + [Access Standard Error](#access-standard-error)
+    + [Respond to Standard Input with a Buffer](#respond-to-standard-input-with-a-buffer)
+    + [Respond to Standard Input Interactively](#respond-to-standard-input-interactively)
+    + [Respond to Standard Input Interactively and Asynchronously](#respond-to-standard-input-interactively-and-asynchronously)
+  * [Resetting Coldbrew Environment](#resetting-coldbrew-environment)
+  * [Can I install Python modules at run time?](#can-i-install-python-modules-at-run-time-)
+- [Building a Custom Coldbrew Python Environment](#building-a-custom-coldbrew-python-environment)
+  * [1. Changing the Module Name and Other Settings](#1-changing-the-module-name-and-other-settings)
+  * [2. Adding Python Module Dependencies and Requirements to the Environment](#2-adding-python-module-dependencies-and-requirements-to-the-environment)
+  * [3. Bundling files](#3-bundling-files)
+  * [4. Building](#4-building)
+  * [5. Running](#5-running)
+  * [6. Saving space (Optional)](#6-saving-space--optional-)
+  * [7. Deploying](#7-deploying)
+- [Example Use Cases](#example-use-cases)
+- [Known Limitations](#known-limitations)
+- [Security](#security)
+- [Contributing](#contributing)
+- [LICENSE and Attribution](#license-and-attribution)
 
-### Demo
+## Demo
 You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai.com](http://coldbrew.plasticity.ai.com).
 
-### Installation
+## Installation
 You can import the CDN version of this library using the following code:
 
 You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
+
+## Using the Library
 
 ### Loading the Environment
 You can load the Python environment with `Coldbrew.load`:
@@ -175,8 +231,8 @@ If you are running a JavaScript function in Python that encounters an error a `C
 ### Accessing HTTP in Python
 Python is able to access HTTP connections in Coldbrew and the requests will be shimmed by JavaScript's XHR requests:
 ```
-Coldbrew.runAsync(`
-import urllib.request
+Coldbrew.runAsync(
+`import urllib.request
 print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())
 `);
 ```
