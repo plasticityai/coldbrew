@@ -215,7 +215,7 @@ Coldbrew.readFile('/test.txt');
 You can also read file back in bytes for binary files like so:
 ```javascript
 Coldbrew.addFile('/test.txt', 'Hello World!');
-Coldbrew.readFileBinary('/test.txt');
+Coldbrew.readBinaryFile('/test.txt');
 ```
 
 #### Deleting a Path
