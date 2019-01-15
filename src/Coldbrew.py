@@ -22,6 +22,9 @@ def _barg(arg):
     else:
         return arg
 
+def _getcwd():
+    return os.getcwd()
+
 def sleep(t):
     if is_async():
         _Coldbrew._sleep(t)

@@ -379,6 +379,7 @@ var MODULE_NAME = {
       MODULE_NAME.getenv = function() { return MODULE_NAME.Module.ENV };
       MODULE_NAME.setenv = MODULE_NAME.Module.cwrap('export_setenv', 'number', ['string', 'string']);
       MODULE_NAME.unsetenv = MODULE_NAME.Module.cwrap('export_unsetenv', 'number', ['string']);
+      MODULE_NAME.getcwd = MODULE_NAME.runFunction.bind(MODULE_NAME, 'Coldbrew._getcwd');
       MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
       MODULE_NAME.listFiles = function(path='/') {
         return MODULE_NAME.Module.FS.readdir(path)
@@ -395,6 +396,9 @@ var MODULE_NAME = {
               timestamp: analyzed.object.timestamp,
             }
           });
+      };
+      MODULE_NAME.createFolder = function(path) {
+        return MODULE_NAME.Module.FS.mkdirTree(path);
       };
       MODULE_NAME.addFile = function(path, data) {
         if (path.indexOf('/') >= 0) {

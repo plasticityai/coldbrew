@@ -156,7 +156,7 @@ You can run a asynchronous function from JavaScript (that returns a Promise) in 
 function foo(x, y) {
   return Promise.resolve(Math.pow(x, y));
 }
-Coldbrew.run("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 25
+Coldbrew.runAsync("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 25
 ```
 
 Note: This only works if the data returned by the function is JSON serializable.
@@ -191,6 +191,10 @@ Coldbrew.listFiles('/')
 ```
 
 #### Create a Folder
+You create a folder like so:
+```javascript
+Coldbrew.createFolder('/home/myfolder/');
+```
 
 #### Adding a File
 You can add a file like so:
@@ -251,6 +255,10 @@ Coldbrew.loadFiles();
 ### Accessing the Environment
 
 #### Get the Current Working Directory
+You can get the current working directory path like so:
+```javascript
+Coldbrew.getcwd();
+```
 
 #### Change Current Working Directory
 You can change the current working directory path like so:
@@ -277,12 +285,42 @@ Coldbrew.resetenv();
 ```
 
 #### Access Standard Output
+By default, standard output is line buffered and each line is sent to `console.log`. You can override this behavior by setting:
+```javascript
+Coldbrew.onStandardOut = function(line) {
+  // Do what you want with each line of standard output
+};
+```
 
 #### Access Standard Error
+By default, standard error is line buffered and each line is sent to `console.warn`. You can override this behavior by setting:
+```javascript
+Coldbrew.onStandardErr = function(line) {
+  // Do what you want with each line of standard error
+};
+```
 
-#### Respond to Standard Input
+#### Respond to Standard Input with a Buffer
+If you know ahead of time what your entire standard input buffer is you can set it like so:
+```javascript
+Coldbrew.standardInBuffer = "This line of text is what will be read from standard input.\n";
+```
 
-#### Respond to Standard Input Asynchronously
+#### Respond to Standard Input Interactively
+You can also respond to standard input interactively by implementing:
+```javascript
+Coldbrew.onStandardInRead = function(size) {
+  // Return a string of `size` bytes (or characters)
+};
+```
+
+#### Respond to Standard Input Interactively and Asynchronously
+If running Python asynchronously, you can respond to standard input asynchronously as well:
+```javascript
+Coldbrew.onStandardInRead = function(size) {
+  // Return a Promise that resolves to a string of `size` bytes (or characters)
+};
+```
 
 ### Resetting Coldbrew Environment
 You can reset the Coldbrew Python environment like so:
