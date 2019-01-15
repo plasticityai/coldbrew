@@ -11,30 +11,66 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 ## Using the Library
 
 ### Demo
+You find a demo at [http://coldbrew.plasticity.ai.com](http://coldbrew.plasticity.ai.com).
+
 ### Installation
+You can import the CDN version of this library using the following code:
+
+You can also [build it yourself from source and use resulting `dist` folder](#deploying).
+
+### Loading the Environment
+
 ### Running Python in JavaScript
+
 #### Running Python Asynchronously
+
 ### Running Python Files in JavaScript
+
 #### Running Python Files Asynchronously
+
 ### Running JavaScript in Python
+
 ### Communicating between JavaScript and Python
+
+### Error Handling
+#### Catching Python Errors in JavaScript
+#### Catching JavaScript Errors in JavaScript
+
 ### Accessing the Virtual Filesystem
+
 #### Listing files under a directory
+
 #### Adding a File
+
 #### Adding a `.zip` File
+
 ### Accessing environment variables
+
 ### Can I install Python modules at run time?
 Coldbrew only comes with a standard Python installation, with no third-party modules. There is no way to add modules at run time to this environment using something like `pip install`. You can also, however, instead [build a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment) yourself (it's easy!) which allows you to specify a `requirements.txt` file to pre-load your modules into the environment. 
 
 ## Building a Custom Coldbrew Python Environment
 
-### 1. Changing the Module Name
+### 1. Changing the Module Name and Other Settings
+To change the global name of the library from `Coldbrew` to something else (so you could run custom Coldbrew Python environments without their names conflicting in the global namespace), you can modify `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
+
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
+Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
+
 ### 3. Bundling files
+To bundle additional files into the virtual file system, simply add them to the `/customize/files` folder. They will be available at runtime under `/files` in the virtual file system.
+
 ### 4. Building
+To build, simply navigate to the project root in terminal and run `./build.sh`. This will kick off a build process within a Docker container.
+
 ### 5. Running
+To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment.
+
 ### 6. Saving space (Optional)
+The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script. 
+
 ### 7. Deploying
+Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import the library onto a page.
 
 ## Example Use Cases
 This isn't the most efficient way to run code in a browser. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
@@ -46,6 +82,8 @@ This isn't the most efficient way to run code in a browser. It is an interpreted
 3. A quick-and-dirty solution to porting over Python code to the browser that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. (Write once. Deploy anywhere.)
 
 4. Access the [thousands of Python libraries](https://pypi.org/) that are not available in JavaScript. 
+
+5. Running Python code at the edge, on-device instead of on a backend server for user privacy reasons.
 
 ## Known Limitations
 
