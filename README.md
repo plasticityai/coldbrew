@@ -41,6 +41,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Get the Current Working Directory](#get-the-current-working-directory)
     + [Change Current Working Directory](#change-current-working-directory)
     + [Set Environment Variable](#set-environment-variable)
+    + [Delete an Environment Variable](#delete-an-environment-variable)
     + [Get Environment Variables](#get-environment-variables)
     + [Resetting Environment Variables](#resetting-environment-variables)
     + [Access Standard Output](#access-standard-output)
@@ -326,6 +327,12 @@ Coldbrew.chdir('/home');
 You can add/overwrite an environment variable like so:
 ```javascript
 Coldbrew.setenv('FOO', '1');
+```
+
+#### Delete an Environment Variable
+You can unset an environment variable like so:
+```javascript
+Coldbrew.unsetenv('FOO');
 ```
 
 #### Get Environment Variables
