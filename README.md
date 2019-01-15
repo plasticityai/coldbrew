@@ -299,7 +299,7 @@ Coldbrew only comes with a standard Python installation, with no third-party mod
 ## Building a Custom Coldbrew Python Environment
 
 ### 1. Changing the Module Name and Other Settings
-To change the global name of the library from `Coldbrew` to something else (so you could run custom Coldbrew Python environments without their names conflicting in the global namespace), you can modify `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
+To change the global name of the library from `Coldbrew` to something else (to run multiple custom Coldbrew Python environments without their names conflicting in the global namespace), you can modify `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
 
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
 Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
