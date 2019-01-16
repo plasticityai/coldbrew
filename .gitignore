@@ -7,7 +7,6 @@ build
 cache
 downloads
 installs
-dist
 customize/requirements
 
 **/*.bc
