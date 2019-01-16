@@ -50,8 +50,8 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	mkdir -p ../dist
 	cp $(MODULE_NAME_LOWER).* ../dist
 	cp index.html ../dist
-	rm ../dist/*.wasm.pre 2>/dev/null
-	rm ../dist/*.orig.js 2>/dev/null
+	rm ../dist/*.wasm.pre 2>/dev/null || true
+	rm ../dist/*.orig.js 2>/dev/null || true
 	rm ../dist/*.wast 2>/dev/null || true
 
 $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile main.c main.bc
