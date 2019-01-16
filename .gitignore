@@ -9,20 +9,20 @@ downloads
 installs
 customize/requirements
 
-**/*.bc
-**/*.asm.js
-**/*.orig.js
-**/*.wasm
-**/*.so
-**/*.o
-**/*.data
-**/*.zip
-**/*.pre
-**/*.wast
-**/*.map
-**/*.make
-**/*.tmp
-**/root
+src/*.bc
+src/*.asm.js
+src/*.orig.js
+src/*.wasm
+src/*.so
+src/*.o
+src/*.data
+src/*.zip
+src/*.pre
+src/*.wast
+src/*.map
+src/*.make
+src/*.tmp
+src/root
 
 src/index.html
 src/module.js
