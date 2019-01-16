@@ -1,4 +1,4 @@
-image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
+image: python:latest
 
 services:
   - docker:dind
@@ -22,14 +22,39 @@ before_script:
   - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
   # Install gettext for envsubst
   - apt-get install gettext -y
+  # Install Coldbrew dependencies
+  - apt-get update
+  # Install Java
+  - apt-get install default-jre -y
+  # Install Emscripten
+  - curl https://gitlab.com/Plasticity/coldbrew/raw/master/install_emscripten.sh | /bin/bash
+  # Install Clang libraries
+  - cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz
+  - cd /usr/local/coldbrew/ && mkdir -p ./clang+llvm && tar -C ./clang+llvm -xvf clang+llvm.tar.xz
+  - cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/lib/
+  - cd /usr/local/coldbrew/emsdk/clang/lib/lib && (cp * ../ || true)
+  - cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/include/
+  - cd /usr/local/coldbrew/emsdk/clang/include/include && (cp -r * ../ || true)
+  # Install Python dependencies
+  - apt-get install build-essential -y
+  - apt-get install libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev  -y
+  - apt-get install libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev tk-dev -y
+  # Install OpenSSL with thread support
+  - wget http://www.openssl.org/source/openssl-1.0.1g.tar.gz
+  - tar -xvzf openssl-1.0.1g.tar.gz
+  - cd openssl-1.0.1g && ./config threads -D_REENTRANT
+  - cd openssl-1.0.1g && make
+  - cd openssl-1.0.1g && make install_sw
+  - rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
+  # Install Makefile dependencies
+  - apt-get install unzip rsync -y
+  # Install wasm-nm
+  - curl https://sh.rustup.rs -sSf | sh -s -- -y
+  - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
 
 Build and Deploy:
   stage: Build and Deploy
   script:
-    # Build
-    - ./build.sh
-    - export DIST=$(pwd)/dist
-    # End Build
     # Add GitLab SSH private deploy key
     - eval $(ssh-agent -s)
     - tmpfile=$(mktemp ~/pk.XXXXXX)
@@ -44,11 +69,12 @@ Build and Deploy:
     - cd $CI_PROJECT_NAME
     - git config --global user.email "dev_ci_bot@plasticity.ai"
     - git config --global user.name "Plasticity Developer Bot"
-    # Commit
-    - cp -r $DIST ./dist
+    # Build & Commit
+    - export COLDBREW_TAGGER_DIR=$(pwd)
+    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$(COLDBREW_TAGGER_DIR)/src; make
     - git add .
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
-    # End Commit
+    # End Build & Commit
     - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
     - git push origin --tags
     - cd $CI_PROJECT_DIR
