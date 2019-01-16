@@ -26,6 +26,10 @@ before_script:
 Build and Deploy:
   stage: Build and Deploy
   script:
+    # Build
+    - ./build.sh
+    - export DIST=$(pwd)/dist
+    # End Build
     # Add GitLab SSH private deploy key
     - eval $(ssh-agent -s)
     - tmpfile=$(mktemp ~/pk.XXXXXX)
@@ -40,11 +44,11 @@ Build and Deploy:
     - cd $CI_PROJECT_NAME
     - git config --global user.email "dev_ci_bot@plasticity.ai"
     - git config --global user.name "Plasticity Developer Bot"
-    # Build & Commit
-    - ./build.sh
+    # Commit
+    - cp -r $DIST ./dist
     - git add .
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
-    # End Build & Commit
+    # End Commit
     - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
     - git push origin --tags
     - cd $CI_PROJECT_DIR
