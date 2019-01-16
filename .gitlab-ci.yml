@@ -82,7 +82,8 @@ Build and Deploy:
     - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases --tags
     # Push to Amazon S3
-    - aws s3 cp dist/index.html s3://coldbrew.plasticity.ai/index.html
+    - sed -e 's/coldbrew.asm.js/https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@$(python -c "import version; print(version.__version__)")/dist/coldbrew.asm.js/g;' dist/index.html > dist/index.remote.html
+    - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index.html
     # End Push to Amazon S3
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger

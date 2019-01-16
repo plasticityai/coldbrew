@@ -1,6 +1,6 @@
 <div align="center"><img src="https://gitlab.com/Plasticity/coldbrew/raw/master/images/coldbrew.png" alt="coldbrew" height="50"></div>
 
-## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)</div>
+## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)&nbsp;&nbsp;&nbsp;[![version](https://img.shields.io/github/release/plasticityai/coldbrew.svg)](https://github.com/plasticityai/coldbrew/releases)</div>
 
 Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly)/`asm.js`. It is the easiest way to run Python code in JavaScript (a web browser) and is developed by [Plasticity](https://www.plasticity.ai/).
 
@@ -14,9 +14,9 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 - [Using the Library](#using-the-library)
   * [Loading the Environment](#loading-the-environment)
   * [Running Python in JavaScript](#running-python-in-javascript)
-    + [Running Python Asynchronously](#running-python-asynchronously)
+    + [Running Python Asynchronously in JavaScript](#running-python-asynchronously-in-javascript))
   * [Running Python Files in JavaScript](#running-python-files-in-javascript)
-    + [Running Python Files Asynchronously](#running-python-files-asynchronously)
+    + [Running Python Files Asynchronously in JavaScript](#running-python-files-asynchronously-in-javascript))
   * [Communicating between JavaScript and Python](#communicating-between-javascript-and-python)
     + [Get Python Variable in JavaScript](#get-python-variable-in-javascript)
     + [Get JavaScript Variable in Python](#get-javascript-variable-in-python)
@@ -66,7 +66,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 - [LICENSE and Attribution](#license-and-attribution)
 
 ## Demo
-You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai.com](http://coldbrew.plasticity.ai.com).
+You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai](http://coldbrew.plasticity.ai).
 
 ## Installation
 You can import the CDN version of this library using the following code:
@@ -107,8 +107,8 @@ Coldbrew.run("print('The current Python version is:', sys.version)");
 
 The `run` function returns `0` when successful or `-1` if there was an error.
 
-#### Running Python Asynchronously
-Python code is run synchronously and will lock up the browser for long running code. To run Python code asynchronously and concurrently with JavasScript, you can run it like so:
+#### Running Python Asynchronously in JavaScript
+Python code is run synchronously and will lock up the browser for long running code. To run Python code asynchronously and concurrently with JavaScript, you can run it like so:
 
 ```javascript
 for(var i=0; i<5; i++) {
@@ -140,7 +140,7 @@ The `cwd` option is the path to the folder containing the Python file, the `env`
 
 The `runFile` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
-#### Running Python Files Asynchronously
+#### Running Python Files Asynchronously in JavaScript
 You can also run Python files in JavaScript asynchronously:
 ```javascript
 Coldbrew.runFileAsync('add.py', {
@@ -380,7 +380,7 @@ Coldbrew.onStandardInRead = function(size) {
 #### Respond to Standard Input Interactively and Asynchronously
 If running Python asynchronously, you can respond to standard input asynchronously as well:
 ```javascript
-Coldbrew.onStandardInRead = function(size) {
+Coldbrew.onStandardInReadAsync = function(size) {
   // Return a Promise that resolves to a string of `size` bytes (or characters)
 };
 ```
@@ -400,7 +400,7 @@ Coldbrew only comes with a standard Python installation, with no third-party mod
 ## Building a Custom Coldbrew Python Environment
 
 ### 1. Changing the Module Name and Other Settings
-To change the global name of the library from `Coldbrew` to something else (to run multiple custom Coldbrew Python environments without their names conflicting in the global namespace), you can modify `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
+To change the global name of the library from `Coldbrew` to something else in JavaScript (to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
 
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
 Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
