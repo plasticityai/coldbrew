@@ -71,8 +71,8 @@ Build and Deploy:
     - git config --global user.name "Plasticity Developer Bot"
     # Build & Commit
     - export COLDBREW_TAGGER_DIR=$(pwd)
-    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     - git checkout releases
+    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     - git pull
     - git add .
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
