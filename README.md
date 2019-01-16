@@ -14,9 +14,9 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 - [Using the Library](#using-the-library)
   * [Loading the Environment](#loading-the-environment)
   * [Running Python in JavaScript](#running-python-in-javascript)
-    + [Running Python Asynchronously in JavaScript](#running-python-asynchronously-in-javascript))
+    + [Running Python Asynchronously in JavaScript](#running-python-asynchronously-in-javascript)
   * [Running Python Files in JavaScript](#running-python-files-in-javascript)
-    + [Running Python Files Asynchronously in JavaScript](#running-python-files-asynchronously-in-javascript))
+    + [Running Python Files Asynchronously in JavaScript](#running-python-files-asynchronously-in-javascript)
   * [Communicating between JavaScript and Python](#communicating-between-javascript-and-python)
     + [Get Python Variable in JavaScript](#get-python-variable-in-javascript)
     + [Get JavaScript Variable in Python](#get-javascript-variable-in-python)
@@ -74,6 +74,12 @@ You can import the CDN version of this library using the following code:
 You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
 
 ## Using the Library
+You can use the library by embedding `coldbrew.asm.js`. You can use the CDN, if you wish:
+```html
+<script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.asm.js"></script>
+```
+
+To embed a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the version listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
 
 ### Loading the Environment
 You can load the Python environment with `Coldbrew.load`:
@@ -85,7 +91,7 @@ Coldbrew.load(function() {
 ```
 
 The `load` method optionally takes a callback and a dictionary of options. The `options` dictionary can contain some or all of the following options (when omitted the values default to the ones shown below):
-```javascript
+```json
 {
   fsOptions: {
     sharedHome: false, /* Makes the /home/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
