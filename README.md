@@ -79,7 +79,7 @@ You can use the library by embedding `coldbrew.asm.js`. You can use the CDN, if 
 <script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.asm.js"></script>
 ```
 
-To embed a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the version listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
+To embed a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
 
 ### Loading the Environment
 You can load the Python environment with `Coldbrew.load`:
@@ -91,8 +91,8 @@ Coldbrew.load(function() {
 ```
 
 The `load` method optionally takes a callback and a dictionary of options. The `options` dictionary can contain some or all of the following options (when omitted the values default to the ones shown below):
-```json
-{
+```javascript
+var options = {
   fsOptions: {
     sharedHome: false, /* Makes the /home/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
     sharedTmp: false, /* Makes the /tmp/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
@@ -101,7 +101,7 @@ The `load` method optionally takes a callback and a dictionary of options. The `
   },
   hideWarnings: false, /* Hides warnings */
   monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
-}
+};
 ```
 
 ### Running Python in JavaScript
@@ -400,8 +400,8 @@ Coldbrew.reset()
 This clears any imports, Python variables, and resets the environment variables and the current working directory path.
 
 
-### Can I install Python modules at run time?
-Coldbrew only comes with a standard Python installation, with no third-party modules. There is no way to add modules at run time to this environment using something like `pip install`. You can also, however, instead [build a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment) yourself (it's easy!) which allows you to specify a `requirements.txt` file to pre-load your modules into the environment. 
+### Can I install third-party Python modules at run time?
+Coldbrew only comes with a standard Python installation, with no third-party modules. There is no way to add modules at run time to this environment using something like `pip install`. You can, however, instead [build a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment) yourself (it's easy!) which allows you to specify a `requirements.txt` file to pre-load your third-party modules into the environment. 
 
 ## Building a Custom Coldbrew Python Environment
 
@@ -412,13 +412,13 @@ To change the global name of the library from `Coldbrew` to something else in Ja
 Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
 
 ### 3. Bundling files
-To bundle additional files into the virtual file system, simply add them to the `/customize/files` folder. They will be available at runtime under `/files` in the virtual file system.
+To bundle additional files or scripts into the virtual file system, simply add them to the `/customize/files` folder. They will be available at runtime under `/files` in the virtual file system.
 
 ### 4. Building
-To build, simply navigate to the project root in terminal and run `./build.sh`. This will kick off a build process within a Docker container.
+To build, simply navigate to the project root in terminal and run `./build.sh`. This will kick off a build process within a Docker container. The first build will take quite some time as it will have to compile Python from source. Subsequent builds will be much faster with caches. If you need to clean all caches for some reason, run `./clean.sh`.
 
 ### 5. Running
-To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment.
+To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment for use.
 
 ### 6. Saving space (Optional)
 The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script. 
