@@ -70,16 +70,19 @@ Build and Deploy:
     - git config --global user.email "dev_ci_bot@plasticity.ai"
     - git config --global user.name "Plasticity Developer Bot"
     # Build & Commit
-    - git show-ref
     - export COLDBREW_TAGGER_DIR=$(pwd)
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
+    - echo "Listing SRC:"
+    - ls src
+    - echo "Listing DIST:"
+    - ls dist
     - git pull
     - git add .
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases
     # End Build & Commit
     - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
-    - git push -f origin releases --tags
+    - git push -f origin HEAD:releases --tags
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger
     - sleep 60 # Wait for GitLab to mirror to GitHub
