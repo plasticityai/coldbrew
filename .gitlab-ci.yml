@@ -76,6 +76,9 @@ Build and Deploy:
     - export COLDBREW_TAGGER_DIR=$(pwd)
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../
+    - cat .gitignore | grep 'dist' -v > .gitignore.tmp
+    - mv .gitignore.tmp .gitignore
+    - rm .gitignore.tmp
     - git pull
     - git add .
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"

@@ -240,7 +240,7 @@ Coldbrew.run('print(Coldbrew.js_error)');
 
 ### Accessing HTTP in Python
 Python is able to access HTTP connections in Coldbrew and the requests will be shimmed by JavaScript's XHR requests:
-```
+```javascript
 Coldbrew.runAsync(
 `import urllib.request
 print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())
