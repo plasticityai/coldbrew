@@ -28,6 +28,13 @@ class HTTPTimeoutError extends Error {
   }
 }
 
+const parseUrl = (string, prop) =>  {
+  const a = document.createElement('a'); 
+  a.setAttribute('href', string);
+  const {host, hostname, pathname, port, protocol, search, hash} = a;
+  const origin = `${protocol}//${hostname}${port.length ? `:${port}`:''}`;
+  return prop ? eval(prop) : {origin, host, hostname, pathname, port, protocol, search, hash}
+}
 
 function randid() {
   return 'rxxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -213,6 +220,7 @@ var MODULE_NAME = {
       return MODULE_NAME._convertError(e);
     }
   },
+  _parseUrl: parseUrl,
   loaded: false,
   exited: false,
   forwardOut: true,

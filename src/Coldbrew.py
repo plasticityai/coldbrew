@@ -15,6 +15,7 @@ pyversion = os.environ['PYVERSION']
 version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
+js_error = None
 
 def _barg(arg):
     if type(arg) == bytes:
@@ -71,6 +72,7 @@ class JavaScriptError(Exception):
     pass
 
 def get_variable(expression):
+    global js_error
     val = json.loads(run_string("JSON.stringify("+expression+") || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
@@ -81,6 +83,7 @@ def get_variable(expression):
             'stack': val['stack'],
             'data': val['data'],
         }
+        js_error = error
         raise error
     else:
         return val

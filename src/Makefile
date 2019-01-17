@@ -75,9 +75,15 @@ ifeq ($(JSZIP),true)
 	cat ../third_party/jszip/jszip.min.js >> $@
 	cat ../third_party/jszip/jszip-utils.min.js >> $@
 endif
-		sed -e 's/var EMT_STACK_MAX = EMTSTACKTOP + 1048576;/var EMT_STACK_MAX = (EMTSTACKTOP + 1048576)*2;/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-		rm $(MODULE_NAME_LOWER).asm.js
-		mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/var EMT_STACK_MAX = EMTSTACKTOP + 1048576;/var EMT_STACK_MAX = (EMTSTACKTOP + 1048576)*2;/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	rm $(MODULE_NAME_LOWER).asm.js
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 
 
 clean:
