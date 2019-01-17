@@ -56,9 +56,9 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	rm ../$(COLDBREW_DIST_DIR)/*.wast 2>/dev/null || true
 
 $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile main.c main.bc
-	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so)) > sources.o
+	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
 	llvm-extract -rglob="\.str*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > asyncpython-strings.o
-	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so) > sources+python.o
+	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) > sources+python.o
 	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
@@ -154,11 +154,14 @@ $(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/AsyncPathCreator.cpp
 	make -C ../$(PYVERSION)
 
 requirements.make: ../customize/requirements.txt
+	$(eval GPP := $(shell which g++))
 	( \
 		rm -rf ../customize/requirements || true; \
 		python -m venv ../customize/requirements; \
+		python -m venv ../customize/requirements/builder; \
 		mv /usr/local/include/python* /usr/local/include/python.bak || true; \
-		/bin/bash -c "source ../customize/requirements/bin/activate && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip install -r ../customize/requirements.txt -vvv --no-binary :all:"; \
+		/bin/bash -c "source ../customize/requirements/builder/bin/activate && pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py\" -v > ../customize/requirements/builder/new_requirements.txt"; \
+		/bin/bash -c "source ../customize/requirements/bin/activate && mv $(GPP) $(GPP).bak && ln -s $(shell which em++) $(GPP) && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements/builder/new_requirements.txt -vvv --no-deps --no-binary :all:"; \
 		mv ../customize/requirements/lib/python*/ ../customize/requirements/lib/python/ || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.dist-info || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.egg-info || true; \
