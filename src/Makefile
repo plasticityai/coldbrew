@@ -17,6 +17,7 @@ ROOT=$(abspath ..)
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 INSTALLS=$(ROOT)/installs
 CUSTOMIZED_FILES=../customize/files
+COLDBREW_DIST_DIR ?= dist
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
 OPTFLAGS=-O3
@@ -40,19 +41,19 @@ BCS := $(SRCS:.c=.bc)
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 
-all: ../dist $(MODULE_NAME_LOWER).asm.js index.html
+all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js index.html
 
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
-../dist: $(MODULE_NAME_LOWER).asm.js Makefile index.html
-	rm -rf ../dist
-	mkdir -p ../dist
-	cp $(MODULE_NAME_LOWER).* ../dist
-	cp index.html ../dist
-	rm ../dist/*.wasm.pre 2>/dev/null || true
-	rm ../dist/*.orig.js 2>/dev/null || true
-	rm ../dist/*.wast 2>/dev/null || true
+../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js Makefile index.html
+	rm -rf ../$(COLDBREW_DIST_DIR)
+	mkdir -p ../$(COLDBREW_DIST_DIR)
+	cp $(MODULE_NAME_LOWER).* ../$(COLDBREW_DIST_DIR)
+	cp index.html ../$(COLDBREW_DIST_DIR)
+	rm ../$(COLDBREW_DIST_DIR)/*.wasm.pre 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.orig.js 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.wast 2>/dev/null || true
 
 $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile main.c main.bc
 	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *.so)) > sources.o
@@ -84,7 +85,7 @@ clean:
 	rm -rf ../build || true
 	rm -rf ../downloads || true
 	rm -rf ../installs || true
-	rm -rf ../dist || true
+	rm -rf ../$(COLDBREW_DIST_DIR) || true
 	rm -rf root || true
 	rm *.bc 2>/dev/null || true
 	rm *.asm.js 2>/dev/null || true
