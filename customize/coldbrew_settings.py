@@ -29,3 +29,4 @@ DEBUG_MODE = False
 
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False
+DEBUG_MODE = True
