@@ -69,17 +69,16 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai](http://coldbrew.plasticity.ai).
 
 ## Installation
-You can import the CDN version of this library using the following code:
-
-You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
-
-## Using the Library
 You can use the library by embedding `coldbrew.asm.js`. You can use the CDN, if you wish:
 ```html
 <script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.asm.js"></script>
 ```
 
 To embed a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
+
+You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
+
+## Using the Library
 
 ### Loading the Environment
 You can load the Python environment with `Coldbrew.load`:
@@ -448,7 +447,7 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 
 * Python can access the system's file system. JavaScript cannot. However, a virtual file system is created and Python is run at the files directory of that virtual file system (`/files`).
 
-* Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon that bug will be fixed and Coldbrew will support `threading`.
+* Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon, that bug will be fixed and Coldbrew will support `threading`.
 
 * Python can access low-level networking like sockets. JavaScript cannot. We have, however, [shimmed HTTP support](#accessing-http-in-python) into Python.
 
