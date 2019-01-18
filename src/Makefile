@@ -62,6 +62,7 @@ $(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pr
 	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
+	(echo -n '["'; (echo '_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep'; llvm-nm sources+python+strings.o | grep 'coldbrew_async' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
 	$(CC) -o $@ sources+python+strings.o $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
 		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
 	echo "" >> $@
@@ -175,7 +176,7 @@ requirements.make: ../customize/requirements.txt
 		touch requirements.make \
 	)
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB) ../$(PYVERSION)/AsyncPathCreator.cpp
 	( \
 		rm -rf ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) 2>/dev/null || true; \
 		mkdir -p ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
