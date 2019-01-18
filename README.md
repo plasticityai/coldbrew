@@ -50,7 +50,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Respond to Standard Input Interactively](#respond-to-standard-input-interactively)
     + [Respond to Standard Input Interactively and Asynchronously](#respond-to-standard-input-interactively-and-asynchronously)
   * [Resetting Coldbrew Environment](#resetting-coldbrew-environment)
-  * [Can I install Python modules at run time?](#can-i-install-python-modules-at-run-time)
+  * [Can I install third-party Python modules at run time?](#can-i-install-third-party-python-modules-at-run-time)
 - [Building a Custom Coldbrew Python Environment](#building-a-custom-coldbrew-python-environment)
   * [1. Changing the Module Name and Other Settings](#1-changing-the-module-name-and-other-settings)
   * [2. Adding Python Module Dependencies and Requirements to the Environment](#2-adding-python-module-dependencies-and-requirements-to-the-environment)
