@@ -154,7 +154,7 @@ root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Co
 $(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/AsyncPathCreator.cpp ../$(PYVERSION)/Setup.local
 	make -C ../$(PYVERSION)
 
-requirements.make: ../customize/requirements.txt
+requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 	$(eval GPP := $(shell which g++))
 	( \
 		rm -rf ../customize/requirements || true; \
@@ -173,7 +173,8 @@ requirements.make: ../customize/requirements.txt
 		rm -rf ../customize/requirements/lib/python/site-packages/pip* || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.py || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/__pycache__ || true; \
-		touch requirements.make \
+		touch requirements.make; \
+		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB) ../$(PYVERSION)/AsyncPathCreator.cpp
