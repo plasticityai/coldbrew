@@ -1,1 +1,3 @@
 # Add requirements below in the standard Python `requirements.txt` format. These modules will be added to the Coldbrew Python environment at build time so that they can be imported using `import`. You can include modules that use native C extensions. A lot of them will work, but some may not work due to depending on shared libraries that would need to be re-compiled for WASM.
+
+pymagnitude

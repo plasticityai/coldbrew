@@ -397,7 +397,7 @@ var MODULE_NAME = {
           .map(function (file) {
             var analyzed = MODULE_NAME.Module.FS.analyzePath(path+'/'+file);
             return {
-              file: file,
+              name: file,
               isFolder: analyzed.object.isFolder,
               isFile: !analyzed.object.isFolder,
               mode: analyzed.object.mode,
@@ -466,7 +466,7 @@ var MODULE_NAME = {
             var fileList = MODULE_NAME.listFiles(path);
             if (fileList.length > 0) {
               fileList.forEach(function (file) {
-                deleteHelper(path+'/'+file.file);
+                deleteHelper(path+'/'+file.name);
               });
             }
             MODULE_NAME.Module.FS.rmdir(path);

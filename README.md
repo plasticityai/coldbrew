@@ -132,12 +132,12 @@ for i in range(5):
 The `runAsync` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
 ### Running Python Files in JavaScript
-You can also run Python files in JavaScript:
+You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript:
 ```javascript
 Coldbrew.runFile('add.py', {
   cwd: '/coldbrew/examples',
   env: {},
-  args: ['5', '15']
+  args: ['5', '15', '-v']
 });
 ```
 
@@ -146,12 +146,12 @@ The `cwd` option is the path to the folder containing the Python file, the `env`
 The `runFile` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
 
 #### Running Python Files Asynchronously in JavaScript
-You can also run Python files in JavaScript asynchronously:
+You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript asynchronously:
 ```javascript
 Coldbrew.runFileAsync('add.py', {
   cwd: '/coldbrew/examples',
   env: {},
-  args: ['5', '15']
+  args: ['5', '15', '-v']
 });
 ```
 
@@ -232,7 +232,7 @@ Coldbrew.getExceptionInfo(); // Returns a dictionary with information from the l
 ```
 
 #### Catching JavaScript Errors in Python
-If you are running a JavaScript function in Python that encounters an error a `Coldbrew.JavaScriptError` will be raised in Python. You can then use `e.error_data` on the error object `e` to get more information about the JavaScript context where the error occurred. You can also access the last JavaScript error in Python like so:
+If you are running a JavaScript function in Python that encounters an error, a `Coldbrew.JavaScriptError` will be raised in Python. You can then use `e.error_data` on the error object `e` to get more information about the JavaScript context where the error occurred. You can also access the last JavaScript error in Python like so:
 ```javascript
 Coldbrew.run('print(Coldbrew.js_error)');
 ```
@@ -301,7 +301,7 @@ Coldbrew.addFilesFromZip('/home', 'http://coldbrew.plasticity.ai/example_project
   Coldbrew.runFile('multiply.py', {
     cwd: '/home/example_project',
     env: {},
-    args: ['5', '15']
+    args: ['5', '15', '-v']
   });
 });
 ```
