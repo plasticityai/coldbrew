@@ -1,4 +1,5 @@
 COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import version; print(version.__version__)")
+
 MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
 DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
@@ -10,9 +11,17 @@ PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); 
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
+export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
+SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_NO_ASYNC).lower())")
+SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_SLOW_SYNC).lower())")
+
+ALWAYS_ASYNC_FUNCS='_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep\n__coldbrew_yield_to_javascript'
+ASYNC_FUNCS=$(eval ASYNC_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g' | grep -v -E "$(shell echo -e $(ALWAYS_ASYNC_FUNCS) | sed -e ':a;N;$$!ba;s/\n/|/g' )") | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(ASYNC_FUNCS)
+PYTHON_FUNCS=$(eval PYTHON_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o | grep -E '\-\-\-\-\-\-\-\- T |\-\-\-\-\-\-\-\- t ' | sed -e 's/-------- T /_/g'| sed -e 's/-------- t /_/g') | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(PYTHON_FUNCS)
 
 PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
+EMSCRIPTEN_VERSION=$(shell cd /usr/local/coldbrew/emsdk/emscripten/*; basename $$(pwd);)
 ROOT=$(abspath ..)
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 INSTALLS=$(ROOT)/installs
@@ -25,15 +34,49 @@ CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/pyth
 LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
   -s TOTAL_MEMORY=$(DEFAULT_MEMORY) \
   -s EMULATE_FUNCTION_POINTER_CASTS=1 \
-  -s EXPORTED_FUNCTIONS='["_main"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "ENV"]' \
+  -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "ENV"]' \
   $(PTHREAD_LDFLAGS) \
   $(AGGRESSIVE_VARIABLE_ELIMINATION) \
-  --memory-init-file 0 \
-  --llvm-lto 1 $(ASSERTIONS_DEBUG_MODE)
+  --llvm-lto 1 --memory-init-file 0 \
+  $(ASSERTIONS_DEBUG_MODE)
 ALLOWMEMORYGROWTHFLAGS = -s ALLOW_MEMORY_GROWTH=1 --no-heap-copy
 PREJSFLAGS = --pre-js prejs.js
 MODULARIZEFLAGS = -s MODULARIZE=1 -s EXPORT_NAME="'_$(MODULE_NAME)_coldbrew_internal_'"
-EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync","_export__runFileAsync","_PyCFunction_Call","__PySequence_IterSearch","_PyObject_LengthHint","_PyUnicode_Decode","_PyUnicode_FromEncodedObject","_bytes_join","_list_init","_gen_close","__PyGen_Finalize","_gen_dealloc","_map_next","_PyBytes_FromObject","_bytes_new","_slot_sq_contains","_module_getattro","__PyObject_GenericGetAttrWithDict","_slot_tp_descr_get","_builtin_hasattr","_slot_tp_getattr_hook","_slot_tp_iter","_PyObject_GetIter","_PyObject_IsInstance","_builtin_isinstance","__io_IncrementalNewlineDecoder_decode","__io_TextIOWrapper_tell","__io_TextIOWrapper_seek","__PyObject_CallFunction_SizeT","__io_open","__PyObject_CallMethodId_SizeT","_unicode_new","_dict_update_common","_dict_init","_builtin_sum","_PyIter_Next","_unicode_encode","_PyUnicode_AsEncodedString","__PyCodec_LookupTextEncoding","__PyCodec_Lookup","_slot_tp_str","_PyObject_Str","_PyFile_WriteObject","_builtin_print","_tupledealloc","_subtype_dealloc","_iobase_finalize","__io__IOBase_close","_wrap_next","_wrapper_call","_PyObject_CallFunction","__io_TextIOWrapper___init__","__PyObject_CallMethodId","_PyObject_CallMethodObjArgs","_PyObject_Call","_PyFile_GetLine","__Py_DisplaySourceLine","_PyTraceBack_Print","_print_exception_recursive","_PyErr_Display","_sys_excepthook","_PyErr_PrintEx","__io_IncrementalNewlineDecoder_getstate","__io_TextIOWrapper_readline","__PyIncrementalNewlineDecoder_decode","_textiowrapper_read_chunk","__textiowrapper_readline","__io_TextIOWrapper_readline","__io_IncrementalNewlineDecoder_getstate","_slot_tp_iternext","_builtin_next","_property_descr_set","__PyObject_GenericSetAttrWithDict","_PyObject_GenericSetAttr","_PyObject_SetAttr","_slot_tp_richcompare","_PyObject_RichCompare","_PyObject_RichCompareBool","_internal_bisect_right","_insort_right","_slot_mp_ass_subscript","_PyObject_SetItem","_PyRun_StringFlags","_listextend","_PySequence_Fast","_PyUnicode_Join","_unicode_join","_slot_sq_length","_PyObject_Size","_builtin_len","_partial_call","_slot_sq_item","_iter_iternext","_call_method","_slot_mp_subscript","_PyObject_GetItem","_PyObject_ClearWeakRefs","_subtype_dealloc","_dict_dealloc","_method_dealloc","_slot_tp_new","_PyEval_CallObjectWithKeywords","_PyObject_IsSubclass","_builtin_issubclass","_gen_send_ex","_gen_iternext","_builtin_any","_builtin___build_class__","_PyObject_CallFunctionObjArgs","_PyEval_EvalFrameEx","__PyEval_EvalCodeWithName","_builtin_exec","_method_call","_slot_tp_init","_type_call","_property_descr_get","__PyObject_GenericGetAttrWithDict","_PyObject_GenericGetAttr","_PyObject_Call","_function_call","__PyObject_CallMethodIdObjArgs","_PyImport_ImportModuleLevelObject","_builtin___import__","__Coldbrew__sleep","_PyEval_EvalCode_coldbrew_async","_PyEval_EvalCodeEx_coldbrew_async","_PyEval_EvalFrame_coldbrew_async","_PyEval_EvalFrameEx_coldbrew_async","_PyImport_ExecCodeModule_coldbrew_async","_PyImport_ExecCodeModuleEx_coldbrew_async","_PyImport_ExecCodeModuleObject_coldbrew_async","_PyImport_ExecCodeModuleWithPathnames_coldbrew_async","_PyImport_ImportFrozenModule_coldbrew_async","_PyImport_ImportFrozenModuleObject_coldbrew_async","_PyRun_AnyFile_coldbrew_async","_PyRun_AnyFileEx_coldbrew_async","_PyRun_AnyFileExFlags_coldbrew_async","_PyRun_AnyFileFlags_coldbrew_async","_PyRun_File_coldbrew_async","_PyRun_FileEx_coldbrew_async","_PyRun_FileExFlags_coldbrew_async","_PyRun_FileFlags_coldbrew_async","_PyRun_InteractiveLoop_coldbrew_async","_PyRun_InteractiveLoopFlags_coldbrew_async","_PyRun_InteractiveOne_coldbrew_async","_PyRun_InteractiveOneFlags_coldbrew_async","_PyRun_InteractiveOneObject_coldbrew_async","_PyRun_SimpleFile_coldbrew_async","_PyRun_SimpleFileEx_coldbrew_async","_PyRun_SimpleFileExFlags_coldbrew_async","_PyRun_SimpleString_coldbrew_async","_PyRun_SimpleStringFlags_coldbrew_async","_PyRun_String_coldbrew_async","_PyRun_StringFlags_coldbrew_async","_Py_FrozenMain_coldbrew_async","_Py_Initialize_coldbrew_async","_Py_InitializeEx_coldbrew_async","_Py_Main_coldbrew_async","_Py_NewInterpreter_coldbrew_async","__PyEval_EvalCodeWithName_coldbrew_async","__PyGen_Finalize_coldbrew_async","__PyGen_Send_coldbrew_async","__Py_InitializeEx_Private_coldbrew_async","__coldbrew_yield_to_javascript_coldbrew_async","__imp_init_frozen_coldbrew_async","_builtin___build_class___coldbrew_async","_builtin_eval_coldbrew_async","_builtin_exec_coldbrew_async","_coro_wrapper_close_coldbrew_async","_coro_wrapper_iternext_coldbrew_async","_coro_wrapper_send_coldbrew_async","_coro_wrapper_throw_coldbrew_async","_fast_function_coldbrew_async","_frame_clear_coldbrew_async","_function_call_coldbrew_async","_gen_close_coldbrew_async","_gen_close_iter_coldbrew_async","_gen_iternext_coldbrew_async","_gen_send_ex_coldbrew_async","_gen_throw_coldbrew_async","_import_init_coldbrew_async","_zipimporter_load_module_coldbrew_async"]'
+
+# Set flags from settings
+SHOULD_EMTERPRET =
+ifeq ($(SMALL_BUT_NO_ASYNC),false)
+    SHOULD_EMTERPRET = yes
+endif
+ifeq ($(SMALL_BUT_SLOW_SYNC),true)
+    SHOULD_EMTERPRET = yes
+endif
+
+SHOULD_SYNC = yes
+ifeq ($(SMALL_BUT_NO_ASYNC),true)
+    SHOULD_SYNC =
+endif
+ifeq ($(SMALL_BUT_SLOW_SYNC),true)
+    SHOULD_SYNC =
+endif
+
+# Error check settings
+ifeq ($(SMALL_BUT_NO_ASYNC),true)
+ifeq ($(SMALL_BUT_SLOW_SYNC),true)
+EXIT_ERROR=Coldbrew Settings Error: You can't set both SMALL_BUT_NO_ASYNC and SMALL_BUT_SLOW_SYNC
+$(error $(EXIT_ERROR))
+endif
+endif
+
+# Set variables from options and flags
+ifdef SHOULD_EMTERPRET
+$(eval EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST=@async_funcs.tmp -s 'EMTERPRETIFY_FILE="$(MODULE_NAME_LOWER).asm.embin"')
+endif
+ifneq ($(strip $(EMCC_DEBUG)),)
+$(eval UGLIFY = cat)
+else
+$(eval UGLIFY = uglifyjs --compress)
+endif
 
 SRCS := $(wildcard *.c)
 BCS := $(SRCS:.c=.bc)
@@ -41,10 +84,10 @@ BCS := $(SRCS:.c=.bc)
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 
-all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js index.html
+all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js.make index.html
 
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
-	sed -e 's/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
+	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
 ../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js Makefile index.html
 	rm -rf ../$(COLDBREW_DIST_DIR)
@@ -53,39 +96,102 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	cp index.html ../$(COLDBREW_DIST_DIR)
 	rm ../$(COLDBREW_DIST_DIR)/*.wasm.pre 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.orig.js 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.intermediate.js 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.wast 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.bak 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.make 2>/dev/null || true
+	rm ../$(COLDBREW_DIST_DIR)/*.tmp 2>/dev/null || true
 
-$(MODULE_NAME_LOWER).asm.js: $(BCS) root root.make requirements.make prejs.js.pre.js module.js.pre.js Makefile main.c main.bc
-	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
-	llvm-extract -rglob="\.str*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > asyncpython-strings.o
-	llvm-link --only-needed sources.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) > sources+python.o
-	llvm-link sources+python.o asyncpython-strings.o > sources+python+strings.o
-	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
-	sed -e 's/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js > module.js
-	(echo -n '["'; (echo '_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep'; llvm-nm sources+python+strings.o | grep 'coldbrew_async' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
-	$(CC) -o $@ sources+python+strings.o $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
-		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
-	echo "" >> $@
-	cat module.js >> $@
+$(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
+	cp $(MODULE_NAME_LOWER).asm.js.bak $(MODULE_NAME_LOWER).asm.js
+
+	# Build JS Files
+	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js | $(UGLIFY) > module.js
+	
+	# Add extra modifications to the .asm.js file for the final build
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	cat module.js >> $(MODULE_NAME_LOWER).asm.js
 ifeq ($(BROWSERFS),true)
-	echo "" >> $@
-	cat ../third_party/browserfs/browserfs.min.js >> $@
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).asm.js
 endif
 ifeq ($(JSZIP),true)
-	echo "" >> $@
-	cat ../third_party/jszip/jszip.min.js >> $@
-	cat ../third_party/jszip/jszip-utils.min.js >> $@
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).asm.js
+	cat ../third_party/jszip/jszip-utils.min.js >> $(MODULE_NAME_LOWER).asm.js
 endif
-	sed -e 's/var EMT_STACK_MAX = EMTSTACKTOP + 1048576;/var EMT_STACK_MAX = (EMTSTACKTOP + 1048576)*2;/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	rm $(MODULE_NAME_LOWER).asm.js
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
+
+	touch $(MODULE_NAME_LOWER).asm.js.make
+
+$(MODULE_NAME_LOWER).asm.js: root root.make sources+python+strings.o extract_sync_code.py prejs.js.pre.js
+	rm *.embin 2>/dev/null || true
+
+	# Build JS files
+	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
+
+	# Build async_funcs.tmp
+ifdef SHOULD_EMTERPRET
+	(echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | sed -e 's/_coldbrew_sync//g' | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
+else
+	echo '[]' > async_funcs.tmp
+endif
+	# Keep a back up of emterpretify.py
+	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak
+ifdef SHOULD_SYNC
+	# Modify emterpretify.py to keep intermediate files
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	# Build synchronous version of .asm.js
+	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync"]' \
+		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
+	# Extract the synchronous function bodies of functions we will want to run both synchronously and asynchronously
+	echo '"$(ASYNC_FUNCS)"' > extract_sync_code_arg_1.tmp
+	echo '"$(PYTHON_FUNCS)"' > extract_sync_code_arg_2.tmp
+	python extract_sync_code.py sync-$@.intermediate.js > synchronous-func-bodies.intermediate.js
+	# Clean up the mess from the synchronous build
+ifneq ($(strip $(EMCC_DEBUG)),)
+	mv sync-coldbrew.asm.js.intermediate.js tmp-sync-coldbrew.asm.js.intermediate.js.tmp
+endif
+	rm sync-* 2>/dev/null || true
+ifneq ($(strip $(EMCC_DEBUG)),)
+	mv tmp-sync-coldbrew.asm.js.intermediate.js.tmp sync-coldbrew.asm.js.intermediate.js
+endif
+endif
+	# Restore the backup copy of emterpretify.py
+	# Modify emterpretify.py to add in the synchronous function bodies and branch to them when running synchronously with an if-statement
+	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+ifdef SHOULD_SYNC
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+endif
+ifneq ($(strip $(EMCC_DEBUG)),)
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+endif
+ifdef SHOULD_SYNC
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0]\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+endif
+	# Build asynchronous version of .asm.js (with branching to synchronous function bodies)
+	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
+		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
 	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak 
 
+
+sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
+	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
+	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
+	llvm-extract -rglob="\.str*" python.o > python-strings.o
+	llvm-link --only-needed sources.o python.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) --override=python.o > sources+python.o
+	llvm-link sources+python.o python-strings.o --override=python.o > sources+python+strings.o
 
 clean:
 	rm -rf ../cache || true
@@ -95,13 +201,17 @@ clean:
 	rm -rf ../$(COLDBREW_DIST_DIR) || true
 	rm -rf root || true
 	rm *.bc 2>/dev/null || true
+	rm *.mem 2>/dev/null || true
 	rm *.asm.js 2>/dev/null || true
 	rm *.orig.js 2>/dev/null || true
+	rm *.intermediate.js 2>/dev/null || true
 	rm *.wasm 2>/dev/null || true
+	rm *.embin 2>/dev/null || true
 	rm *.so 2>/dev/null || true
 	rm *.o 2>/dev/null || true
 	rm *.data 2>/dev/null || true
 	rm *.zip 2>/dev/null || true
+	rm *.bak 2>/dev/null || true
 	rm *.pre 2>/dev/null || true
 	rm *.wast 2>/dev/null || true
 	rm *.map 2>/dev/null || true
@@ -151,7 +261,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
 
-$(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/AsyncPathCreator.cpp ../$(PYVERSION)/Setup.local
+$(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/Setup.local
 	make -C ../$(PYVERSION)
 
 requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
@@ -177,7 +287,12 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB) ../$(PYVERSION)/AsyncPathCreator.cpp
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o: ../$(PYVERSION)/SyncPathCreator.cpp
+	g++ ../$(PYVERSION)/SyncPathCreator.cpp -o ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -shared -fPIC $(shell llvm-config --cxxflags --ldflags --libs) -I/usr/local/coldbrew/emsdk/clang/include
+	opt -load ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -syncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
+	llvm-extract -rfunc=".+_coldbrew_sync" -rglob="\.str*|.*PyId_.*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
+
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)
 	( \
 		rm -rf ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) 2>/dev/null || true; \
 		mkdir -p ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
@@ -185,6 +300,3 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		emar -x ../libpython$(PYMINOR).a; \
 	)
 	llvm-link ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
-	g++ ../$(PYVERSION)/AsyncPathCreator.cpp -o ../installs/python-$(PYVERSION)/lib/AsyncPathCreator.o -shared -fPIC $(shell llvm-config --cxxflags --ldflags --libs) -I/usr/local/coldbrew/emsdk/clang/include
-	opt -load ../installs/python-$(PYVERSION)/lib/AsyncPathCreator.o -asyncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o
-	llvm-extract -rfunc=".+_coldbrew_async" -rglob="\.str*|.*PyId_.*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).asyncified.extracted.o

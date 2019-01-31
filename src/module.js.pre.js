@@ -67,11 +67,14 @@ function base64decode(string) {
     return result;
 }
 
-function sendRequest(method, url, body, headers, timeout) {
+function sendRequest(method, url, body, headers, timeout, binary = false) {
   return new Promise(function (resolve, reject) {
     var request = new XMLHttpRequest();
     if (timeout !== null) {
       request.timeout = timeout * 1000;
+    }
+    if (binary) {
+      request.responseType = "arraybuffer";
     }
     request.open(method, url, true);
     Object.keys(headers).forEach(function(header) {
@@ -81,13 +84,15 @@ function sendRequest(method, url, body, headers, timeout) {
     });
     request.onreadystatechange = function () {
       var headers = this.getAllResponseHeaders();
-      headers += 'content-length: '+this.responseText.length.toString()+'\r\n';
       if (this.readyState === 4) {
+        var responseContent  = !binary ? this.responseText : this.response;
+        var responseLength = !binary ? responseContent.length : responseContent.byteLength;
+        headers += 'content-length: '+responseLength.toString()+'\r\n';
         if (this.status >= 200 && this.status < 400) {
           resolve({
             status: this.status,
             statusText: this.statusText,
-            responseText: this.responseText,
+            responseText: responseContent,
             responseType: this.responseType,
             responseURL: this.responseURL,
             headers: headers,
@@ -97,7 +102,7 @@ function sendRequest(method, url, body, headers, timeout) {
           e.errorData = {
             status: this.status,
             statusText: this.statusText,
-            responseText: this.responseText,
+            responseText: responseContent,
             responseType: this.responseType,
             responseURL: this.responseURL,
             headers: headers,
@@ -276,10 +281,10 @@ var MODULE_NAME = {
           }
           try {
             Module.FS.rmdir(mountPoint+'/web_user');
-          } catch {};
+          } catch (e) {};
           try {
             Module.FS.rmdir(mountPoint);
-          } catch {};
+          } catch (e) {};
           Module.FS.createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
           var old = filesystem.mount;
           if (mountPoints[mountPoint]) {
@@ -344,260 +349,281 @@ var MODULE_NAME = {
     if (finalizedOptions.fsOptions) {
       MODULE_NAME.configureFS(finalizedOptions.fsOptions);
     }
-    MODULE_NAME._fsReady(function(err, mountPoints) {
-      MODULE_NAME._slots = {};
-      MODULE_NAME._textDecoder = new TextDecoder("utf-8");
-      MODULE_NAME._usedFiles = new Set();
-      MODULE_NAME.mountPoints = mountPoints;
-      MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
-      MODULE_NAME.pyversion =  "PYVERSION";
-      MODULE_NAME.version =  "COLDBREW_VERSION";
-      MODULE_NAME.run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
-      MODULE_NAME.runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {
-        async: true,
-      });
-      MODULE_NAME._runFile = MODULE_NAME.Module.cwrap('export__runFile', 'number', ['string']);
-      MODULE_NAME._runFileAsync = MODULE_NAME.Module.cwrap('export__runFileAsync', 'number', ['string'], {
-        async: true,
-      });
-      MODULE_NAME.getVariable = function(expression) {
-        var uid = randid();
-        MODULE_NAME.run('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))');
-        var rval = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
-        delete MODULE_NAME._slots[uid];
-        return rval;
-      };
-      MODULE_NAME.getVariableAsync = function(expression) {
-        var uid = randid();
-        return MODULE_NAME.runAsync('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))').then(function() {
+    MODULE_NAME._emterpreterFile.then(function(emterpreterFileResponse) {
+      MODULE_NAME._emterpreterFileResponse = emterpreterFileResponse;
+      MODULE_NAME._fsReady(function(err, mountPoints) {
+        MODULE_NAME._slots = {};
+        MODULE_NAME._textDecoder = new TextDecoder("utf-8");
+        MODULE_NAME._usedFiles = new Set();
+        MODULE_NAME.mountPoints = mountPoints;
+        MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
+        MODULE_NAME.pyversion =  "PYVERSION";
+        MODULE_NAME.version =  "COLDBREW_VERSION";
+        MODULE_NAME.run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
+        if (!SMALL_BUT_NO_ASYNC) {
+          MODULE_NAME.runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {
+            async: true,
+          });
+        }
+        MODULE_NAME._runFile = MODULE_NAME.Module.cwrap('export__runFile', 'number', ['string']);
+        if (!SMALL_BUT_NO_ASYNC) {
+          MODULE_NAME._runFileAsync = MODULE_NAME.Module.cwrap('export__runFileAsync', 'number', ['string'], {
+            async: true,
+          });
+        }
+        MODULE_NAME.getVariable = function(expression) {
+          var uid = randid();
+          MODULE_NAME.run('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))');
           var rval = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
           delete MODULE_NAME._slots[uid];
           return rval;
-        });
-      };
-      MODULE_NAME.getExceptionInfo = function() {
-        return MODULE_NAME.getVariable('Coldbrew._exception');
-      };
-      MODULE_NAME.runFunction = function(functionExpression, ...args) {
-        return MODULE_NAME.getVariable(functionExpression+'('+args.map(arg => JSON.stringify(arg)).join(',')+')');
-      };
-      MODULE_NAME.runFunctionAsync = function(functionExpression, ...args) {
-        return MODULE_NAME.getVariableAsync(functionExpression+'('+args.map(arg => JSON.stringify(arg)).join(',')+')');
-      };
-      MODULE_NAME.getenv = function() { return MODULE_NAME.Module.ENV };
-      MODULE_NAME.setenv = MODULE_NAME.Module.cwrap('export_setenv', 'number', ['string', 'string']);
-      MODULE_NAME.unsetenv = MODULE_NAME.Module.cwrap('export_unsetenv', 'number', ['string']);
-      MODULE_NAME.getcwd = MODULE_NAME.runFunction.bind(MODULE_NAME, 'Coldbrew._getcwd');
-      MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
-      MODULE_NAME.listFiles = function(path='/') {
-        return MODULE_NAME.Module.FS.readdir(path)
-          .filter(function(file) {
-            return file !== '.' && file !== '..';
-          })
-          .map(function (file) {
-            var analyzed = MODULE_NAME.Module.FS.analyzePath(path+'/'+file);
-            return {
-              name: file,
-              isFolder: analyzed.object.isFolder,
-              isFile: !analyzed.object.isFolder,
-              mode: analyzed.object.mode,
-              timestamp: analyzed.object.timestamp,
-            }
-          });
-      };
-      MODULE_NAME.createFolder = function(path) {
-        return MODULE_NAME.Module.FS.mkdirTree(path);
-      };
-      MODULE_NAME.addFile = function(path, data) {
-        if (path.indexOf('/') >= 0) {
-          MODULE_NAME.Module.FS.mkdirTree(path.split('/').slice(0,-1).join("/"));
+        };
+        if (!SMALL_BUT_NO_ASYNC) {
+          MODULE_NAME.getVariableAsync = function(expression) {
+            var uid = randid();
+            return MODULE_NAME.runAsync('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))').then(function() {
+              var rval = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
+              delete MODULE_NAME._slots[uid];
+              return rval;
+            });
+          };
         }
-        MODULE_NAME.Module.FS.writeFile(path, data);
-      };
-      if (JSZIP) {
-        MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
-          return new JSZip.external.Promise(function (resolve, reject) {
-            JSZipUtils.getBinaryContent(urlToZip, function(err, data) {
+        MODULE_NAME.getExceptionInfo = function() {
+          return MODULE_NAME.getVariable('Coldbrew._exception');
+        };
+        MODULE_NAME.runFunction = function(functionExpression, ...args) {
+          return MODULE_NAME.getVariable(functionExpression+'('+args.map(arg => JSON.stringify(arg)).join(',')+')');
+        };
+        if (!SMALL_BUT_NO_ASYNC) {
+          MODULE_NAME.runFunctionAsync = function(functionExpression, ...args) {
+            return MODULE_NAME.getVariableAsync(functionExpression+'('+args.map(arg => JSON.stringify(arg)).join(',')+')');
+          };
+        }
+        MODULE_NAME.getenv = function() { return MODULE_NAME.Module.ENV };
+        MODULE_NAME.setenv = MODULE_NAME.Module.cwrap('export_setenv', 'number', ['string', 'string']);
+        MODULE_NAME.unsetenv = MODULE_NAME.Module.cwrap('export_unsetenv', 'number', ['string']);
+        MODULE_NAME.getcwd = MODULE_NAME.runFunction.bind(MODULE_NAME, 'Coldbrew._getcwd');
+        MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
+        MODULE_NAME.listFiles = function(path='/') {
+          return MODULE_NAME.Module.FS.readdir(path)
+            .filter(function(file) {
+              return file !== '.' && file !== '..';
+            })
+            .map(function (file) {
+              var analyzed = MODULE_NAME.Module.FS.analyzePath(path+'/'+file);
+              return {
+                name: file,
+                isFolder: analyzed.object.isFolder,
+                isFile: !analyzed.object.isFolder,
+                mode: analyzed.object.mode,
+                timestamp: analyzed.object.timestamp,
+              }
+            });
+        };
+        MODULE_NAME.createFolder = function(path) {
+          return MODULE_NAME.Module.FS.mkdirTree(path);
+        };
+        MODULE_NAME.addFile = function(path, data) {
+          if (path.indexOf('/') >= 0) {
+            MODULE_NAME.Module.FS.mkdirTree(path.split('/').slice(0,-1).join("/"));
+          }
+          MODULE_NAME.Module.FS.writeFile(path, data);
+        };
+        if (JSZIP) {
+          MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
+            return new JSZip.external.Promise(function (resolve, reject) {
+              JSZipUtils.getBinaryContent(urlToZip, function(err, data) {
+                  if (err) {
+                      reject(err);
+                  } else {
+                      resolve(data);
+                  }
+              });
+            })
+            .then(JSZip.loadAsync)
+            .then(function(zip) {
+              return Promise.all(Object.keys(zip.files).map(function(file) {
+                if (!zip.files[file].dir) {
+                  return zip.files[file].async("string").then(function(textData) {
+                    MODULE_NAME.addFile(path+'/'+file, textData);
+                  });
+                } else {
+                  return Promise.resolve(undefined);
+                }
+              }));
+            });
+          };
+        }
+        MODULE_NAME.readFile = function(path) {
+          return MODULE_NAME._textDecoder.decode(MODULE_NAME.Module.FS.readFile(path));
+        };
+        MODULE_NAME.readBinaryFile = function(path) {
+          return MODULE_NAME.Module.FS.readFile(path);
+        };
+        MODULE_NAME.pathExists = function(path) {
+          var analyzed = MODULE_NAME.Module.FS.analyzePath(path);
+          var exists = analyzed.exists;
+          if (!exists) {
+            return null;
+          } else {
+            return {
+                isFolder: analyzed.object.isFolder,
+                isFile: !analyzed.object.isFolder,
+                mode: analyzed.object.mode,
+                timestamp: analyzed.object.timestamp,
+            };
+          }
+        };
+        MODULE_NAME.deletePath = function(path) {
+          var deleteHelper = function(path) {
+            if (MODULE_NAME.Module.FS.analyzePath(path).object 
+              && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
+              var fileList = MODULE_NAME.listFiles(path);
+              if (fileList.length > 0) {
+                fileList.forEach(function (file) {
+                  deleteHelper(path+'/'+file.name);
+                });
+              }
+              MODULE_NAME.Module.FS.rmdir(path);
+            } else {
+              MODULE_NAME.Module.FS.unlink(path);
+            }
+          };
+          if (path.length > 0 && path.slice(-1) === '/') {
+            path = path.slice(0, -1);
+          }
+          deleteHelper(path);
+          return true;
+        };
+        MODULE_NAME.saveFiles = function() {
+          var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
+            var isPersist = mountPoints[mountPoint] & 2;
+            return !!isPersist;
+          }).includes(true);
+          return new Promise(function (resolve, reject) {
+            if (isPersistable) {
+              return MODULE_NAME.Module.FS.syncfs(0, function(err) {
                 if (err) {
                     reject(err);
                 } else {
-                    resolve(data);
+                    resolve(true);
                 }
-            });
-          })
-          .then(JSZip.loadAsync)
-          .then(function(zip) {
-            return Promise.all(Object.keys(zip.files).map(function(file) {
-              if (!zip.files[file].dir) {
-                return zip.files[file].async("string").then(function(textData) {
-                  MODULE_NAME.addFile(path+'/'+file, textData);
-                });
-              } else {
-                return Promise.resolve(undefined);
-              }
-            }));
+              });
+            } else {
+              reject(new Error("The file system was not configured to persist any paths."));
+            }
           });
         };
-      }
-      MODULE_NAME.readFile = function(path) {
-        return MODULE_NAME._textDecoder.decode(MODULE_NAME.Module.FS.readFile(path));
-      };
-      MODULE_NAME.readBinaryFile = function(path) {
-        return MODULE_NAME.Module.FS.readFile(path);
-      };
-      MODULE_NAME.pathExists = function(path) {
-        var analyzed = MODULE_NAME.Module.FS.analyzePath(path);
-        var exists = analyzed.exists;
-        if (!exists) {
-          return null;
-        } else {
-          return {
-              isFolder: analyzed.object.isFolder,
-              isFile: !analyzed.object.isFolder,
-              mode: analyzed.object.mode,
-              timestamp: analyzed.object.timestamp,
+        MODULE_NAME.loadFiles = function() {
+          var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
+            var isPersist = mountPoints[mountPoint] & 2;
+            return !!isPersist;
+          }).includes(true);
+          return new Promise(function (resolve, reject) {
+            if (isPersistable) {
+              return MODULE_NAME.Module.FS.syncfs(1, function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(true);
+                }
+              });
+            } else {
+              reject(new Error("The file system was not configured to persist any paths."));
+            }
+          });
+        };
+        MODULE_NAME.runFile = function(path, options={}) {
+          var oldcwd = MODULE_NAME.getcwd();
+          var defaultOptions = {
+            cwd: null,
+            args: [],
+            env: {},
+          };
+          var finalizedOptions = Object.assign({}, defaultOptions, options);
+          if (finalizedOptions.cwd) {
+            MODULE_NAME.chdir(finalizedOptions.cwd);
+          }
+          MODULE_NAME.run('Coldbrew._clear_argv()');
+          MODULE_NAME.runFunction('Coldbrew._append_argv', path);
+          finalizedOptions.args.forEach(function(arg) {
+            MODULE_NAME.runFunction('Coldbrew._append_argv', arg);
+          });
+          Object.keys(finalizedOptions.env).forEach(function(key) {
+            MODULE_NAME.setenv(key, finalizedOptions.env[key]);
+          });
+          var ret = MODULE_NAME._runFile(path);
+          MODULE_NAME.chdir(oldcwd);
+          return ret;
+        };
+        if (!SMALL_BUT_NO_ASYNC) {
+          MODULE_NAME.runFileAsync = function(path, options={}) {
+            var oldcwd = MODULE_NAME.getcwd();
+            var defaultOptions = {
+              cwd: null,
+              args: [],
+              env: {},
+            };
+            var finalizedOptions = Object.assign({}, defaultOptions, options);
+            if (finalizedOptions.cwd) {
+              MODULE_NAME.chdir(finalizedOptions.cwd);
+            }
+            MODULE_NAME.run('Coldbrew._clear_argv()');
+            MODULE_NAME.runFunction('Coldbrew._append_argv', path);
+            finalizedOptions.args.forEach(function(arg) {
+              MODULE_NAME.runFunction('Coldbrew._append_argv', arg);
+            });
+            Object.keys(finalizedOptions.env).forEach(function(key) {
+              MODULE_NAME.setenv(key, finalizedOptions.env[key]);
+            });
+            var retp = MODULE_NAME._runFileAsync(path);
+            return retp.then(function(ret) {
+              MODULE_NAME.chdir(oldcwd);
+              return ret;
+            });
           };
         }
-      };
-      MODULE_NAME.deletePath = function(path) {
-        var deleteHelper = function(path) {
-          if (MODULE_NAME.Module.FS.analyzePath(path).object 
-            && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
-            var fileList = MODULE_NAME.listFiles(path);
-            if (fileList.length > 0) {
-              fileList.forEach(function (file) {
-                deleteHelper(path+'/'+file.name);
-              });
+        MODULE_NAME.resetenv = function() {
+          Object.keys(MODULE_NAME.getenv()).forEach(function(key) {
+            if (typeof MODULE_NAME._ORIGINAL_ENV_[key] !== 'undefined') {
+              MODULE_NAME.setenv(key, MODULE_NAME._ORIGINAL_ENV_[key]);
+            } else {
+              MODULE_NAME.unsetenv(key);
             }
-            MODULE_NAME.Module.FS.rmdir(path);
-          } else {
-            MODULE_NAME.Module.FS.unlink(path);
+          });
+        };
+        MODULE_NAME._initializer = function() {
+          MODULE_NAME.run('Coldbrew._clear_argv()');
+          MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
+          if (finalizedOptions.hideWarnings) {
+            MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
           }
         };
-        if (path.length > 0 && path.slice(-1) === '/') {
-          path = path.slice(0, -1);
-        }
-        deleteHelper(path);
-        return true;
-      };
-      MODULE_NAME.saveFiles = function() {
-        var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
-          var isPersist = mountPoints[mountPoint] & 2;
-          return !!isPersist;
-        }).includes(true);
-        return new Promise(function (resolve, reject) {
-          if (isPersistable) {
-            return MODULE_NAME.Module.FS.syncfs(0, function(err) {
-              if (err) {
-                  reject(err);
-              } else {
-                  resolve(true);
-              }
-            });
-          } else {
-            reject(new Error("The file system was not configured to persist any paths."));
-          }
-        });
-      };
-      MODULE_NAME.loadFiles = function() {
-        var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
-          var isPersist = mountPoints[mountPoint] & 2;
-          return !!isPersist;
-        }).includes(true);
-        return new Promise(function (resolve, reject) {
-          if (isPersistable) {
-            return MODULE_NAME.Module.FS.syncfs(1, function(err) {
-              if (err) {
-                  reject(err);
-              } else {
-                  resolve(true);
-              }
-            });
-          } else {
-            reject(new Error("The file system was not configured to persist any paths."));
-          }
-        });
-      };
-      MODULE_NAME.runFile = function(path, options={}) {
-        var defaultOptions = {
-          cwd: null,
-          args: [],
-          env: {},
+        MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
+        MODULE_NAME.reset = function() {
+          MODULE_NAME._standardInTell = 0;
+          var ret = MODULE_NAME._reset();
+          MODULE_NAME._initializer();
+          return ret;
         };
-        var finalizedOptions = Object.assign({}, defaultOptions, options);
-        if (finalizedOptions.cwd) {
-          MODULE_NAME.chdir(finalizedOptions.cwd);
+        if (finalizedOptions.monitorFileUsage) {
+          console.warn('Coldbrew is monitoring file usage...use `MODULE_NAME.getUsedFiles()` after running through all relevant code paths in your Python program.');
+          var _oldOpen = MODULE_NAME.Module.FS.open.bind(MODULE_NAME.Module.FS);
+          MODULE_NAME.Module.FS.open = function(...args) {
+            if (args[0].startsWith && args[0].startsWith('/usr/local/lib/python')) {
+              MODULE_NAME._usedFiles.add(args[0]);
+            }
+            return _oldOpen(...args)
+          };
         }
-        MODULE_NAME.run('Coldbrew._clear_argv()');
-        MODULE_NAME.runFunction('Coldbrew._append_argv', path);
-        finalizedOptions.args.forEach(function(arg) {
-          MODULE_NAME.runFunction('Coldbrew._append_argv', arg);
-        });
-        Object.keys(finalizedOptions.env).forEach(function(key) {
-          MODULE_NAME.setenv(key, finalizedOptions.env[key]);
-        });
-        return MODULE_NAME._runFile(path);
-      };
-      MODULE_NAME.runFileAsync = function(path, options={}) {
-        var defaultOptions = {
-          cwd: null,
-          args: [],
-          env: {},
+        MODULE_NAME.getUsedFiles = function() {
+          return Array.from(MODULE_NAME._usedFiles).join('\n');
         };
-        var finalizedOptions = Object.assign({}, defaultOptions, options);
-        if (finalizedOptions.cwd) {
-          MODULE_NAME.chdir(finalizedOptions.cwd);
-        }
-        MODULE_NAME.run('Coldbrew._clear_argv()');
-        MODULE_NAME.runFunction('Coldbrew._append_argv', path);
-        finalizedOptions.args.forEach(function(arg) {
-          MODULE_NAME.runFunction('Coldbrew._append_argv', arg);
+        MODULE_NAME.onReady(function() {
+          MODULE_NAME._initializer();
         });
-        Object.keys(finalizedOptions.env).forEach(function(key) {
-          MODULE_NAME.setenv(key, finalizedOptions.env[key]);
-        });
-        return MODULE_NAME._runFileAsync(path);
-      };
-      MODULE_NAME.resetenv = function() {
-        Object.keys(MODULE_NAME.getenv()).forEach(function(key) {
-          if (typeof MODULE_NAME._ORIGINAL_ENV_[key] !== 'undefined') {
-            MODULE_NAME.setenv(key, MODULE_NAME._ORIGINAL_ENV_[key]);
-          } else {
-            MODULE_NAME.unsetenv(key);
-          }
-        });
-      };
-      MODULE_NAME._initializer = function() {
-        MODULE_NAME.run('Coldbrew._clear_argv()');
-        MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
-        if (finalizedOptions.hideWarnings) {
-          MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
-        }
-      };
-      MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
-      MODULE_NAME.reset = function() {
-        MODULE_NAME._standardInTell = 0;
-        var ret = MODULE_NAME._reset();
-        MODULE_NAME._initializer();
-        return ret;
-      };
-      if (finalizedOptions.monitorFileUsage) {
-        console.warn('Coldbrew is monitoring file usage...use `MODULE_NAME.getUsedFiles()` after running through all relevant code paths in your Python program.');
-        var _oldOpen = MODULE_NAME.Module.FS.open.bind(MODULE_NAME.Module.FS);
-        MODULE_NAME.Module.FS.open = function(...args) {
-          if (args[0].startsWith && args[0].startsWith('/usr/local/lib/python')) {
-            MODULE_NAME._usedFiles.add(args[0]);
-          }
-          return _oldOpen(...args)
-        };
-      }
-      MODULE_NAME.getUsedFiles = function() {
-        return Array.from(MODULE_NAME._usedFiles).join('\n');
-      };
-      MODULE_NAME.onReady(function() {
-        MODULE_NAME._initializer();
+        MODULE_NAME.onReady(onReadyFunc);
       });
-      MODULE_NAME.onReady(onReadyFunc);
     });
   },
   onReady: function(onReadyFunc) {
@@ -610,6 +636,7 @@ var MODULE_NAME = {
     }
   },
   _sendRequest: sendRequest,
+  _emterpreterFile: (!SMALL_BUT_NO_ASYNC) ? sendRequest('GET', parseUrl(document.currentScript.src, "origin")+parseUrl(document.currentScript.src, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true) : Promise.resolve(null),
 };
 
 if (typeof module !== 'undefined') module.exports = MODULE_NAME;

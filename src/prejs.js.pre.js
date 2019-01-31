@@ -41,9 +41,9 @@ Module.printErr = function(text) {
 Module.preInit = [function() {
   MODULE_NAME.preInit(Module);
 
-  Module.FS.init(function() {
-    return 'z'.charCodeAt(0);
-  });
+  if (MODULE_NAME._emterpreterFileResponse) {
+    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse.responseText;
+  }
 }];
 
 Module.preRun.push(function() {

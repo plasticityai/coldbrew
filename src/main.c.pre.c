@@ -17,10 +17,6 @@ void EMSCRIPTEN_KEEPALIVE _coldbrew_yield_to_javascript() {
     emscripten_sleep(1);
 }
 
-// Forward Declare Patched Python Functions
-int PyRun_SimpleString_coldbrew_async(char *prog);
-int PyRun_AnyFileEx_coldbrew_async(FILE *fp, const char *filename, int closeit);
-
 // Forward Declare Python Builtin Modules
 PyMODINIT_FUNC PyInit__Coldbrew(void);
 PyMODINIT_FUNC PyInit__sqlite3(void);
@@ -48,7 +44,7 @@ int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
     if (guard_concurrency() < 0) return -1;
     _coldbrew_async = 1;
     _coldbrew_is_async = 1;
-    int rval = PyRun_SimpleString_coldbrew_async(str);
+    int rval = PyRun_SimpleString(str);
     _coldbrew_is_async = 0;
     return rval;
 }
@@ -89,7 +85,7 @@ int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
     }
     _coldbrew_async = 1;
     _coldbrew_is_async = 1;
-    int rval = PyRun_AnyFileEx_coldbrew_async(fp, path, 1);
+    int rval = PyRun_AnyFileEx(fp, path, 1);
     _coldbrew_is_async = 0;
     return rval;
 }

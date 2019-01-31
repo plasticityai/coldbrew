@@ -62,6 +62,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 - [Example Use Cases](#example-use-cases)
 - [Known Limitations](#known-limitations)
 - [Security](#security)
+- [Benchmarks](#benchmarks)
 - [Contributing](#contributing)
 - [LICENSE and Attribution](#license-and-attribution)
 
@@ -407,8 +408,10 @@ Coldbrew only comes with a standard Python installation, with no third-party mod
 
 ## Building a Custom Coldbrew Python Environment
 
+You can build a custom Coldbrew Python Environment to access more functionality of Coldbrew and customize various settings.
+
 ### 1. Changing the Module Name and Other Settings
-To change the global name of the library from `Coldbrew` to something else in JavaScript (to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py`, however, the defaults are generally acceptable.
+To change the global name of the library from `Coldbrew` to something else in JavaScript (to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py` like the initial allocated memory size, however, the defaults are generally acceptable if you don't want to modify them. 
 
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
 Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
@@ -457,6 +460,20 @@ A lot of these things can be "shimmed" in the future just like the virtual file 
 
 ## Security
 All Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
+
+## Benchmarks
+To give a quick sense of how much of a performance hit running Python in the browser takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
+
+
+| Benchmark Test                                             | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   |
+| :--------------------------------------------------------: | :--------------------------------: | :------------------------------: | :-------------------------------: |
+| `fib.py 100000 -i -v` (compute intensive workload)         | 0.149s                             | 0.505s (3.39x)                   | 87.59s (587.85x)                  |
+| `fib.py 25 -v` (recursive & function call heavy workload)  | 0.040s                             | 0.154s (3.85x)                   | 65.25s (1631.25x)                            |
+| `fib.py 1000 -f -v` (file system intensive workload)       | 0.298s                             | 0.405s (1.36x)                   | 19.03s (63.86x)                   |
+
+These tests are surely not exhausitive or representative, but should give some sense of how the performance compares at a glance. 
+
+Asynchronous execution is considerably slower. Therefore, we recommended running most code synchronously, if possible, and only running the sections of your Python program that need to be asynchronous (such as code that may be accessing an HTTP connection) in asynchronous mode. 
 
 ## Contributing
 The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/coldbrew).

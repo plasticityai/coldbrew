@@ -11,13 +11,17 @@ installs
 customize/requirements
 
 src/*.bc
+src/*.mem
 src/*.asm.js
 src/*.orig.js
+src/*.intermediate.js
 src/*.wasm
+src/*.embin
 src/*.so
 src/*.o
 src/*.data
 src/*.zip
+src/*.bak
 src/*.pre
 src/*.wast
 src/*.map

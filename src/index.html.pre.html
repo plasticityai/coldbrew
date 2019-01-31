@@ -14,6 +14,10 @@
             .pre-code {
                 padding: 5px 0;
             }
+
+            .hide-true {
+                display: none;
+            }
         </style>
     </head>
     <body>
@@ -52,29 +56,29 @@
             </code>
         </p>
         <hr />
-        <p>
+        <p class="hide-SMALL_BUT_NO_ASYNC">
             You can access HTTP connections in Python and the requests will be handled by JavaScript's XHR / AJAX requests:<br/>
-            <div class="pre-code"></div>
-            <code>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
                 MODULE_NAME.runAsync('import urllib.request; print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())');
             </code>
         </p>
-        <hr />
-        <p>
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
+        <p class="hide-SMALL_BUT_NO_ASYNC">
             You can run Python code asynchronously, which won't lock up the browser for long-running code. <br/><br/>See the difference between running this:<br/>
-            <div class="pre-code"></div>
-            <code>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
                 for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
                 MODULE_NAME.<b>runAsync</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
-            <p>And this:</p>
-            <div class="pre-code"></div>
-            <code>
+            <p class="hide-SMALL_BUT_NO_ASYNC">And this:</p>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
                 for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
                 MODULE_NAME.<b>run</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
             </code>
         </p>
-        <hr />
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
         <p>
             See more documentation on <a href="https://github.com/plasticityai/coldbrew">GitHub</a> <br />for more information on interacting with the virtual filesystem, installing modules, interacting with the environment, running Python asynchronously, communicating bi-directionally between the two languages, building a custom Coldbrew Python environment, and more.
         </p>
