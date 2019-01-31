@@ -89,7 +89,7 @@ all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js.make index.html
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
-../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js Makefile index.html
+../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html
 	rm -rf ../$(COLDBREW_DIST_DIR)
 	mkdir -p ../$(COLDBREW_DIST_DIR)
 	cp $(MODULE_NAME_LOWER).* ../$(COLDBREW_DIST_DIR)
@@ -273,7 +273,7 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		python -m venv ../customize/requirements; \
 		python -m venv ../customize/requirements/builder; \
 		mv /usr/local/include/python* /usr/local/include/python.bak || true; \
-		/bin/bash -c "source ../customize/requirements/builder/bin/activate && pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py|tensorflow|pymagnitude|supersqlite\" -v > ../customize/requirements/builder/new_requirements.txt"; \
+		/bin/bash -c "source ../customize/requirements/builder/bin/activate && CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py|tensorflow|pymagnitude|supersqlite\" -v > ../customize/requirements/builder/new_requirements.txt"; \
 		/bin/bash -c "source ../customize/requirements/bin/activate && mv $(GPP) $(GPP).bak && ln -s $(shell which em++) $(GPP) && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements/builder/new_requirements.txt -vvv --no-deps --no-binary :all:"; \
 		mv ../customize/requirements/lib/python*/ ../customize/requirements/lib/python/ || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.dist-info || true; \
