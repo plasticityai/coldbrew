@@ -81,7 +81,6 @@ Build and Deploy:
     - git config --global user.email "dev_ci_bot@plasticity.ai"
     - git config --global user.name "Plasticity Developer Bot"
     # Build & Commit
-    - git config --global core.excludesfile ./.gitignore-ci
     - export COLDBREW_TAGGER_DIR=$(pwd)
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../

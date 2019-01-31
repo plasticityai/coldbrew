@@ -127,10 +127,8 @@ endif
 
 $(MODULE_NAME_LOWER).asm.js: root root.make sources+python+strings.o extract_sync_code.py prejs.js.pre.js
 	rm *.embin 2>/dev/null || true
-
 	# Build JS files
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
-
 	# Build async_funcs.tmp
 ifdef SHOULD_EMTERPRET
 	(echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | sed -e 's/_coldbrew_sync//g' | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
@@ -160,16 +158,18 @@ ifneq ($(strip $(EMCC_DEBUG)),)
 endif
 endif
 	# Restore the backup copy of emterpretify.py
-	# Modify emterpretify.py to add in the synchronous function bodies and branch to them when running synchronously with an if-statement
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	# Modify emterpretify.py to add in the synchronous function bodies
 ifdef SHOULD_SYNC
 	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
+	# Modify emterpretify.py to keep intermediate files
 ifneq ($(strip $(EMCC_DEBUG)),)
 	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
+	# Modify emterpretify.py to branch to the synchronous function bodies when running synchronously with an if-statement
 ifdef SHOULD_SYNC
 	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0]\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
@@ -183,7 +183,9 @@ endif
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak 
+	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
+	# Restore the backup copy of emterpretify.py
+	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 
 
 sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
