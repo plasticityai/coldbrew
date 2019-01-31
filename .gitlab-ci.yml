@@ -30,6 +30,15 @@ before_script:
   - apt-get install default-jre -y
   # Install Emscripten
   - curl https://gitlab.com/Plasticity/coldbrew/raw/master/install_emscripten.sh | /bin/bash
+  # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
+  - apt-get install nano cmake -y
+  - cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
+  - sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
+  - mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
+  - cd /tmp/binaryen && cmake . && make
+  - cd /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/ && cp asm2wasm asm2wasm.bak
+  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/asm2wasm
+  - rm -rf /tmp/binaryen 
   # Install Clang libraries
   - cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz
   - cd /usr/local/coldbrew/ && mkdir -p ./clang+llvm && tar -C ./clang+llvm -xvf clang+llvm.tar.xz
