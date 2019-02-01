@@ -84,6 +84,7 @@ function sendRequest(method, url, body, headers, timeout, binary = false) {
     });
     request.onreadystatechange = function () {
       var headers = this.getAllResponseHeaders();
+      console.log(this);
       if (this.readyState === 4) {
         var responseContent  = !binary ? this.responseText : this.response;
         var responseLength = !binary ? responseContent.length : responseContent.byteLength;
@@ -359,6 +360,8 @@ var MODULE_NAME = {
         MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
         MODULE_NAME.pyversion =  "PYVERSION";
         MODULE_NAME.version =  "COLDBREW_VERSION";
+        MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
+        MODULE_NAME.setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
         MODULE_NAME.run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
         if (!SMALL_BUT_NO_ASYNC) {
           MODULE_NAME.runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {

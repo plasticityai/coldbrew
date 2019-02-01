@@ -234,7 +234,7 @@ main.c: $(PYLIB) add_requirements.py main.c.pre.c requirements.make
 main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py $(wildcard Coldbrew*Shim.py) examples/add.py slim_data_bundle.py requirements.make
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py slim_data_bundle.py requirements.make
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true
@@ -246,10 +246,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" --exclude="*.so" ../customize/requirements/lib/python/site-packages/ root/usr/local/lib/python$(PYMINOR)/site-packages || true
 	rsync -rv --exclude="*.pyc" examples root/coldbrew
 	cp Coldbrew.py root/usr/local/lib/python$(PYMINOR)/site-packages/Coldbrew.py
-	cp Coldbrew*Shim.py root/usr/local/lib/python$(PYMINOR)/site-packages/
-	cp _socket.py root/usr/local/lib/python$(PYMINOR)/site-packages/
-	cp select.py root/usr/local/lib/python$(PYMINOR)/site-packages/
-	cp _ssl.py root/usr/local/lib/python$(PYMINOR)/site-packages/
+	cp shims/*.py root/usr/local/lib/python$(PYMINOR)/site-packages/
 	# Clean up unused modules
 	( \
 		cd root/usr/local/lib/python$(PYMINOR); \
@@ -272,8 +269,8 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		rm -rf ../customize/requirements || true; \
 		python -m venv ../customize/requirements; \
 		python -m venv ../customize/requirements/builder; \
+		/bin/bash -c "source ../customize/requirements/builder/bin/activate && pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py|tensorflow|pymagnitude|supersqlite\" -v > ../customize/requirements/builder/new_requirements.txt"; \
 		mv /usr/local/include/python* /usr/local/include/python.bak || true; \
-		/bin/bash -c "source ../customize/requirements/builder/bin/activate && CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py|tensorflow|pymagnitude|supersqlite\" -v > ../customize/requirements/builder/new_requirements.txt"; \
 		/bin/bash -c "source ../customize/requirements/bin/activate && mv $(GPP) $(GPP).bak && ln -s $(shell which em++) $(GPP) && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements/builder/new_requirements.txt -vvv --no-deps --no-binary :all:"; \
 		mv ../customize/requirements/lib/python*/ ../customize/requirements/lib/python/ || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/*.dist-info || true; \
@@ -286,6 +283,7 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		rm -rf ../customize/requirements/lib/python/site-packages/easy_install.py || true; \
 		rm -rf ../customize/requirements/lib/python/site-packages/__pycache__ || true; \
 		touch requirements.make; \
+		find /usr/local/include/ -type d -name '*.bak' -exec sh -c 'x="{}"; mv "$x" "${x%.bak}"' \;; \
 		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 

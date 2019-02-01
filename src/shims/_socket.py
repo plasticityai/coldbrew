@@ -59,8 +59,9 @@ IntEnum._convert = new_IntEnum_convert
 
 SOL_SOCKET = None
 SO_TYPE = None
-error = None
-timeout = None
+error = OSError
+class timeout(Exception):
+    pass
 has_ipv6 = None
 IPPROTO_TCP = None
 TCP_NODELAY = None

@@ -30,5 +30,6 @@ _md5 md5module.c
 mmap mmapmodule.c
 unicodedata unicodedata.c
 fcntl fcntlmodule.c
+_datetime _datetimemodule.c
 
 #future_builtins future_builtins.c

@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <Python.h>
 
+extern int _coldbrew_async;
 extern int _coldbrew_is_async;
+extern int _coldbrew_async_yield_ops;
 
 static PyObject*
 _Coldbrew_is_async(PyObject* self, PyObject* args)
@@ -46,6 +48,25 @@ _Coldbrew__sleep(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+_Coldbrew_get_async_yield_rate(PyObject* self, PyObject* args)
+{
+  return Py_BuildValue("i", _coldbrew_async_yield_ops);
+}
+
+static PyObject*
+_Coldbrew_set_async_yield_rate(PyObject* self, PyObject* args)
+{
+    int ops;
+    if (!PyArg_ParseTuple(args, "i", &ops))
+        return NULL;
+    if (ops < 0) {
+      _coldbrew_async = 1;
+    } else {
+      _coldbrew_async_yield_ops = ops;
+    }
+    Py_RETURN_NONE;
+}
 
 
 static PyMethodDef _ColdbrewMethods[] =
@@ -54,6 +75,8 @@ static PyMethodDef _ColdbrewMethods[] =
      {"run", _Coldbrew_run, METH_VARARGS, NULL},
      {"run_string", _Coldbrew_run_string, METH_VARARGS, NULL},
      {"_sleep", _Coldbrew__sleep, METH_VARARGS, NULL},
+     {"get_async_yield_rate", _Coldbrew_get_async_yield_rate, METH_VARARGS, NULL},
+     {"set_async_yield_rate", _Coldbrew_set_async_yield_rate, METH_VARARGS, NULL},
      {NULL, NULL, 0, NULL}
 };
 

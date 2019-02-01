@@ -25,12 +25,18 @@ class _SSLContext(object):
         return None
 
 MemoryBIO = None
-SSLError = None
-SSLZeroReturnError = None
-SSLWantReadError = None
-SSLWantWriteError = None
-SSLSyscallError = None
-SSLEOFError = None
+class SSLError(Exception):
+    pass
+class SSLZeroReturnError(Exception):
+    pass
+class SSLWantReadError(Exception):
+    pass
+class SSLWantWriteError(Exception):
+    pass
+class SSLSyscallError(Exception):
+    pass
+class SSLEOFError(Exception):
+    pass
 CERT_NONE = None
 CERT_OPTIONAL = None
 CERT_REQUIRED = None

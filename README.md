@@ -49,6 +49,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Respond to Standard Input with a Buffer](#respond-to-standard-input-with-a-buffer)
     + [Respond to Standard Input Interactively](#respond-to-standard-input-interactively)
     + [Respond to Standard Input Interactively and Asynchronously](#respond-to-standard-input-interactively-and-asynchronously)
+    + [Change the Async Yield Rate](#change-the-async-yield-rate)
   * [Resetting Coldbrew Environment](#resetting-coldbrew-environment)
   * [Can I install third-party Python modules at run time?](#can-i-install-third-party-python-modules-at-run-time)
 - [Building a Custom Coldbrew Python Environment](#building-a-custom-coldbrew-python-environment)
@@ -394,13 +395,22 @@ Coldbrew.onStandardInReadAsync = function(size) {
 };
 ```
 
-### Resetting Coldbrew Environment
-You can reset the Coldbrew Python environment like so:
+#### Change the Async Yield Rate
+By default, the Python interpreter yields back to the JavaScript event loop every 100 Python bytecode instructions. You change the number of bytecode instructions from the default to something else with:
 ```javascript
-Coldbrew.reset()
+Coldbrew.setAsyncYieldRate(...)
 ```
 
-This clears any imports, Python variables, and resets the environment variables and the current working directory path.
+As the number is set higher,  Python code will run (since it yield back to the JavaScript event loop less frequently), but the browser will feel more locked up. The lower the number, the opposite is true. You can retrieve the current yield rate like so:
+```javascript
+Coldbrew.getAsyncYieldRate()
+```
+
+You can also set/get the yield rate in Python with:
+```javascript
+Coldbrew.run("Coldbrew.set_async_yield_rate(...)");
+Coldbrew.run("print(Coldbrew.get_async_yield_rate())");
+```
 
 
 ### Can I install third-party Python modules at run time?
@@ -465,11 +475,11 @@ All Python code does execute in the browser, so it is fairly safe to execute arb
 To give a quick sense of how much of a performance hit running Python in the browser takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
 
 
-| Benchmark Test                                                 | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   |
-| ---------------------------------------------------------------| :--------------------------------: | :------------------------------: | :-------------------------------: |
-| `fib.py 100000 -i -v` <br/>(compute intensive workload)        | 0.149s                             | 0.505s (3.39x)                   | 87.59s (587.85x)                  |
-| `fib.py 25 -v` <br/>(recursive & function call heavy workload) | 0.040s                             | 0.154s (3.85x)                   | 65.25s (1631.25x)                 |
-| `fib.py 1000 -f -v` <br/>(file system intensive workload)      | 0.298s                             | 0.405s (1.36x)                   | 19.03s (63.86x)                   |
+| Benchmark Test                                                  | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   |
+| --------------------------------------------------------------- | :--------------------------------: | :------------------------------: | :-------------------------------: |
+| `fib.py 100000 -i -v` <br/>(compute intensive workload)         | 0.149s                             | 0.505s *(3.39x)*                 | 87.59s *(587.85x)*                |
+| `fib.py 25 -v` <br/>(recursive & function call heavy workload)  | 0.040s                             | 0.154s *(3.85x)*                 | 65.25s *(1631.25x)*               |
+| `fib.py 1000 -f -v` <br/>(file system intensive workload)       | 0.298s                             | 0.405s *(1.36x)*                 | 19.03s *(63.86x)*                 |
 
 These tests are surely not exhausitive or representative, but should give some sense of how the performance compares at a glance. 
 
