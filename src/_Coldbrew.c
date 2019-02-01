@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <Python.h>
 
-extern int _coldbrew_async;
+extern int _coldbrew_no_yield;
 extern int _coldbrew_is_async;
 extern int _coldbrew_async_yield_ops;
 
@@ -61,7 +61,7 @@ _Coldbrew_set_async_yield_rate(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "i", &ops))
         return NULL;
     if (ops < 0) {
-      _coldbrew_async = 1;
+      _coldbrew_no_yield = 1;
     } else {
       _coldbrew_async_yield_ops = ops;
     }

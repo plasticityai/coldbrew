@@ -1,5 +1,5 @@
 --- build/3.5.2/Python-3.5.2/Python/ceval.c.orig	2016-06-25 14:38:38.000000000 -0700
-+++ build/3.5.2/Python-3.5.2/Python/ceval.c	2019-02-01 13:01:07.000000000 -0800
++++ build/3.5.2/Python-3.5.2/Python/ceval.c	2019-02-01 14:07:27.000000000 -0800
 @@ -17,6 +17,7 @@
  #include "opcode.h"
  #include "setobject.h"
@@ -12,7 +12,7 @@
  
  /* Interpreter main loop */
  
-+extern int _coldbrew_async;
++extern int _coldbrew_no_yield;
 +extern int _coldbrew_async_yield_ops;
 +void _coldbrew_yield_to_javascript(void);
 +int _coldbrew_yield_to_javascript_ops = 0;
@@ -27,7 +27,7 @@
      for (;;) {
 +
 +      /* Yield back to JavaScript every N Python bytecode instructions */
-+      if (!_coldbrew_async && ++_coldbrew_yield_to_javascript_ops % _coldbrew_async_yield_ops == 0) {
++      if (!_coldbrew_no_yield && ++_coldbrew_yield_to_javascript_ops % _coldbrew_async_yield_ops == 0) {
 +        _coldbrew_yield_to_javascript();
 +      }
 +

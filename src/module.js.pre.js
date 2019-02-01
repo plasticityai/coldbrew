@@ -84,7 +84,6 @@ function sendRequest(method, url, body, headers, timeout, binary = false) {
     });
     request.onreadystatechange = function () {
       var headers = this.getAllResponseHeaders();
-      console.log(this);
       if (this.readyState === 4) {
         var responseContent  = !binary ? this.responseText : this.response;
         var responseLength = !binary ? responseContent.length : responseContent.byteLength;

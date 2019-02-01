@@ -8,7 +8,7 @@
 #define STRINGIFY(X) STRINGIFY2(X)
 
 // Control variables for async-ifying the Python interpreter
-int _coldbrew_async = 1;
+int _coldbrew_no_yield = 1;
 int _coldbrew_is_async = 0;
 int _coldbrew_async_yield_ops = 100; // By default, yield back to the JavaScript event loop every 100 Python bytecode instructions
 void EMSCRIPTEN_KEEPALIVE _coldbrew_yield_to_javascript() {
@@ -35,17 +35,17 @@ int guard_concurrency() {
 // Exported functions
 int EMSCRIPTEN_KEEPALIVE export_run(char *str) {
     if (guard_concurrency() < 0) return -1;
-    _coldbrew_async = 1;
+    _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
     return PyRun_SimpleString(str);
 }
 
 int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
     if (guard_concurrency() < 0) return -1;
-    _coldbrew_async = 0;
+    _coldbrew_no_yield = 0;
     _coldbrew_is_async = 1;
     int rval = PyRun_SimpleString(str);
-    _coldbrew_async = 1;
+    _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
     return rval;
 }
@@ -72,7 +72,7 @@ int EMSCRIPTEN_KEEPALIVE export__runFile(char *path) {
         emscripten_run_script("console.error('Coldbrew Error: The Python file to be run could not be found in the current working directory.')");
         return -1;
     }
-    _coldbrew_async = 1;
+    _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
     return PyRun_AnyFileEx(fp, path, 1);
 }
@@ -84,10 +84,10 @@ int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
         emscripten_run_script("console.error('Coldbrew Error: The Python file to be run could not be found in the current working directory.')");
         return -1;
     }
-    _coldbrew_async = 0;
+    _coldbrew_no_yield = 0;
     _coldbrew_is_async = 1;
     int rval = PyRun_AnyFileEx(fp, path, 1);
-    _coldbrew_async = 1;
+    _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
     return rval;
 }
@@ -98,7 +98,7 @@ int EMSCRIPTEN_KEEPALIVE export_getAsyncYieldRate() {
 
 void EMSCRIPTEN_KEEPALIVE export_setAsyncYieldRate(int ops) {
     if (ops < 0) {
-      _coldbrew_async = 0;
+      _coldbrew_no_yield = 0;
     } else {
       _coldbrew_async_yield_ops = ops;
     }
