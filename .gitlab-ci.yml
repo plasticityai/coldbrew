@@ -60,9 +60,12 @@ before_script:
   - rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
   # Install Makefile dependencies
   - apt-get install unzip rsync -y
-  # Install wasm-nm
+  # Install wasm-nm and wasm-gc
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
+  - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
+  # Install uglify-js
+  - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-js-es6"
 
 Build and Deploy:
   stage: Build and Deploy
