@@ -13,7 +13,7 @@ SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
 SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_NO_ASYNC).lower())")
-SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_SLOW_SYNC).lower())")
+SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(False).lower())")
 
 ALWAYS_ASYNC_FUNCS='_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep\n__coldbrew_yield_to_javascript'
 ASYNC_FUNCS=$(eval ASYNC_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g' | grep -v -E "$(shell echo -e $(ALWAYS_ASYNC_FUNCS) | sed -e ':a;N;$$!ba;s/\n/|/g' )") | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(ASYNC_FUNCS)

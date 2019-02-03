@@ -49,7 +49,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Respond to Standard Input with a Buffer](#respond-to-standard-input-with-a-buffer)
     + [Respond to Standard Input Interactively](#respond-to-standard-input-interactively)
     + [Respond to Standard Input Interactively and Asynchronously](#respond-to-standard-input-interactively-and-asynchronously)
-    + [Change the Async Yield Rate](#change-the-async-yield-rate)
+    + [Change the Asynchronous Yield Rate](#change-the-asynchronous-yield-rate)
   * [Resetting Coldbrew Environment](#resetting-coldbrew-environment)
   * [Can I install third-party Python modules at run time?](#can-i-install-third-party-python-modules-at-run-time)
 - [Building a Custom Coldbrew Python Environment](#building-a-custom-coldbrew-python-environment)
@@ -102,6 +102,7 @@ var options = {
   },
   hideWarnings: false, /* Hides warnings */
   monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
+  asyncYieldRate: null, /* Allows you to override the default asynchronous yield rate (see setAsyncYieldRate()) */
 };
 ```
 
@@ -395,13 +396,15 @@ Coldbrew.onStandardInReadAsync = function(size) {
 };
 ```
 
-#### Change the Async Yield Rate
-By default, the Python interpreter yields back to the JavaScript event loop every 100 Python bytecode instructions. You change the number of bytecode instructions from the default to something else with:
+#### Change the Asynchronous Yield Rate
+By default, the Python interpreter yields back to the JavaScript event loop every 100 Python bytecode instructions when running asynchronously. You change the number of bytecode instructions from the default to something else with:
 ```javascript
 Coldbrew.setAsyncYieldRate(...)
 ```
 
-As the number is set higher,  Python code will run (since it yield back to the JavaScript event loop less frequently), but the browser will feel more locked up. The lower the number, the opposite is true. You can retrieve the current yield rate like so:
+As the number is set higher,  Python code will run faster (since it yields back to the JavaScript event loop less frequently), but the browser will feel more locked up. The lower the number, the opposite is true. 
+
+You can retrieve the current yield rate like so:
 ```javascript
 Coldbrew.getAsyncYieldRate()
 ```
@@ -424,7 +427,9 @@ You can build a custom Coldbrew Python Environment to access more functionality 
 To change the global name of the library from `Coldbrew` to something else in JavaScript (to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py` like the initial allocated memory size, however, the defaults are generally acceptable if you don't want to modify them. 
 
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
-Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). Note: Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
+Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). 
+
+**Note:** Python modules that are pure Python will almost certainly work. Python modules that use C code may or may not work properly depending on if they have external dependencies or rely heavily on specific operating system functionality.
 
 ### 3. Bundling files
 To bundle additional files or scripts into the virtual file system, simply add them to the `/customize/files` folder. They will be available at runtime under `/files` in the virtual file system.
@@ -435,11 +440,11 @@ To build, simply navigate to the project root in terminal and run `./build.sh`. 
 ### 5. Running
 To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment for use.
 
-### 6. Saving space (Optional)
-The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script. 
+### 6. Saving space (Optional, but recommended)
+The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
 
 ### 7. Deploying
-Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import the library onto a page.
+Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import and use the library on a page.
 
 ## Example Use Cases
 This isn't the most efficient way to run code in a browser. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
@@ -475,11 +480,11 @@ All Python code does execute in the browser, so it is fairly safe to execute arb
 To give a quick sense of how much of a performance hit running Python in the browser takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
 
 
-| Benchmark Test                                                  | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   |
-| --------------------------------------------------------------- | :--------------------------------: | :------------------------------: | :-------------------------------: |
-| `fib.py 100000 -i -v` <br/>(compute intensive workload)         | 0.149s                             | 0.505s *(3.39x)*                 | 87.59s *(587.85x)*                |
-| `fib.py 25 -v` <br/>(recursive & function call heavy workload)  | 0.040s                             | 0.154s *(3.85x)*                 | 65.25s *(1631.25x)*               |
-| `fib.py 1000 -f -v` <br/>(file system intensive workload)       | 0.298s                             | 0.405s *(1.36x)*                 | 19.03s *(63.86x)*                 |
+| Benchmark Test                                                  | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100) (default)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 1000)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 10000)*</sup>  | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100000)*</sup>   |
+| --------------------------------------------------------------- | :--------------------------------: | :------------------------------: | :---------------------------------------------------------------------------------: | :------------------------------------------------------------------------: | :------------------------------------------------------------------------: | :--------------------------------------------------------------------------: |
+| `fib.py 100000 -i -v` <br/>(compute intensive workload)         | 0.149s                             | 0.505s *(3.39x)*                 | 11.62s *(23.00x)*                                                                  | 2.518s *(16.89x)*                                                          | 1.223s *(8.20x)*                                                           | 1.115s *(7.48x)*                                                             |
+| `fib.py 25 -v` <br/>(recursive & function call heavy workload)  | 0.040s                             | 0.154s *(3.85x)*                 | 59.24s *(1481.00x)*                                                                 | 9.699s *(242.47x)*                                                         | 3.747s *(93.67x)*                                                          | 3.130s *(78.25x)*                                                            |
+| `fib.py 1000 -f -v` <br/>(file system intensive workload)       | 0.298s                             | 0.405s *(1.36x)*                 | 11.84s *(39.73x)*                                                                   | 2.463s *(8.26x)*                                                           | 1.268s *(4.25x)*                                                           | 1.181s *(3.96x)*                                                             |
 
 These tests are surely not exhausitive or representative, but should give some sense of how the performance compares at a glance. 
 

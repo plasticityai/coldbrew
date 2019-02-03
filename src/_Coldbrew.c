@@ -17,6 +17,16 @@ _Coldbrew_is_async(PyObject* self, PyObject* args)
 }
 
 static PyObject*
+_Coldbrew__is_no_yield(PyObject* self, PyObject* args)
+{
+  if (_coldbrew_no_yield) {
+    Py_RETURN_TRUE;
+  } else {
+    Py_RETURN_FALSE;
+  }
+}
+
+static PyObject*
 _Coldbrew_run(PyObject* self, PyObject* args)
 {
     char* script;
@@ -60,7 +70,7 @@ _Coldbrew_set_async_yield_rate(PyObject* self, PyObject* args)
     int ops;
     if (!PyArg_ParseTuple(args, "i", &ops))
         return NULL;
-    if (ops < 0) {
+    if (ops <= 0) {
       _coldbrew_no_yield = 1;
     } else {
       _coldbrew_async_yield_ops = ops;
@@ -72,6 +82,7 @@ _Coldbrew_set_async_yield_rate(PyObject* self, PyObject* args)
 static PyMethodDef _ColdbrewMethods[] =
 {
      {"is_async", _Coldbrew_is_async, METH_VARARGS, NULL},
+     {"_is_no_yield", _Coldbrew__is_no_yield, METH_VARARGS, NULL},
      {"run", _Coldbrew_run, METH_VARARGS, NULL},
      {"run_string", _Coldbrew_run_string, METH_VARARGS, NULL},
      {"_sleep", _Coldbrew__sleep, METH_VARARGS, NULL},

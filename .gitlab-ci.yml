@@ -5,6 +5,7 @@ services:
 
 stages:
   - Build and Deploy
+  - Build Docker Image
 
 before_script:
   # Setup package manager
@@ -97,6 +98,7 @@ Build and Deploy:
     # Push to Amazon S3
     - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote.html
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index.html
+    - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)").html
     # End Push to Amazon S3
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger
@@ -107,5 +109,18 @@ Build and Deploy:
     name: Coldbrew Demo
     url: http://coldbrew.plasticity.ai/
     
+  only:
+    - master
+
+Build Docker Image:
+  stage: Build Docker Image
+  script:
+    - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:$(python -c "import version; print(version.__version__)")"
+    - docker push "$CI_REGISTRY_IMAGE:$(python -c "import version; print(version.__version__)")"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
   only:
     - master

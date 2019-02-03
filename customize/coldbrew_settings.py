@@ -24,11 +24,10 @@ PTHREAD_LDFLAGS = ""
 # PTHREAD_LDFLAGS = "-s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4"
 
 # Controls whether to enable debugging mode
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False
 
 # Optional Optimizations
-SMALL_BUT_NO_ASYNC = False # Halves the code size emitted, but removes asynchronous execution functionality
-SMALL_BUT_SLOW_SYNC = False # Halves the code size emitted, but slows down the speed of synchronous execution
+SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted, but removes asynchronous execution functionality

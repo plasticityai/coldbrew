@@ -344,6 +344,7 @@ var MODULE_NAME = {
       fsOptions: {},
       hideWarnings: false,
       monitorFileUsage: false,
+      asyncYieldRate: null,
     };
     var finalizedOptions = Object.assign({}, defaultOptions, options);
     if (finalizedOptions.fsOptions) {
@@ -595,6 +596,9 @@ var MODULE_NAME = {
           });
         };
         MODULE_NAME._initializer = function() {
+          if (finalizedOptions.asyncYieldRate !== null && typeof finalizedOptions.asyncYieldRate !== 'undefined') {
+            MODULE_NAME.setAsyncYieldRate(finalizedOptions.asyncYieldRate);
+          }
           MODULE_NAME.run('Coldbrew._clear_argv()');
           MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
           if (finalizedOptions.hideWarnings) {

@@ -1,0 +1,47 @@
+--- build/3.5.2/Python-3.5.2/Objects/methodobject.c.orig	2016-06-25 14:38:38.000000000 -0700
++++ build/3.5.2/Python-3.5.2/Objects/methodobject.c	2019-02-02 16:02:01.000000000 -0800
+@@ -77,6 +77,8 @@
+     return PyCFunction_GET_FLAGS(op);
+ }
+ 
++void _coldbrew_pre_func_ptr_call(int id);
++void _coldbrew_post_func_ptr_call(int id);
+ PyObject *
+ PyCFunction_Call(PyObject *func, PyObject *args, PyObject *kwds)
+ {
+@@ -95,7 +97,7 @@
+     flags = PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST);
+ 
+     if (flags == (METH_VARARGS | METH_KEYWORDS)) {
+-        res = (*(PyCFunctionWithKeywords)meth)(self, args, kwds);
++        _coldbrew_pre_func_ptr_call(0); res = (*(PyCFunctionWithKeywords)meth)(self, args, kwds); _coldbrew_post_func_ptr_call(0);
+     }
+     else {
+         if (kwds != NULL && PyDict_Size(kwds) != 0) {
+@@ -106,7 +108,7 @@
+ 
+         switch (flags) {
+         case METH_VARARGS:
+-            res = (*meth)(self, args);
++            _coldbrew_pre_func_ptr_call(0); res = (*meth)(self, args); _coldbrew_post_func_ptr_call(0);
+             break;
+ 
+         case METH_NOARGS:
+@@ -118,7 +120,7 @@
+                 return NULL;
+             }
+ 
+-            res = (*meth)(self, NULL);
++            _coldbrew_pre_func_ptr_call(0); res = (*meth)(self, NULL); _coldbrew_post_func_ptr_call(0);
+             break;
+ 
+         case METH_O:
+@@ -131,7 +133,7 @@
+             }
+ 
+             arg = PyTuple_GET_ITEM(args, 0);
+-            res = (*meth)(self, arg);
++            _coldbrew_pre_func_ptr_call(0); res = (*meth)(self, arg); _coldbrew_post_func_ptr_call(0);
+             break;
+ 
+         default:

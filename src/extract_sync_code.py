@@ -12,9 +12,8 @@ with open(sys.argv[1], 'r') as inf:
     for line in inf:
         if line.startswith('function '):
          func_name = line.split('function ')[1].strip().split('(')[0]
-         if func_name in all_funcs:
+         if func_name in async_funcs:
             start = True
-
         if start:
             wline = line.replace('\n', '')
             if wline.startswith('function '):
@@ -22,7 +21,7 @@ with open(sys.argv[1], 'r') as inf:
             else:
                 func_invokes = re.findall(r'(_[A-Za-z_0-9]+?)\(', wline)
                 for func_invoke in func_invokes:
-                    if func_invoke in all_funcs:
+                    if func_invoke in async_funcs:
                         wline = wline.replace(func_invoke+'(', func_invoke+'_coldbrew_sync(')
             lbuff.append(wline)
 
