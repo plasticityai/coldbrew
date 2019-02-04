@@ -1,3 +1,10 @@
+if (typeof window === 'undefined' && typeof self === 'undefined') {
+  var module1 = {exports: {}};
+  var module2 = {exports: {}};
+  var module3 = {exports: {}};
+  var module4 = {exports: {}};
+}
+
 (function() {
 
 class JavaScriptError extends Error {
@@ -147,10 +154,7 @@ function sendRequest(method, url, body, headers, timeout, binary = false) {
   });
 }
 
-var global = (typeof window === 'object') ? window : global;
-global._coldbrew_internal_global = global;
-
-global._MODULE_NAME_coldbrew_internal_instance = (function() {
+_MODULE_NAME_coldbrew_internal_instance = (function() {
   var executed = false;
   var singleton = null;
   return function() {
@@ -162,7 +166,7 @@ global._MODULE_NAME_coldbrew_internal_instance = (function() {
   };
 })();
 
-global._MODULE_NAME_coldbrew_internal_fs_configure = (function() {
+_MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   var executed = false;
   var singleton = {};
   var configured = false;
@@ -214,6 +218,8 @@ global._MODULE_NAME_coldbrew_internal_fs_configure = (function() {
     }
   };
 })();
+
+var ColdbrewMountPointNodes;
 
 var MODULE_NAME = {
   _convertError: function (e) {
@@ -272,7 +278,7 @@ var MODULE_NAME = {
     // If the user already called configure FS, these "false, false, {}" parameters
     // will get ignored, if the user hasn't, "false, false, {}" will be used, but will
     // have no effect.
-    global._MODULE_NAME_coldbrew_internal_fs_configure(false, false, false, false, {}, function(err, mountPoints) {
+    _MODULE_NAME_coldbrew_internal_fs_configure(false, false, false, false, {}, function(err, mountPoints) {
       MODULE_NAME._mountFS = function(Module) {
         var prefix = '.filesystem';
         Module.FS.createFolder(Module.FS.root, prefix, true, true);
@@ -296,14 +302,14 @@ var MODULE_NAME = {
           Module.FS.createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
           var old = filesystem.mount;
           if (mountPoints[mountPoint]) {
-            if (!global.ColdbrewMountPointNodes) {
-              global.ColdbrewMountPointNodes = {};
+            if (!ColdbrewMountPointNodes) {
+              ColdbrewMountPointNodes = {};
             }
             if (isShared) {
               filesystem.mount = function(...args) { 
                 var mountPoint = args[0].mountpoint;
-                global.ColdbrewMountPointNodes[mountPoint] = global.ColdbrewMountPointNodes[mountPoint] || old(...args);
-                return global.ColdbrewMountPointNodes[mountPoint]; 
+                ColdbrewMountPointNodes[mountPoint] = ColdbrewMountPointNodes[mountPoint] || old(...args);
+                return ColdbrewMountPointNodes[mountPoint]; 
               };
             }
             Module.FS.mount(filesystem, {}, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
@@ -325,7 +331,7 @@ var MODULE_NAME = {
       browserFSOptions: {},
     };
     var finalizedOptions = Object.assign({}, defaultOptions, options);
-    global._MODULE_NAME_coldbrew_internal_fs_configure(
+    _MODULE_NAME_coldbrew_internal_fs_configure(
       finalizedOptions.sharedHome,
       finalizedOptions.sharedTmp,
       finalizedOptions.persistHome,
@@ -335,7 +341,7 @@ var MODULE_NAME = {
     );
   },
   load: function(arg1, arg2) {
-    if (window.location.protocol === 'file:') {
+    if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
       throw new Error("You are trying to run this HTML file under a `file://` URL. This is not supported. You must run this file under a HTTP server under a `http://` or `https://` protocol. On most computers, you can do this by opening terminal, navigating to where this HTML file is, and running either `python -m SimpleHTTPServer` for Python 2 or `python3 -m http.server` for Python 3. Then, you can navigate to `http://localhost:8000` in a web browser to see this file. Alternatively, if you have downloaded the Coldbrew source code, you can just run `./serve.sh` from the project root and navigate to `http://localhost:8000` in a web browser to see this file after building.");
     } 
     var onReadyFunc = null;
@@ -366,7 +372,7 @@ var MODULE_NAME = {
         MODULE_NAME._textDecoder = new TextDecoder("utf-8");
         MODULE_NAME._usedFiles = new Set();
         MODULE_NAME.mountPoints = mountPoints;
-        MODULE_NAME.Module = global._MODULE_NAME_coldbrew_internal_instance();
+        MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
         MODULE_NAME.pyversion =  "PYVERSION";
         MODULE_NAME.version =  "COLDBREW_VERSION";
         MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
@@ -667,13 +673,23 @@ var MODULE_NAME = {
       }
     }
   },
-  _sendRequest: sendRequest,
-  _emterpreterFile: (!SMALL_BUT_NO_ASYNC) ? sendRequest('GET', parseUrl(document.currentScript.src, "origin")+parseUrl(document.currentScript.src, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true) : Promise.resolve(null),
+  _sendRequest: (typeof XMLHttpRequest !== 'undefined') ? sendRequest : undefined,
+  _emterpreterFile: (
+    (!SMALL_BUT_NO_ASYNC) ? 
+      (
+        (typeof XMLHttpRequest !== 'undefined') ? 
+          sendRequest('GET', parseUrl(document.currentScript.src, "origin")+parseUrl(document.currentScript.src, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true)
+          : Promise.resolve(require('fs').readFileSync(require('path').join(__dirname, 'MODULE_NAME_LOWER.asm.embin'), null).buffer)
+      ) 
+      : Promise.resolve(null)
+  ),
 };
 
 if (typeof module !== 'undefined') module.exports = MODULE_NAME;
-if (typeof define === 'function') define(MODULE_NAME);
-if (typeof window === 'object') window.MODULE_NAME = MODULE_NAME;
-global.MODULE_NAME = MODULE_NAME;
+if (typeof window !== 'undefined') window.MODULE_NAME = MODULE_NAME;
+if (typeof self !== 'undefined') self.MODULE_NAME = MODULE_NAME;
+
+if (typeof window !== 'undefined') window._coldbrew_internal_global = window;
+if (typeof self !== 'undefined') self._coldbrew_internal_global = self;
 
 })();

@@ -1,5 +1,13 @@
-var _coldbrew_global = (typeof window === 'object') ? window : global;
+if (typeof window !== 'undefined') {
+  var _coldbrew_oldSetTimeout = window.setTimeout;
+} else if (typeof self !== 'undefined') {
+  var _coldbrew_oldSetTimeout = self.setTimeout;
+} else {
+  var _coldbrew_oldSetTimeout = setTimeout;
+}
+
 var setTimeout = function() {
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
   var args = arguments;
   if (args[1] < 0) {
     if (MODULE_NAME._resume_ie) {
@@ -17,13 +25,13 @@ var setTimeout = function() {
     }
     return -1;
   }
-  return _coldbrew_global.setTimeout.apply(_coldbrew_global, args);
+  return _coldbrew_oldSetTimeout.apply(null, args);
 };
 
 Module.noInitialRun = true;
 
 Module.print = function(text) {
-  var global = (typeof window === 'object') ? window : global;
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
 
   if (MODULE_NAME.forwardOut) {
     MODULE_NAME.onStandardOut(text);
@@ -31,7 +39,7 @@ Module.print = function(text) {
 };
 
 Module.printErr = function(text) {
-  var global = (typeof window === 'object') ? window : global;
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
 
   if (MODULE_NAME.forwardErr) {
     MODULE_NAME.onStandardErr(text);
@@ -39,22 +47,25 @@ Module.printErr = function(text) {
 };
 
 Module.preInit = [function() {
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
   MODULE_NAME.preInit(Module);
 
-  if (MODULE_NAME._emterpreterFileResponse) {
+  if (MODULE_NAME._emterpreterFileResponse && typeof MODULE_NAME._emterpreterFileResponse.responseText !== 'undefined') {
     Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse.responseText;
+  } else if (MODULE_NAME._emterpreterFileResponse) {
+    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse;
   }
 }];
 
 Module.preRun.push(function() {
-  var global = (typeof window === 'object') ? window : global;
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
 
   MODULE_NAME.preRun(Module);
   MODULE_NAME._mountFS(Module);
 });
 
 Module.onRuntimeInitialized = function() {
-  var global = (typeof window === 'object') ? window : global;
+  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
 
   MODULE_NAME._onRuntimeInitialized(Module);
 };

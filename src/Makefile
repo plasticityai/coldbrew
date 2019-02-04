@@ -2,6 +2,7 @@ COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import v
 
 MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
+NODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
 DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
@@ -69,6 +70,12 @@ endif
 endif
 
 # Set variables from options and flags
+ifeq ($(NODE),true)
+$(eval EMCC_FILE_FLAG = --embed-file)
+else
+$(eval EMCC_FILE_FLAG = --preload-file)
+endif
+
 ifdef SHOULD_EMTERPRET
 $(eval EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST=@async_funcs.tmp -s 'EMTERPRETIFY_FILE="$(MODULE_NAME_LOWER).asm.embin"')
 endif
@@ -111,17 +118,29 @@ $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
 	# Add extra modifications to the .asm.js file for the final build
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat module.js >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module1 = module };" >> $(MODULE_NAME_LOWER).asm.js	
 ifeq ($(BROWSERFS),true)
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module2 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).asm.js
 endif
 ifeq ($(JSZIP),true)
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module3 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window !== 'undefined') {" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/jszip/jszip-utils.min.js >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "}" >> $(MODULE_NAME_LOWER).asm.js
 endif
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
 
 	touch $(MODULE_NAME_LOWER).asm.js.make
 
@@ -144,7 +163,7 @@ ifdef SHOULD_SYNC
 	# Build synchronous version of .asm.js
 	rm sync-$@.intermediate.js 2>/dev/null || true
 	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync"]' \
-		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d)) || true
+		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d)) || true
 	cat sync-$@.intermediate.js 1>/dev/null
 	# Extract the synchronous function bodies of functions we will want to run both synchronously and asynchronously
 	echo '"$(ASYNC_FUNCS)"' > extract_sync_code_arg_1.tmp
@@ -178,13 +197,15 @@ ifdef SHOULD_SYNC
 endif
 	# Build asynchronous version of .asm.js (with branching to synchronous function bodies)
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
-		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
+		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
+ifeq ($(NODE),false)
 	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+endif
 	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
 	# Restore the backup copy of emterpretify.py
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
