@@ -117,7 +117,7 @@ Build and Deploy:
   artifacts:
     untracked: true
     paths:
-      - src/
+      - ../tagger/src/
     when: on_failure
 
   only:
