@@ -124,6 +124,7 @@ Build Docker Image:
   stage: Build Docker Image
   image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
   script:
+    - cd $CI_PROJECT_DIR
     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
     - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
     - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
