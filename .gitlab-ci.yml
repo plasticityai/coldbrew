@@ -112,6 +112,7 @@ Build and Deploy:
     name: Coldbrew Demo
     url: http://coldbrew.plasticity.ai/
   artifacts:
+    untracked: true
     paths:
       - src/*
     when: on_failure
@@ -130,7 +131,7 @@ Build Docker Image:
     - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
     - cd src; make clean; make ../installs/python-3.5.2/lib/libpython3.5.syncified.o; cd ..;
-    - echo -e "\nCOPY ./ /BUILD/\n\nVOLUME /BUILD/customize"
+    - echo -e "\nCOPY . /BUILD/\nCOPY /root/.emscripten_cache /root/.emscripten_cache/\n\nVOLUME /BUILD/customize"
     - docker build --pull -t "$CI_REGISTRY_IMAGE-builder:$CI_BUILD_REF_NAME" .
     - docker push "$CI_REGISTRY_IMAGE-builder:$CI_BUILD_REF_NAME"
     - docker tag "$CI_REGISTRY_IMAGE-builder:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE-builder:$(python3 -c "import version; print(version.__version__)")"
