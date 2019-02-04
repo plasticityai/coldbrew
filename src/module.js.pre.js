@@ -7,6 +7,14 @@ class JavaScriptError extends Error {
   }
 }
 
+class PythonError extends Error {
+  constructor(...args) {
+    super(...args)
+    Error.captureStackTrace(this, PythonError);
+    this.errorData = MODULE_NAME.getExceptionInfo();
+  }
+}
+
 class HTTPResponseError extends Error {
   constructor(...args) {
     super(...args)
@@ -354,6 +362,7 @@ var MODULE_NAME = {
       MODULE_NAME._emterpreterFileResponse = emterpreterFileResponse;
       MODULE_NAME._fsReady(function(err, mountPoints) {
         MODULE_NAME._slots = {};
+        MODULE_NAME.PythonError = PythonError;
         MODULE_NAME._textDecoder = new TextDecoder("utf-8");
         MODULE_NAME._usedFiles = new Set();
         MODULE_NAME.mountPoints = mountPoints;
@@ -362,11 +371,28 @@ var MODULE_NAME = {
         MODULE_NAME.version =  "COLDBREW_VERSION";
         MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
         MODULE_NAME.setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
-        MODULE_NAME.run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
+        MODULE_NAME._run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
+        MODULE_NAME.run = function(script) {
+          var ret = MODULE_NAME._run(script);
+          if (ret != 0) {
+            throw new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo().value);
+          }
+          return ret;
+        };
         if (!SMALL_BUT_NO_ASYNC) {
-          MODULE_NAME.runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {
+          MODULE_NAME._runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {
             async: true,
           });
+          MODULE_NAME.runAsync = function(script) {
+            var retp = MODULE_NAME._runAsync(script);
+            return retp.then(function(ret) {
+              if (ret != 0) {
+                return Promise.reject(new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo().value));
+              } else {
+                return Promise.resolve(ret);
+              }
+            }); 
+          };
         }
         MODULE_NAME._runFile = MODULE_NAME.Module.cwrap('export__runFile', 'number', ['string']);
         if (!SMALL_BUT_NO_ASYNC) {
@@ -377,17 +403,17 @@ var MODULE_NAME = {
         MODULE_NAME.getVariable = function(expression) {
           var uid = randid();
           MODULE_NAME.run('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))');
-          var rval = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
+          var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
           delete MODULE_NAME._slots[uid];
-          return rval;
+          return ret;
         };
         if (!SMALL_BUT_NO_ASYNC) {
           MODULE_NAME.getVariableAsync = function(expression) {
             var uid = randid();
             return MODULE_NAME.runAsync('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))').then(function() {
-              var rval = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
+              var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
               delete MODULE_NAME._slots[uid];
-              return rval;
+              return ret;
             });
           };
         }

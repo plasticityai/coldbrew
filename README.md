@@ -113,7 +113,7 @@ Coldbrew.run("import sys");
 Coldbrew.run("print('The current Python version is:', sys.version)");
 ```
 
-The `run` function returns `0` when successful or `-1` if there was an error.
+The `run` function returns `0` when successful or throws a `PythonError` if there was an error.
 
 #### Running Python Asynchronously in JavaScript
 Python code is run synchronously and will lock up the browser for long running code. To run Python code asynchronously and concurrently with JavaScript, you can run it like so:
@@ -132,7 +132,7 @@ for i in range(5):
 `);
 ```
 
-The `runAsync` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
+The `runAsync` function returns a Promise that resolves to `0` when successful or rejects with a `PythonError` if there was an error.
 
 ### Running Python Files in JavaScript
 You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript:
@@ -146,7 +146,7 @@ Coldbrew.runFile('add.py', {
 
 The `cwd` option is the path to the folder containing the Python file, the `env` option is a dictionary of environment variables, the `args` is a list of arguments to pass to the Python file.
 
-The `runFile` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
+The `runFile` function returns `0` when successful or throws a `PythonError` if there was an error.
 
 #### Running Python Files Asynchronously in JavaScript
 You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript asynchronously:
@@ -158,7 +158,7 @@ Coldbrew.runFileAsync('add.py', {
 });
 ```
 
-The `runFileAsync` function returns a Promise that resolves to `0` when successful or `-1` if there was an error.
+The `runFileAsync` function returns a Promise that resolves to `0` when successful or rejects with a `PythonError` if there was an error.
 
 ### Communicating between JavaScript and Python
 
@@ -229,7 +229,7 @@ Note: This only works if the data returned by the function is JSON serializable.
 ### Error Handling
 
 #### Catching Python Errors in JavaScript
-If you recieve a `-1` from a run function from Coldbrew, the Python code has experienced a failure. You can get information about the last Python exception thrown in JavaScript like so:
+If you are running a Python using Coldbrew that encounters an error, a `Coldbrew.PythonError` will be thrown in JavaScript. You can then use `e.errorData` on the error object `e` to get more information about the Python context where the error occurred. You can also get information about the last Python exception thrown in JavaScript like so:
 ```javascript
 Coldbrew.getExceptionInfo(); // Returns a dictionary with information from the last Python exception
 ```

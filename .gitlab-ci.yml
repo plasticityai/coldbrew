@@ -86,6 +86,7 @@ Build and Deploy:
     - git config --global user.name "Plasticity Developer Bot"
     # Build & Commit
     - export COLDBREW_TAGGER_DIR=$(pwd)
+    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../
     - git checkout ./customize/coldbrew_settings.py

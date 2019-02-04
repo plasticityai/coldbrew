@@ -139,11 +139,13 @@ endif
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak
 ifdef SHOULD_SYNC
 	# Modify emterpretify.py to keep intermediate files
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean();sys.exit(1)"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 	# Build synchronous version of .asm.js
+	rm sync-$@.intermediate.js 2>/dev/null || true
 	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync"]' \
-		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d))
+		$(foreach d,$(wildcard root/*),--preload-file $d@/$(notdir $d)) || true
+	cat sync-$@.intermediate.js 1>/dev/null
 	# Extract the synchronous function bodies of functions we will want to run both synchronously and asynchronously
 	echo '"$(ASYNC_FUNCS)"' > extract_sync_code_arg_1.tmp
 	echo '"$(PYTHON_FUNCS)"' > extract_sync_code_arg_2.tmp
