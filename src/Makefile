@@ -1,19 +1,19 @@
-COLDBREW_VERSION=$(shell python3 -c "import sys; sys.path.append('../'); import version; print(version.__version__)")
+COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import version; print(version.__version__)")
 
-MODULE_NAME=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
-MODULE_NAME_LOWER=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
-DEFAULT_MEMORY=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
-AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
-UNUSED_MODULES=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
-BROWSERFS=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
-JSZIP=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
-PTHREAD_CFLAGS=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
-PTHREAD_LDFLAGS=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
-SYMBOLS_DEBUG_MODE=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
-ASSERTIONS_DEBUG_MODE=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
-export EMCC_DEBUG := $(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
-SMALL_BUT_NO_ASYNC=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_NO_ASYNC).lower())")
-SMALL_BUT_SLOW_SYNC=$(shell python3 -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(False).lower())")
+MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
+MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
+DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
+AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
+UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
+BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
+JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
+PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
+PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
+SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
+ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
+export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
+SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_NO_ASYNC).lower())")
+SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(False).lower())")
 
 ALWAYS_ASYNC_FUNCS='_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep\n__coldbrew_yield_to_javascript'
 ASYNC_FUNCS=$(eval ASYNC_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g' | grep -v -E "$(shell echo -e $(ALWAYS_ASYNC_FUNCS) | sed -e ':a;N;$$!ba;s/\n/|/g' )") | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(ASYNC_FUNCS)
@@ -139,7 +139,7 @@ endif
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak
 ifdef SHOULD_SYNC
 	# Modify emterpretify.py to keep intermediate files
-	python3 -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 	# Build synchronous version of .asm.js
 	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync"]' \
@@ -147,7 +147,7 @@ ifdef SHOULD_SYNC
 	# Extract the synchronous function bodies of functions we will want to run both synchronously and asynchronously
 	echo '"$(ASYNC_FUNCS)"' > extract_sync_code_arg_1.tmp
 	echo '"$(PYTHON_FUNCS)"' > extract_sync_code_arg_2.tmp
-	python3 extract_sync_code.py sync-$@.intermediate.js > synchronous-func-bodies.intermediate.js
+	python extract_sync_code.py sync-$@.intermediate.js > synchronous-func-bodies.intermediate.js
 	# Clean up the mess from the synchronous build
 ifneq ($(strip $(EMCC_DEBUG)),)
 	mv sync-coldbrew.asm.js.intermediate.js tmp-sync-coldbrew.asm.js.intermediate.js.tmp
@@ -161,17 +161,17 @@ endif
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 	# Modify emterpretify.py to add in the synchronous function bodies
 ifdef SHOULD_SYNC
-	python3 -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Modify emterpretify.py to keep intermediate files
 ifneq ($(strip $(EMCC_DEBUG)),)
-	python3 -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Modify emterpretify.py to branch to the synchronous function bodies when running synchronously with an if-statement
 ifdef SHOULD_SYNC
-	python3 -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0]\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0]\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Build asynchronous version of .asm.js (with branching to synchronous function bodies)
@@ -225,7 +225,7 @@ clean:
 	rm main.c 2>/dev/null || true
 
 main.c: $(PYLIB) add_requirements.py main.c.pre.c requirements.make
-	python3 add_requirements.py main.c.pre.c main.c
+	python add_requirements.py main.c.pre.c main.c
 
 
 %.bc: %.c $(PYLIB) Makefile
@@ -255,7 +255,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rm -rf root/usr/local/lib/python$(PYMINOR)/pydoc_data || true # Remove these unneeded files taking up space
 	rm -rf root/usr/local/lib/python$(PYMINOR)/unittest/test || true # Remove these unneeded files taking up space
 	rm -rf root/usr/local/lib/python$(PYMINOR)/lib2to3/tests || true # Remove these unneeded files taking up space
-	python3 slim_data_bundle.py
+	python slim_data_bundle.py
 
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
@@ -267,8 +267,8 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	$(eval GPP := $(shell which g++))
 	( \
 		rm -rf ../customize/requirements || true; \
-		python3 -m venv ../customize/requirements; \
-		python3 -m venv ../customize/requirements/builder; \
+		python -m venv ../customize/requirements; \
+		python -m venv ../customize/requirements/builder; \
 		/bin/bash -c "source ../customize/requirements/builder/bin/activate && pip3 install -r ../customize/requirements.txt && pip freeze | grep -E \"numpy|torch|h5py|tensorflow|pymagnitude|supersqlite\" -v > ../customize/requirements/builder/new_requirements.txt"; \
 		mv /usr/local/include/python* /usr/local/include/python.bak || true; \
 		/bin/bash -c "source ../customize/requirements/bin/activate && mv $(GPP) $(GPP).bak && ln -s $(shell which em++) $(GPP) && CC=$(CC) LDSHARED=$(CC) CFLAGS=-I$(INSTALLS)/python-$(PYVERSION)/include/python$(PYMINOR)/ pip3 install -r ../customize/requirements/builder/new_requirements.txt -vvv --no-deps --no-binary :all:"; \

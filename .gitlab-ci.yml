@@ -1,4 +1,4 @@
-image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
+image: python:latest
 
 services:
   - docker:dind
@@ -93,24 +93,24 @@ Build and Deploy:
     - mv .gitignore.tmp .gitignore
     - git pull
     - git add .
-    - git commit -n -m "Release $(python3 -c "import version; print(version.__version__)")"
+    - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases
     # End Build & Commit
-    - git tag -a $(python3 -c "import version; print(version.__version__)") -m "Release $(python3 -c "import version; print(version.__version__)")"
+    - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases --tags
     # Push to Amazon S3
-    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python3 -c "import version; print(version.__version__)")\/dist\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote.html
-    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python3 -c "import version; print(version.__version__)")\/dist-debug\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote-debug.html
+    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote.html
+    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist-debug\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote-debug.html
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index.html
     - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-debug.html
-    - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python3 -c "import version; print(version.__version__)").html
-    - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-$(python3 -c "import version; print(version.__version__)")-debug.html
+    - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)").html
+    - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)")-debug.html
     # End Push to Amazon S3
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger
     - sleep 60 # Wait for GitLab to mirror to GitHub
     # Create a release on GitHub
-    - curl -u plasticity-admin:$GITHUB_TOKEN -d "{\"tag_name\":\"$(python3 -c "import version; print(version.__version__)")\", \"name\":\"Release $(python3 -c "import version; print(version.__version__)")\"}" -H "Content-Type:"" application/json" -X POST https://api.github.com/repos/plasticityai/$CI_PROJECT_NAME/releases
+    - curl -u plasticity-admin:$GITHUB_TOKEN -d "{\"tag_name\":\"$(python -c "import version; print(version.__version__)")\", \"name\":\"Release $(python -c "import version; print(version.__version__)")\"}" -H "Content-Type:"" application/json" -X POST https://api.github.com/repos/plasticityai/$CI_PROJECT_NAME/releases
   environment:
     name: Coldbrew Demo
     url: http://coldbrew.plasticity.ai/
@@ -125,6 +125,7 @@ Build and Deploy:
 
 Build Docker Image:
   stage: Build Docker Image
+  image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
   script:
     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
     - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
