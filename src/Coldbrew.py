@@ -15,6 +15,7 @@ pyversion = os.environ['PYVERSION']
 version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
+module_name_var = "((typeof window === 'undefined' && typeof self === 'undefined') ? module.exports : "+module_name+")"
 js_error = None
 
 def _barg(arg):
@@ -89,7 +90,7 @@ def get_variable(expression):
         return val
 
 def run_function(functionExpression, *args):
-    return get_variable(module_name+'._try(function () {'+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
+    return get_variable(module_name_var+'._try(function () {'+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
 
 def run_function_async(functionExpression, *args, **kwargs):
     global _slot_id
@@ -97,17 +98,17 @@ def run_function_async(functionExpression, *args, **kwargs):
     uid = '_internal_pyslot_'+str(_slot_id)
     if is_async():
         run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
-                '''+module_name+'''._slots["'''+uid+'''"] = val;
-                '''+module_name+'''._resume_ie = true;
-                '''+module_name+'''.resume(false);
+                '''+module_name_var+'''._slots["'''+uid+'''"] = val;
+                '''+module_name_var+'''._resume_ie = true;
+                '''+module_name_var+'''.resume(false);
             }).catch(function(e) {
-                '''+module_name+'''._slots["'''+uid+'''"] = '''+module_name+'''._convertError(e);
-                '''+module_name+'''._resume_ie = true;
-                '''+module_name+'''.resume(false);
+                '''+module_name_var+'''._slots["'''+uid+'''"] = '''+module_name_var+'''._convertError(e);
+                '''+module_name_var+'''._resume_ie = true;
+                '''+module_name_var+'''.resume(false);
             });''')
-        while get_variable('''(typeof '''+module_name+'''._slots["'''+uid+'''"] === 'undefined')'''):
+        while get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
             sleep(-1)
-        return get_variable(module_name+'''._slots["'''+uid+'''"]''')
+        return get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
     else:
         _error("Python tried to call an async JavaScript function "+json.dumps(functionExpression)+". Since you are not running in asynchronous mode, this is not allowed.")
 
@@ -123,9 +124,9 @@ class StandardInput():
         
     def read(self, size):
         if is_async():
-            return run_function_async(module_name+'''.onStandardInReadAsync''', size)
+            return run_function_async(module_name_var+'''.onStandardInReadAsync''', size)
         else:
-            return run_function(module_name+'''.onStandardInRead''', size)
+            return run_function(module_name_var+'''.onStandardInRead''', size)
 
 sys.stdin = StandardInput()
 
@@ -136,7 +137,7 @@ def _append_argv(arg):
     sys.argv.append(arg)
 
 def reset():
-    return run_function(module_name+'.reset')
+    return run_function(module_name_var+'.reset')
 
 def _warn(message):
     if os.environ['COLDBREW_WARNINGS'] == '1':

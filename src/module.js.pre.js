@@ -6,6 +6,7 @@ if (typeof window === 'undefined' && typeof self === 'undefined') {
 }
 
 (function() {
+var _coldbrew_internal_global;
 
 class JavaScriptError extends Error {
   constructor(...args) {
@@ -82,79 +83,206 @@ function base64decode(string) {
     return result;
 }
 
-function sendRequest(method, url, body, headers, timeout, binary = false) {
+function toArrayBuffer(buf) {
+    var ab = new ArrayBuffer(buf.length);
+    var view = new Uint8Array(ab);
+    for (var i = 0; i < buf.length; ++i) {
+        view[i] = buf[i];
+    }
+    return ab;
+}
+
+function sendRequest(method, url, body, headers, timeout, binary = false, level=0) {
+  if (level > 25) {
+    var e = new HTTPResponseError("The request has been redirected too many times.");
+    e.errorData = {
+      status: 0,
+      statusText: "",
+      responseText: "",
+      responseType: "",
+      responseURL: url,
+      headers: "",
+    }
+    return Promise.reject(e);
+  }
   return new Promise(function (resolve, reject) {
-    var request = new XMLHttpRequest();
-    if (timeout !== null) {
-      request.timeout = timeout * 1000;
-    }
-    if (binary) {
-      request.responseType = "arraybuffer";
-    }
-    request.open(method, url, true);
-    Object.keys(headers).forEach(function(header) {
-      if (!["host", "connection", "user-agent", "accept-encoding", "content-length"].includes(header.toLowerCase())) {
-        request.setRequestHeader(header, headers[header]);
+    if (typeof XMLHttpRequest !== 'undefined') {
+      var request = new XMLHttpRequest();
+      if (timeout !== null) {
+        request.timeout = timeout * 1000;
       }
-    });
-    request.onreadystatechange = function () {
-      var headers = this.getAllResponseHeaders();
-      if (this.readyState === 4) {
-        var responseContent  = !binary ? this.responseText : this.response;
-        var responseLength = !binary ? responseContent.length : responseContent.byteLength;
-        headers += 'content-length: '+responseLength.toString()+'\r\n';
-        if (this.status >= 200 && this.status < 400) {
-          resolve({
-            status: this.status,
-            statusText: this.statusText,
-            responseText: responseContent,
-            responseType: this.responseType,
-            responseURL: this.responseURL,
-            headers: headers,
-          });
-        } else {
-          var e = new HTTPResponseError("The request has failed.");
-          e.errorData = {
-            status: this.status,
-            statusText: this.statusText,
-            responseText: responseContent,
-            responseType: this.responseType,
-            responseURL: this.responseURL,
-            headers: headers,
-          }
-          reject(e);
+      if (binary) {
+        request.responseType = "arraybuffer";
+      }
+      request.open(method, url, true);
+      Object.keys(headers).forEach(function(header) {
+        if (!["host", "connection", "user-agent", "accept-encoding", "content-length"].includes(header.toLowerCase())) {
+          request.setRequestHeader(header, headers[header]);
         }
+      });
+      request.onreadystatechange = function () {
+        var headers = this.getAllResponseHeaders();
+        if (this.readyState === 4) {
+          var responseContent  = !binary ? this.responseText : this.response;
+          var responseLength = !binary ? responseContent.length : responseContent.byteLength;
+          headers += 'content-length: '+responseLength.toString()+'\r\n';
+          if (this.status >= 200 && this.status < 400) {
+            resolve({
+              status: this.status,
+              statusText: this.statusText,
+              responseText: responseContent,
+              responseType: this.responseType,
+              responseURL: this.responseURL,
+              headers: headers,
+            });
+          } else {
+            var e = new HTTPResponseError("The request has failed.");
+            e.errorData = {
+              status: this.status,
+              statusText: this.statusText,
+              responseText: responseContent,
+              responseType: this.responseType,
+              responseURL: this.responseURL,
+              headers: headers,
+            }
+            reject(e);
+          }
+        }
+      };
+      request.ontimeout = function () {
+        var e = new HTTPTimeoutError("The request has timed out.");
+        e.errorData = {
+          status: 0,
+          statusText: "",
+          responseText: "",
+          responseType: "",
+          responseURL: url,
+          headers: {},
+        }
+        reject(e);
+      };
+      request.onabort = function () {
+        var e = new HTTPAbortError("The request has been aborted.");
+        e.errorData = {
+          status: 0,
+          statusText: "",
+          responseText: "",
+          responseType: "",
+          responseURL: url,
+          headers: {},
+        }
+        reject(e);
+      };
+      request.send(body);
+    } else {
+      var urllib = require('url');
+      var parsedUrl = urllib.parse(url);
+      var httplib = (parsedUrl.protocol === 'http:') ? require('http') : require('https');
+      var requestOptions = {
+        method: method,
+        host: parsedUrl.host,
+        port: parsedUrl.port,
+        path: parsedUrl.path,
+        headers: headers,
+      };
+      if (timeout !== null) {
+        requestOptions.timeout = timeout;
       }
-    };
-    request.ontimeout = function () {
-      var e = new HTTPTimeoutError("The request has timed out.");
-      e.errorData = {
-        status: 0,
-        statusText: "",
-        responseText: "",
-        responseType: "",
-        responseURL: url,
-        headers: this.getAllResponseHeaders(),
+      var request = httplib.request(requestOptions, function (res) {
+        if (binary) res.setEncoding('binary');
+        var responseContent = binary ? [] : "";
+        res.on("data", function (data) {
+          if (binary) {
+            responseContent.push(Buffer.from(data, 'binary'));
+          } else {
+            responseContent += data;
+          }
+        });
+        res.on("end", function () {
+          if (res.statusCode == 301 || res.statusCode == 302 || res.statusCode == 303 && typeof res.headers.location !== 'undefined') {
+            Object.keys(headers).forEach(function(header) {
+              if (header.toLowerCase() === 'host') {
+                headers[header] = urllib.parse(res.headers.location).host;
+              }
+            });
+            sendRequest('GET', res.headers.location, body, headers, timeout, binary, level+1).then(resolve).catch(reject);
+            return;
+          } else if (res.statusCode == 307 || res.statusCode == 308 && typeof res.headers.location !== 'undefined') {
+            Object.keys(headers).forEach(function(header) {
+              if (header.toLowerCase() === 'host') {
+                headers[header] = urllib.parse(res.headers.location).host;
+              }
+            });
+            sendRequest(method, res.headers.location, body, headers, timeout, binary, level+1).then(resolve).catch(reject);
+            return;
+          } else if (res.statusCode >= 200 && res.statusCode < 400) {
+            resolve({
+              status: res.statusCode,
+              statusText: res.statusMessage,
+              responseText: (binary) ? toArrayBuffer(Buffer.concat(responseContent)) : responseContent,
+              responseType: (binary) ? "arraybuffer" : "",
+              responseURL: typeof res.headers.location !== 'undefined' ? res.headers.location : url,
+              headers: res.rawHeaders.map(h => h+'\r\n').join(''),
+            });
+          } else {
+            var e = new HTTPResponseError("The request has failed.");
+            e.errorData = {
+              status: res.statusCode,
+              statusText: res.statusMessage,
+              responseText: (binary) ? toArrayBuffer(Buffer.concat(responseContent)) : responseContent,
+              responseType: (binary) ? "arraybuffer" : "",
+              responseURL: typeof res.headers.location !== 'undefined' ? res.headers.location : url,
+              headers: res.rawHeaders.map(h => h+'\r\n').join(''),
+            }
+            reject(e);
+          }
+        });
+      });
+      request.on('error', function() {
+        var e = new HTTPResponseError("The request has failed.");
+        e.errorData = {
+          status: 0,
+          statusText: "",
+          responseText: "",
+          responseType: "",
+          responseURL: url,
+          headers: {},
+        }
+        reject(e);
+      });
+      request.on('abort', function() {
+        var e = new HTTPAbortError("The request has been aborted.");
+        e.errorData = {
+          status: 0,
+          statusText: "",
+          responseText: "",
+          responseType: "",
+          responseURL: url,
+          headers: {},
+        }
+        reject(e);
+      });
+      request.on('timeout', function(e) {
+        var e = new HTTPTimeoutError("The request has timed out.");
+        e.errorData = {
+          status: 0,
+          statusText: "",
+          responseText: "",
+          responseType: "",
+          responseURL: url,
+          headers: {},
+        }
+        reject(e);
+      });
+      if (body !== null) {
+        request.write(body);
       }
-      reject(e);
-    };
-    request.onabort = function () {
-      var e = new HTTPAbortError("The request has been aborted.");
-      e.errorData = {
-        status: 0,
-        statusText: "",
-        responseText: "",
-        responseType: "",
-        responseURL: url,
-        headers: this.getAllResponseHeaders(),
-      }
-      reject(e);
-    };
-    request.send(body);
+      request.end();
+    }
   });
 }
 
-_MODULE_NAME_coldbrew_internal_instance = (function() {
+var _MODULE_NAME_coldbrew_internal_instance = (function() {
   var executed = false;
   var singleton = null;
   return function() {
@@ -166,7 +294,7 @@ _MODULE_NAME_coldbrew_internal_instance = (function() {
   };
 })();
 
-_MODULE_NAME_coldbrew_internal_fs_configure = (function() {
+var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   var executed = false;
   var singleton = {};
   var configured = false;
@@ -369,7 +497,7 @@ var MODULE_NAME = {
       MODULE_NAME._fsReady(function(err, mountPoints) {
         MODULE_NAME._slots = {};
         MODULE_NAME.PythonError = PythonError;
-        MODULE_NAME._textDecoder = new TextDecoder("utf-8");
+        MODULE_NAME._textDecoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder("utf-8") : new module4.exports.TextDecoder("utf-8");
         MODULE_NAME._usedFiles = new Set();
         MODULE_NAME.mountPoints = mountPoints;
         MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
@@ -408,7 +536,7 @@ var MODULE_NAME = {
         }
         MODULE_NAME.getVariable = function(expression) {
           var uid = randid();
-          MODULE_NAME.run('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))');
+          MODULE_NAME.run('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))');
           var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
           delete MODULE_NAME._slots[uid];
           return ret;
@@ -416,7 +544,7 @@ var MODULE_NAME = {
         if (!SMALL_BUT_NO_ASYNC) {
           MODULE_NAME.getVariableAsync = function(expression) {
             var uid = randid();
-            return MODULE_NAME.runAsync('Coldbrew.run("_coldbrew_internal_global.MODULE_NAME._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))').then(function() {
+            return MODULE_NAME.runAsync('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew.json.dumps('+expression+')))').then(function() {
               var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
               delete MODULE_NAME._slots[uid];
               return ret;
@@ -465,14 +593,22 @@ var MODULE_NAME = {
           MODULE_NAME.Module.FS.writeFile(path, data);
         };
         if (JSZIP) {
+          var JSZip;
+          if ((!_coldbrew_internal_global || typeof _coldbrew_internal_global.JSZip === 'undefined')) {
+            JSZip = module3.exports;
+          } else {
+            JSZip = _coldbrew_internal_global.JSZip;
+          }
           MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
             return new JSZip.external.Promise(function (resolve, reject) {
-              JSZipUtils.getBinaryContent(urlToZip, function(err, data) {
-                  if (err) {
-                      reject(err);
-                  } else {
-                      resolve(data);
-                  }
+              console.log('HERE');
+              MODULE_NAME._sendRequest('GET', urlToZip, null, {}, null, true)
+              .then(function(data) {
+                console.log('HERE2');
+                resolve(data.responseText);
+              })
+              .catch(function(e) {
+                reject(e);
               });
             })
             .then(JSZip.loadAsync)
@@ -636,6 +772,9 @@ var MODULE_NAME = {
           if (finalizedOptions.hideWarnings) {
             MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
           }
+          if (!finalizedOptions.hideWarnings) {
+            console.warn('Initialized MODULE_NAME Python Environment.');
+          }
         };
         MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
         MODULE_NAME.reset = function() {
@@ -673,7 +812,7 @@ var MODULE_NAME = {
       }
     }
   },
-  _sendRequest: (typeof XMLHttpRequest !== 'undefined') ? sendRequest : undefined,
+  _sendRequest: sendRequest,
   _emterpreterFile: (
     (!SMALL_BUT_NO_ASYNC) ? 
       (
@@ -689,7 +828,7 @@ if (typeof module !== 'undefined') module.exports = MODULE_NAME;
 if (typeof window !== 'undefined') window.MODULE_NAME = MODULE_NAME;
 if (typeof self !== 'undefined') self.MODULE_NAME = MODULE_NAME;
 
-if (typeof window !== 'undefined') window._coldbrew_internal_global = window;
-if (typeof self !== 'undefined') self._coldbrew_internal_global = self;
+if (typeof window !== 'undefined') _coldbrew_internal_global = window;
+if (typeof self !== 'undefined') _coldbrew_internal_global = self;
 
 })();

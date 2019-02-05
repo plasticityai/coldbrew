@@ -132,11 +132,9 @@ ifeq ($(JSZIP),true)
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window !== 'undefined') {" >> $(MODULE_NAME_LOWER).asm.js
-	cat ../third_party/jszip/jszip-utils.min.js >> $(MODULE_NAME_LOWER).asm.js
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "}" >> $(MODULE_NAME_LOWER).asm.js
 endif
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module4 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
@@ -205,6 +203,11 @@ ifeq ($(NODE),false)
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+else
+	sed -e 's/if (typeof crypto !== "undefined")/if (typeof crypto !== "undefined" \&\& !ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/if(typeof crypto!=="undefined")/if(typeof crypto!=="undefined"\&\&!ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 endif
 	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
 	# Restore the backup copy of emterpretify.py
@@ -257,7 +260,7 @@ main.c: $(PYLIB) add_requirements.py main.c.pre.c requirements.make
 main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py slim_data_bundle.py requirements.make
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true

@@ -130,7 +130,6 @@ int _coldbrew_python_initialize() {
     char **pyargv = NULL;
     PySys_SetArgv(0, (wchar_t**) pyargv);
     int rcode1 = PyRun_SimpleString("import Coldbrew");
-    emscripten_run_script("console.warn('Initialized "STRINGIFY(MODULE_NAME)" Python Environment.');");
     int rcode2 = PyRun_SimpleString(
         "__coldbrew_saved_context__ = {}\n"
         "\n"

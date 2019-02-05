@@ -1,25 +1,37 @@
 if (typeof window !== 'undefined') {
   var _coldbrew_oldSetTimeout = window.setTimeout;
+} else if (typeof global !== 'undefined') {
+  var _coldbrew_oldSetTimeout = global.setTimeout;
 } else if (typeof self !== 'undefined') {
   var _coldbrew_oldSetTimeout = self.setTimeout;
 } else {
   var _coldbrew_oldSetTimeout = setTimeout;
 }
 
+var getModule = function() {
+  var M;
+  if (typeof window === 'undefined' && typeof self === 'undefined') { 
+    M = module.exports;
+  } else {
+    M = MODULE_NAME;
+  }
+  return M;
+}
+
 var setTimeout = function() {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
+  var M = getModule();
   var args = arguments;
   if (args[1] < 0) {
-    if (MODULE_NAME._resume_ie) {
+    if (M._resume_ie) {
       // Immediately execute
-      MODULE_NAME._resume_ie = false;
-      MODULE_NAME.resume = MODULE_NAME._resumeWarn;
+      M._resume_ie = false;
+      M.resume = M._resumeWarn;
       args[0]();
     } else {
       // Save resume execution for later
-      MODULE_NAME.resume = function() {
-        MODULE_NAME._resume_ie = false;
-        MODULE_NAME.resume = MODULE_NAME._resumeWarn;
+      M.resume = function() {
+        M._resume_ie = false;
+        M.resume = M._resumeWarn;
         args[0]();
       };
     }
@@ -31,41 +43,41 @@ var setTimeout = function() {
 Module.noInitialRun = true;
 
 Module.print = function(text) {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
+  var M = getModule();
 
-  if (MODULE_NAME.forwardOut) {
-    MODULE_NAME.onStandardOut(text);
+  if (M.forwardOut) {
+    M.onStandardOut(text);
   }
 };
 
 Module.printErr = function(text) {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
+  var M = getModule();
 
-  if (MODULE_NAME.forwardErr) {
-    MODULE_NAME.onStandardErr(text);
+  if (M.forwardErr) {
+    M.onStandardErr(text);
   }
 };
 
 Module.preInit = [function() {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
-  MODULE_NAME.preInit(Module);
+  var M = getModule();
+  M.preInit(Module);
 
-  if (MODULE_NAME._emterpreterFileResponse && typeof MODULE_NAME._emterpreterFileResponse.responseText !== 'undefined') {
-    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse.responseText;
-  } else if (MODULE_NAME._emterpreterFileResponse) {
-    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse;
+  if (M._emterpreterFileResponse && typeof M._emterpreterFileResponse.responseText !== 'undefined') {
+    Module.emterpreterFile = M._emterpreterFileResponse.responseText;
+  } else if (M._emterpreterFileResponse) {
+    Module.emterpreterFile = M._emterpreterFileResponse;
   }
 }];
 
 Module.preRun.push(function() {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
+  var M = getModule();
 
-  MODULE_NAME.preRun(Module);
-  MODULE_NAME._mountFS(Module);
+  M.preRun(Module);
+  M._mountFS(Module);
 });
 
 Module.onRuntimeInitialized = function() {
-  if (typeof MODULE_NAME === 'undefined') MODULE_NAME = module.exports;
+  var M = getModule();
 
-  MODULE_NAME._onRuntimeInitialized(Module);
+  M._onRuntimeInitialized(Module);
 };
