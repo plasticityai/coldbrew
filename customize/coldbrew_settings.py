@@ -2,7 +2,7 @@
 MODULE_NAME = "Coldbrew"
 
 # If you want to build for Node.js, turn this property on
-NODE = True
+NODE = False
 
 # Controls the default amount of memory (must be a multiple of 64KB or 524288) to allocate for the program (it can grow beyond this)
 DEFAULT_MEMORY = 524288 * 30
