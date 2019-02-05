@@ -2,7 +2,7 @@
 
 ## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)&nbsp;&nbsp;&nbsp;[![version](https://img.shields.io/github/release/plasticityai/coldbrew.svg)](https://github.com/plasticityai/coldbrew/releases)</div>
 
-Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly)/`asm.js`. It is the easiest way to run Python code in JavaScript (a web browser) and is developed by [Plasticity](https://www.plasticity.ai/).
+Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly)/`asm.js`. It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
 
 Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`).
 
@@ -71,14 +71,19 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai](http://coldbrew.plasticity.ai).
 
 ## Installation
-You can use the library by embedding `coldbrew.asm.js`. You can use the CDN, if you wish:
+You can use the library in a browser by embedding `coldbrew.asm.js` via our CDN:
 ```html
 <script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.asm.js"></script>
 ```
 
-To embed a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
+You can use the library in Node.js by installing it using `npm`:
+```bash
+npm install @plasticity/coldbrew@latest
+```
 
-You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
+To use a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
+
+If you would like to self host the files, you can also download the files from [`dist`](https://github.com/plasticityai/coldbrew/tree/latest/src/dist) (web) or [`dist-node`](https://github.com/plasticityai/coldbrew/tree/latest/src/dist-node) (Node.js). You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
 
 ## Using the Library
 
@@ -180,6 +185,8 @@ Coldbrew.run("print(Coldbrew.get_variable('x'))") // Prints 25
 
 Note: This only works if the data in the variable is JSON serializable.
 
+Note: This only works if the variable is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+
 #### Run Python Function in JavaScript
 You can run a function from Python in JavaScript like so:
 ```javascript
@@ -215,6 +222,8 @@ Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
 
 Note: This only works if the data returned by the function is JSON serializable.
 
+Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+
 #### Run Asynchronous JavaScript Function in Python
 You can run a asynchronous function from JavaScript (that returns a Promise) in Python like so:
 ```javascript
@@ -225,6 +234,8 @@ Coldbrew.runAsync("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 
 ```
 
 Note: This only works if the data returned by the function is JSON serializable.
+
+Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
 ### Error Handling
 
@@ -402,7 +413,7 @@ By default, the Python interpreter yields back to the JavaScript event loop ever
 Coldbrew.setAsyncYieldRate(...)
 ```
 
-As the number is set higher,  Python code will run faster (since it yields back to the JavaScript event loop less frequently), but the browser will feel more locked up. The lower the number, the opposite is true. 
+As the number is set higher,  Python code will run faster (since it yields back to the JavaScript event loop less frequently), but the JavaScript VM will feel more locked up. The lower the number, the opposite is true. 
 
 You can retrieve the current yield rate like so:
 ```javascript
@@ -424,7 +435,7 @@ Coldbrew only comes with a standard Python installation, with no third-party mod
 You can build a custom Coldbrew Python Environment to access more functionality of Coldbrew and customize various settings.
 
 ### 1. Changing the Module Name and Other Settings
-To change the global name of the library from `Coldbrew` to something else in JavaScript (to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. Various other settings can also be modified in `customize/coldbrew_settings.py` like the initial allocated memory size, however, the defaults are generally acceptable if you don't want to modify them. 
+To change the global name of the library from `Coldbrew` to something else in JavaScript (or to run multiple custom Coldbrew Python environments on the same page without their names conflicting in the global namespace), you can modify the `MODULE_NAME` setting in `customize/coldbrew_settings.py`. If you are building for Node.js, you will also want to set `NODE = True`. Various other settings can also be modified in `customize/coldbrew_settings.py` like the initial allocated memory size, however, the defaults are generally acceptable if you don't want to modify them. 
 
 ### 2. Adding Python Module Dependencies and Requirements to the Environment
 Add any requirements of your project in the standard Python [`requirements.txt` format](https://pip.pypa.io/en/stable/reference/pip_install/#requirements-file-format). 
@@ -444,16 +455,16 @@ To test, simply navigate to the project root in terminal and run `./serve.sh`. T
 The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
 
 ### 7. Deploying
-Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import and use the library on a page.
+Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import and use the library on a page. A `package.json` file will be added to the `dist` folder when building for Node.js, which you can modify as needed.
 
 ## Example Use Cases
-This isn't the most efficient way to run code in a browser. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
+This isn't the most efficient way to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
 
 1. An online IDE or coding tutorial website that wants to let people run Python code in a sandbox. It is better to run the Python code in the user's own browser so you don't have execute arbitrary Python code on your servers (for security reasons). It also means you don't have to run servers to execute Python code server side and send the result back to the browser (which is more cost efficient).
 
-2. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser.
+2. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser / Node.js.
 
-3. A quick-and-dirty solution to porting over Python code to the browser that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. (Write once. Deploy anywhere.)
+3. A quick-and-dirty solution to porting over Python code to the browser / Node.js that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. (Write once. Deploy anywhere.)
 
 4. Access the [thousands of Python libraries](https://pypi.org/) that are not available in JavaScript. 
 
@@ -473,11 +484,15 @@ Any limitations imposed by the browser will be imposed by Python running in the 
 
 A lot of these things can be "shimmed" in the future just like the virtual file system. Things like `/dev/random` and `/dev/urandom` are actually available even though there is no operating system because Emscripten shims these devices.
 
+Even though on Node.js, it is possible to access some of these features, we still limit the ability of Coldbrew to access these features to maintain compatibility with the browser version of Coldbrew.
+
 ## Security
-All Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
+When using Coldbrew in the browser, all Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
+
+When using Coldbrew in Node.js, you similarly want to protect against executing arbitrary Python code server-side as there is now an additional risk of code executing on your backend server performing Denial-of-Service attacks or accessing your backend system resources.
 
 ## Benchmarks
-To give a quick sense of how much of a performance hit running Python in the browser takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
+To give a quick sense of how much of a performance hit running Python in JavaScript takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
 
 
 | Benchmark Test                                                             | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100) (default)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 1000)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 10000)*</sup>  | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100000)*</sup>   |

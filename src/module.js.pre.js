@@ -318,9 +318,15 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
         singleton['/tmp'] |=  1;
       }
       if (persistHome) {
+        if (NODE) {
+          throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
+        }
         singleton['/home'] |=  2;
       }
       if (persistTmp) {
+        if (NODE) {
+          throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
+        }
         singleton['/tmp'] |= 2;
       }
       if (BROWSERFS) {

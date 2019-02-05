@@ -79,7 +79,7 @@ endif
 ifdef SHOULD_EMTERPRET
 $(eval EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST=@async_funcs.tmp -s 'EMTERPRETIFY_FILE="$(MODULE_NAME_LOWER).asm.embin"')
 endif
-ifneq ($(strip $(EMCC_DEBUG)),)
+ifeq ($(EMCC_DEBUG),0)
 $(eval UGLIFY = cat)
 else
 $(eval UGLIFY = uglifyjs --compress)
@@ -108,12 +108,15 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	rm ../$(COLDBREW_DIST_DIR)/*.bak 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.make 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.tmp 2>/dev/null || true
+ifeq ($(NODE),true)
+		sed -e 's/VERSION/$(COLDBREW_VERSION)")/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
+endif
 
 $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
 	cp $(MODULE_NAME_LOWER).asm.js.bak $(MODULE_NAME_LOWER).asm.js
 
 	# Build JS Files
-	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js | $(UGLIFY) > module.js
+	sed -e 's/NODE/$(NODE)/g; s/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js | $(UGLIFY) > module.js
 	
 	# Add extra modifications to the .asm.js file for the final build
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
@@ -145,7 +148,7 @@ endif
 $(MODULE_NAME_LOWER).asm.js: root root.make sources+python+strings.o extract_sync_code.py prejs.js.pre.js
 	rm *.embin 2>/dev/null || true
 	# Build JS files
-	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
+	sed -e 's/NODE/$(NODE)/g; s/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
 	# Build async_funcs.tmp
 ifdef SHOULD_EMTERPRET
 	(echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | sed -e 's/_coldbrew_sync//g' | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
@@ -168,11 +171,11 @@ ifdef SHOULD_SYNC
 	echo '"$(PYTHON_FUNCS)"' > extract_sync_code_arg_2.tmp
 	python extract_sync_code.py sync-$@.intermediate.js > synchronous-func-bodies.intermediate.js
 	# Clean up the mess from the synchronous build
-ifneq ($(strip $(EMCC_DEBUG)),)
+ifeq ($(EMCC_DEBUG),0)
 	mv sync-coldbrew.asm.js.intermediate.js tmp-sync-coldbrew.asm.js.intermediate.js.tmp
 endif
 	rm sync-* 2>/dev/null || true
-ifneq ($(strip $(EMCC_DEBUG)),)
+ifeq ($(EMCC_DEBUG),0)
 	mv tmp-sync-coldbrew.asm.js.intermediate.js.tmp sync-coldbrew.asm.js.intermediate.js
 endif
 endif
@@ -184,7 +187,7 @@ ifdef SHOULD_SYNC
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Modify emterpretify.py to keep intermediate files
-ifneq ($(strip $(EMCC_DEBUG)),)
+ifeq ($(EMCC_DEBUG),0)
 	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
