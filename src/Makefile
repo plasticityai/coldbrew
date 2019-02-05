@@ -79,7 +79,7 @@ endif
 ifdef SHOULD_EMTERPRET
 $(eval EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST=@async_funcs.tmp -s 'EMTERPRETIFY_FILE="$(MODULE_NAME_LOWER).asm.embin"')
 endif
-ifeq ($(EMCC_DEBUG),0)
+ifneq ($(EMCC_DEBUG),0)
 $(eval UGLIFY = cat)
 else
 $(eval UGLIFY = uglifyjs --compress)
@@ -99,8 +99,8 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
 ../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html
-	rm -rf ../$(COLDBREW_DIST_DIR)
-	mkdir -p ../$(COLDBREW_DIST_DIR)
+	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
+	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	cp $(MODULE_NAME_LOWER).* ../$(COLDBREW_DIST_DIR)
 	cp index.html ../$(COLDBREW_DIST_DIR)
 	rm ../$(COLDBREW_DIST_DIR)/*.wasm.pre 2>/dev/null || true
@@ -112,6 +112,7 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	rm ../$(COLDBREW_DIST_DIR)/*.tmp 2>/dev/null || true
 ifeq ($(NODE),true)
 		sed -e 's/VERSION/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
+		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
 endif
 
 $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
@@ -173,11 +174,11 @@ ifdef SHOULD_SYNC
 	echo '"$(PYTHON_FUNCS)"' > extract_sync_code_arg_2.tmp
 	python extract_sync_code.py sync-$@.intermediate.js > synchronous-func-bodies.intermediate.js
 	# Clean up the mess from the synchronous build
-ifeq ($(EMCC_DEBUG),0)
+ifneq ($(EMCC_DEBUG),0)
 	mv sync-coldbrew.asm.js.intermediate.js tmp-sync-coldbrew.asm.js.intermediate.js.tmp
 endif
 	rm sync-* 2>/dev/null || true
-ifeq ($(EMCC_DEBUG),0)
+ifneq ($(EMCC_DEBUG),0)
 	mv tmp-sync-coldbrew.asm.js.intermediate.js.tmp sync-coldbrew.asm.js.intermediate.js
 endif
 endif
@@ -189,7 +190,7 @@ ifdef SHOULD_SYNC
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Modify emterpretify.py to keep intermediate files
-ifeq ($(EMCC_DEBUG),0)
+ifneq ($(EMCC_DEBUG),0)
 	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
@@ -231,7 +232,8 @@ clean:
 	rm -rf ../build || true
 	rm -rf ../downloads || true
 	rm -rf ../installs || true
-	rm -rf ../$(COLDBREW_DIST_DIR) || true
+	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
+	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	rm -rf root || true
 	rm *.bc 2>/dev/null || true
 	rm *.mem 2>/dev/null || true

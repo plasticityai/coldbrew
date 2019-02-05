@@ -1,6 +1,6 @@
 <div align="center"><img src="https://gitlab.com/Plasticity/coldbrew/raw/master/images/coldbrew.png" alt="coldbrew" height="50"></div>
 
-## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)&nbsp;&nbsp;&nbsp;[![npm (scoped)](https://img.shields.io/npm/v/@plasticity/coldbrew.svg)](https://www.npmjs.com/package/@plasticity/coldbrew)&nbsp;&nbsp;&nbsp;[![version](https://img.shields.io/github/release/plasticityai/coldbrew.svg)](https://github.com/plasticityai/coldbrew/releases)&nbsp;&nbsp;&nbsp;[![Try on RunKit](https://badge.runkitcdn.com/@plasticity/coldbrew.svg)](https://runkit.com/npm/@plasticity/coldbrew)</div>
+## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)&nbsp;&nbsp;&nbsp;[![npm (scoped)](https://img.shields.io/npm/v/@plasticity/coldbrew.svg)](https://www.npmjs.com/package/@plasticity/coldbrew)&nbsp;&nbsp;&nbsp;[![version](https://img.shields.io/github/release/plasticityai/coldbrew.svg)](https://github.com/plasticityai/coldbrew/releases)</div>
 
 Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly)/`asm.js`. It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
 
@@ -79,6 +79,10 @@ You can use the library in a browser by embedding `coldbrew.asm.js` via our CDN:
 You can use the library in Node.js by installing it using `npm`:
 ```bash
 npm install @plasticity/coldbrew@latest
+```
+and then importing it with:
+```javascript
+var Coldbrew = require('@plasticity/coldbrew');
 ```
 
 To use a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
