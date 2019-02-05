@@ -101,6 +101,7 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 ../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
+	mkdir -p ../$(COLDBREW_DIST_DIR) || true
 	cp $(MODULE_NAME_LOWER).* ../$(COLDBREW_DIST_DIR)
 	cp index.html ../$(COLDBREW_DIST_DIR)
 	rm ../$(COLDBREW_DIST_DIR)/*.wasm.pre 2>/dev/null || true
