@@ -83,7 +83,7 @@ npm install @plasticity/coldbrew@latest
 
 To use a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
 
-If you would like to self host the files, you can also download the files from [`dist`](https://github.com/plasticityai/coldbrew/tree/latest/src/dist) (web) or [`dist-node`](https://github.com/plasticityai/coldbrew/tree/latest/src/dist-node) (Node.js). You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
+If you would like to self host the files, you can also download the files from [`dist`](https://github.com/plasticityai/coldbrew/tree/latest/dist) (web) or [`dist-node`](https://github.com/plasticityai/coldbrew/tree/latest/dist-node) (Node.js). You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
 
 ## Using the Library
 
