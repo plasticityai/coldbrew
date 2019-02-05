@@ -93,6 +93,8 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 
 all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js.make index.html
 
+python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
+
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
@@ -109,7 +111,7 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	rm ../$(COLDBREW_DIST_DIR)/*.make 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.tmp 2>/dev/null || true
 ifeq ($(NODE),true)
-		sed -e 's/VERSION/$(COLDBREW_VERSION)")/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
+		sed -e 's/VERSION/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
 endif
 
 $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
