@@ -51,6 +51,5 @@ RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
 RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-js-es6"
 
 RUN mkdir -p /BUILD
-VOLUME /BUILD
 
 CMD /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make"

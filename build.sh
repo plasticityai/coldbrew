@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
-docker build . -t coldbrew:latest
-mkdir -p $(pwd)/cache
-docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest
+if docker pull "registry.gitlab.com/plasticity/coldbrew/builder:$(python3 -c "import version; print(version.__version__)")"; then
+    echo "Using remote pre-built Coldbrew Docker image..."
+    docker tag "registry.gitlab.com/plasticity/coldbrew/builder:$(python3 -c "import version; print(version.__version__)")" "coldbrew:latest"
+    docker run --rm -t -v $(pwd)/customize:/BUILD/customize coldbrew:latest
+else
+    echo "Using locally built Coldbrew Docker image..."
+    docker build . -t coldbrew:latest
+    mkdir -p $(pwd)/cache
+    docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest
+fi
