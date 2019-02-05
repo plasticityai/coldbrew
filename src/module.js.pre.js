@@ -607,10 +607,8 @@ var MODULE_NAME = {
           }
           MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
             return new JSZip.external.Promise(function (resolve, reject) {
-              console.log('HERE');
               MODULE_NAME._sendRequest('GET', urlToZip, null, {}, null, true)
               .then(function(data) {
-                console.log('HERE2');
                 resolve(data.responseText);
               })
               .catch(function(e) {
