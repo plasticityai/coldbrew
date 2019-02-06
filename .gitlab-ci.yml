@@ -84,7 +84,7 @@ Build and Deploy:
     - cd $CI_PROJECT_NAME
     - git config --global user.email "dev_ci_bot@plasticity.ai"
     - git config --global user.name "Plasticity Developer Bot"
-    # Build & Commit
+    # Build
     - export COLDBREW_TAGGER_DIR=$(pwd)
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
@@ -96,17 +96,22 @@ Build and Deploy:
     - git checkout ./customize/coldbrew_settings.py
     - cat .gitignore | grep 'dist' -v > .gitignore.tmp
     - mv .gitignore.tmp .gitignore
+    # End Build
+    # Push to NPM registry
+    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+    - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm whoami"
+    - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; cd dist-node; npm publish --access=public; cd .."
+    - rm -rf dist-node/**/* || true
+    - rm -rf dist-node/* || true
+    - echo "You can download this version from https://registry.npmjs.org/@plasticity/coldbrew/-/coldbrew-$(python -c "import version; print(version.__version__).tgz" >> dist-node/download_instructions.txt
+    # End Push to NPM registry
+    # Commit
     - git pull
     - git add -A
     - git status
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases
-    # End Build & Commit
-    # Push to NPM registry
-    - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-    - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm whoami"
-    - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; cd dist-node; npm publish --access=public; cd .."
-    # End Push to NPM registry
+    # End Commit
     # Push Tags
     - git checkout releases
     - git pull
