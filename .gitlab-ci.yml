@@ -112,7 +112,9 @@ Build and Deploy:
     - git pull
     - git tag --delete latest || true
     - git tag -a latest -m "Release Latest"
+    - git show latest --pretty=format:"%H" --no-patch
     - git tag -a $(python -c "import version; print(version.__version__)") -m "Release $(python -c "import version; print(version.__version__)")"
+    - git show $(python -c "import version; print(version.__version__)") --pretty=format:"%H" --no-patch
     - git push -f origin HEAD:releases --tags
     # End Push Tags
     # Push to Amazon S3
