@@ -355,6 +355,7 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
 
 var ColdbrewMountPointNodes;
 
+MODULE_NAME._slots = {};
 MODULE_NAME._convertError = function (e) {
   return {
     '_internal_coldbrew_error': true,
@@ -500,7 +501,6 @@ MODULE_NAME._load = function(arg1, arg2) {
   MODULE_NAME._emterpreterFile.then(function(emterpreterFileResponse) {
     MODULE_NAME._emterpreterFileResponse = emterpreterFileResponse;
     MODULE_NAME._fsReady(function(err, mountPoints) {
-      MODULE_NAME._slots = {};
       MODULE_NAME.PythonError = PythonError;
       MODULE_NAME._textDecoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder("utf-8") : new module4.exports.TextDecoder("utf-8");
       MODULE_NAME._usedFiles = new Set();
@@ -799,9 +799,11 @@ MODULE_NAME._load = function(arg1, arg2) {
       MODULE_NAME.getUsedFiles = function() {
         return Array.from(MODULE_NAME._usedFiles).join('\n');
       };
-      MODULE_NAME.onReady(function() {
-        MODULE_NAME._initializer();
-      });
+      if (!MODULE_NAME.loaded) {
+        MODULE_NAME.onReady(function() {
+          MODULE_NAME._initializer();
+        });
+      }
       MODULE_NAME.onReady(onReadyFunc);
     });
   });
