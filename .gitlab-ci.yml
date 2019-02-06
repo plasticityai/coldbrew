@@ -97,7 +97,8 @@ Build and Deploy:
     - cat .gitignore | grep 'dist' -v > .gitignore.tmp
     - mv .gitignore.tmp .gitignore
     - git pull
-    - git add .
+    - git add -A
+    - git status
     - git commit -n -m "Release $(python -c "import version; print(version.__version__)")"
     - git push -f origin HEAD:releases
     # End Build & Commit

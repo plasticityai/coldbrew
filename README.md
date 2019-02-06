@@ -58,8 +58,9 @@ Coldbrew also allows you to bundle your own Python application, script, library 
   * [3. Bundling files](#3-bundling-files)
   * [4. Building](#4-building)
   * [5. Running](#5-running)
-  * [6. Saving space (Optional)](#6-saving-space-optional)
-  * [7. Deploying](#7-deploying)
+  * [6. Deploying](#6-deploying)
+  * [7. Saving space (Optional, but recommended)](#7-saving-space-optional-but-recommended)
+  * [8. Customizing the Export (Optional)](#8-customizing-the-export-optional)
 - [Example Use Cases](#example-use-cases)
 - [Known Limitations](#known-limitations)
 - [Security](#security)
@@ -87,7 +88,7 @@ var Coldbrew = require('@plasticity/coldbrew');
 
 To use a specific version, replace `@latest` with `@VERSION` where `VERSION` is one of the versions listed on the [releases page](https://github.com/plasticityai/coldbrew/releases).
 
-If you would like to self host the files, you can also download the files from [`dist`](https://github.com/plasticityai/coldbrew/tree/latest/dist) (web) or [`dist-node`](https://github.com/plasticityai/coldbrew/tree/latest/dist-node) (Node.js). You can also [build it yourself from source and use resulting `dist` folder](#7-deploying).
+If you would like to self host the files, you can also download the files from [`dist`](https://github.com/plasticityai/coldbrew/tree/latest/dist) (web) or [`dist-node`](https://github.com/plasticityai/coldbrew/tree/latest/dist-node) (Node.js). You can also [build it yourself from source and use resulting `dist` folder](#6-deploying).
 
 ## Using the Library
 
@@ -95,12 +96,12 @@ If you would like to self host the files, you can also download the files from [
 You can load the Python environment with `Coldbrew.load`:
 
 ```javascript
-Coldbrew.load(function() { 
+Coldbrew.load(options).then(function() { 
   console.log("Finished loading Coldbrew!"); 
-}, options);
+});
 ```
 
-The `load` method optionally takes a callback and a dictionary of options. The `options` dictionary can contain some or all of the following options (when omitted the values default to the ones shown below):
+The `load` method optionally takes a dictionary of options and returns a Promise that resolves when Coldbrew is done loading. The `options` dictionary can contain some or all of the following options (when omitted the values default to the ones shown below):
 ```javascript
 var options = {
   fsOptions: {
@@ -455,24 +456,29 @@ To build, simply navigate to the project root in terminal and run `./build.sh`. 
 ### 5. Running
 To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment for use.
 
-### 6. Saving space (Optional, but recommended)
-The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
-
-### 7. Deploying
+### 6. Deploying
 Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import and use the library on a page. A `package.json` file will be added to the `dist` folder when building for Node.js, which you can modify as needed.
 
+### 7. Saving space (Optional, but recommended)
+The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
+
+### 8. Customizing the Export (Optional)
+You may want to change what value will be exported by the library. By default, the Coldbrew Python Environment is exported. You can modify what value is exported by setting the `EXPORT` variable in `customize/export.js`.
+
+Whatever you set the `EXPORT` variable to, is what the global variable named `MODULE_NAME` (the same `MODULE_NAME` from `coldbrew_settings.py`) will be set to in browsers or what will be exported in Node.js when `require()`-ing your library.
+
 ## Example Use Cases
-This isn't the most efficient way to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
+This [isn't the most efficient way](#benchmarks) to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
 
-1. An online IDE or coding tutorial website that wants to let people run Python code in a sandbox. It is better to run the Python code in the user's own browser so you don't have execute arbitrary Python code on your servers (for security reasons). It also means you don't have to run servers to execute Python code server side and send the result back to the browser (which is more cost efficient).
+1. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser / Node.js.
 
-2. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser / Node.js.
+2. A quick-and-dirty solution to porting over Python code to the browser / Node.js that isn't worth hand re-writing, is a legacy codebase, or would be too difficult to maintain multiple versions of in two different languages. (Write once. Deploy anywhere.)
 
-3. A quick-and-dirty solution to porting over Python code to the browser / Node.js that isn't worth hand re-writing or would be difficult to maintain multiple versions in two different languages. (Write once. Deploy anywhere.)
+3. Access the [Python Standard Library](https://docs.python.org/3/library/) and [thousands of Python libraries](https://pypi.org/) that are not available in JavaScript. 
 
-4. Access the [thousands of Python libraries](https://pypi.org/) that are not available in JavaScript. 
+4. An online IDE or coding tutorial website that wants to let people run Python code in a sandbox. It is better to run the Python code in the user's own browser so you don't have execute arbitrary Python code on your servers (for security reasons). It also means you don't have to run servers to execute Python code server side and send the result back to the browser (which is more cost efficient).
 
-5. Running Python code at the edge, on-device instead of on a backend server for user privacy reasons.
+5. Running Python code at the edge, on-device, instead of on a backend server for user privacy reasons.
 
 ## Known Limitations
 
@@ -501,13 +507,13 @@ To give a quick sense of how much of a performance hit running Python in JavaScr
 
 | Benchmark Test                                                             | Native (macOS) CPython Execution   | Coldbrew Synchronous Execution   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100) (default)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 1000)*</sup>   | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 10000)*</sup>  | Coldbrew Asynchronous Execution   <br /><sup>*(yield rate = 100000)*</sup>   |
 | -------------------------------------------------------------------------- | :--------------------------------: | :------------------------------: | :---------------------------------------------------------------------------------: | :------------------------------------------------------------------------: | :------------------------------------------------------------------------: | :--------------------------------------------------------------------------: |
-| `fib.py 100000 -i -v` <br/><sup>(compute intensive workload)</sup>         | 0.149s                             | 0.505s <br/>*(3.39x)*            | 11.62s <br/>*(23.00x)*                                                              | 2.518s <br/>*(16.89x)*                                                     | 1.223s <br/>*(8.20x)*                                                      | 1.115s <br/>*(7.48x)*                                                        |
+| `fib.py 100000 -i -v` <br/><sup>(compute intensive workload)</sup>         | 0.149s                             | 0.505s <br/>*(3.39x)*            | 11.62s <br/>*(77.98x)*                                                              | 2.518s <br/>*(16.89x)*                                                     | 1.223s <br/>*(8.20x)*                                                      | 1.115s <br/>*(7.48x)*                                                        |
 | `fib.py 25 -v` <br/><sup>(recursive & function call heavy workload)</sup>  | 0.040s                             | 0.154s <br/>*(3.85x)*            | 59.24s <br/>*(1481.00x)*                                                            | 9.699s <br/>*(242.47x)*                                                    | 3.747s <br/>*(93.67x)*                                                     | 3.130s <br/>*(78.25x)*                                                       |
 | `fib.py 1000 -f -v` <br/><sup>(file system intensive workload)</sup>       | 0.298s                             | 0.405s <br/>*(1.36x)*            | 11.84s <br/>*(39.73x)*                                                              | 2.463s <br/>*(8.26x)*                                                      | 1.268s <br/>*(4.25x)*                                                      | 1.181s <br/>*(3.96x)*                                                        |
 
 These tests are surely not exhausitive or representative, but should give some sense of how the performance compares at a glance. 
 
-Asynchronous execution is considerably slower. Therefore, we recommended running most code synchronously, if possible, and only running the sections of your Python program that need to be asynchronous (such as code that may be accessing an HTTP connection) in asynchronous mode. 
+Synchronous execution performs fairly well, with only a minor slowdown. Asynchronous execution is considerably slower. Therefore, we recommended running most code synchronously, if possible, and only running the sections of your Python program that need to be asynchronous (such as code that may be accessing an HTTP connection) in asynchronous mode. We also recommened experimenting with the [yield rate](#change-the-asynchronous-yield-rate) and setting it to a number as high as possible if your application doesn't feel locked up.
 
 ## Contributing
 The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/coldbrew).

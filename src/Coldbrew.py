@@ -15,7 +15,7 @@ pyversion = os.environ['PYVERSION']
 version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
-module_name_var = "((typeof window === 'undefined' && typeof self === 'undefined') ? module.exports : "+module_name+")"
+module_name_var = module_name
 js_error = None
 
 def _barg(arg):

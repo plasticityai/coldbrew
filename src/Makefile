@@ -98,7 +98,7 @@ python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
-../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html
+../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html ../README.md ../package.json
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	mkdir -p ../$(COLDBREW_DIST_DIR) || true
@@ -116,12 +116,20 @@ ifeq ($(NODE),true)
 		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
 endif
 
-$(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js module.js.pre.js
-	cp $(MODULE_NAME_LOWER).asm.js.bak $(MODULE_NAME_LOWER).asm.js
+$(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js ../customize/export.js module.js.pre.js
+	# Start Global Closure
+	echo "(function() {" > $(MODULE_NAME_LOWER).asm.js
+	echo "const $(MODULE_NAME) = {};" >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).asm.js;
+	cat $(MODULE_NAME_LOWER).asm.js.bak >> $(MODULE_NAME_LOWER).asm.js
 
 	# Build JS Files
-	sed -e 's/NODE/$(NODE)/g; s/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js | $(UGLIFY) > module.js
-	
+	sed -f inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
+	sed -e 's/NODE/$(NODE)/g; s/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js.intermediate.js | $(UGLIFY) > module.js
+ifeq ($(EMCC_DEBUG),0)
+	rm module.js.pre.js.intermediate.js
+endif
+
 	# Add extra modifications to the .asm.js file for the final build
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat module.js >> $(MODULE_NAME_LOWER).asm.js
@@ -146,6 +154,10 @@ endif
 	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
+
+	# End Global Closure
+	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
 
 	touch $(MODULE_NAME_LOWER).asm.js.make
 
@@ -204,9 +216,9 @@ endif
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
 ifeq ($(NODE),false)
-	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+_coldbrew_parseUrl(_scriptDir, "origin")+_coldbrew_parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+$(MODULE_NAME)._parseUrl(_scriptDir, "origin")+$(MODULE_NAME)._parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+_coldbrew_parseUrl(_scriptDir, "origin")+_coldbrew_parseUrl(_scriptDir, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js

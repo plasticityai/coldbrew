@@ -8,30 +8,19 @@ if (typeof window !== 'undefined') {
   var _coldbrew_oldSetTimeout = setTimeout;
 }
 
-var getModule = function() {
-  var M;
-  if (typeof window === 'undefined' && typeof self === 'undefined') { 
-    M = module.exports;
-  } else {
-    M = MODULE_NAME;
-  }
-  return M;
-}
-
 var setTimeout = function() {
-  var M = getModule();
   var args = arguments;
   if (args[1] < 0) {
-    if (M._resume_ie) {
+    if (MODULE_NAME._resume_ie) {
       // Immediately execute
-      M._resume_ie = false;
-      M.resume = M._resumeWarn;
+      MODULE_NAME._resume_ie = false;
+      MODULE_NAME.resume = MODULE_NAME._resumeWarn;
       args[0]();
     } else {
       // Save resume execution for later
-      M.resume = function() {
-        M._resume_ie = false;
-        M.resume = M._resumeWarn;
+      MODULE_NAME.resume = function() {
+        MODULE_NAME._resume_ie = false;
+        MODULE_NAME.resume = MODULE_NAME._resumeWarn;
         args[0]();
       };
     }
@@ -43,41 +32,32 @@ var setTimeout = function() {
 Module.noInitialRun = true;
 
 Module.print = function(text) {
-  var M = getModule();
-
-  if (M.forwardOut) {
-    M.onStandardOut(text);
+  if (MODULE_NAME.forwardOut) {
+    MODULE_NAME.onStandardOut(text);
   }
 };
 
 Module.printErr = function(text) {
-  var M = getModule();
-
-  if (M.forwardErr) {
-    M.onStandardErr(text);
+  if (MODULE_NAME.forwardErr) {
+    MODULE_NAME.onStandardErr(text);
   }
 };
 
 Module.preInit = [function() {
-  var M = getModule();
-  M.preInit(Module);
+  MODULE_NAME.preInit(Module);
 
-  if (M._emterpreterFileResponse && typeof M._emterpreterFileResponse.responseText !== 'undefined') {
-    Module.emterpreterFile = M._emterpreterFileResponse.responseText;
-  } else if (M._emterpreterFileResponse) {
-    Module.emterpreterFile = M._emterpreterFileResponse;
+  if (MODULE_NAME._emterpreterFileResponse && typeof MODULE_NAME._emterpreterFileResponse.responseText !== 'undefined') {
+    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse.responseText;
+  } else if (MODULE_NAME._emterpreterFileResponse) {
+    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse;
   }
 }];
 
 Module.preRun.push(function() {
-  var M = getModule();
-
-  M.preRun(Module);
-  M._mountFS(Module);
+  MODULE_NAME.preRun(Module);
+  MODULE_NAME._mountFS(Module);
 });
 
 Module.onRuntimeInitialized = function() {
-  var M = getModule();
-
-  M._onRuntimeInitialized(Module);
+  MODULE_NAME._onRuntimeInitialized(Module);
 };
