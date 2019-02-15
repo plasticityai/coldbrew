@@ -106,7 +106,7 @@ def run(expression):
     return 1
 
 def run_function(functionExpression, *args):
-    return get_variable(module_name_var+'._try(function () {'+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
+    return get_variable(module_name_var+'._try(function () { return '+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
 
 def run_function_async(functionExpression, *args, **kwargs):
     global _slot_id
