@@ -10,7 +10,6 @@ BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from 
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
-OPTFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' ' if DEBUG_MODE else ' -O3 ')")
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
@@ -31,6 +30,7 @@ CUSTOMIZED_FILES=../customize/files
 COLDBREW_DIST_DIR ?= dist
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
+OPTFLAGS=-O3
 CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS)
 LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
   -s TOTAL_MEMORY=$(DEFAULT_MEMORY) \
@@ -59,6 +59,12 @@ ifeq ($(SMALL_BUT_NO_ASYNC),true)
 endif
 ifeq ($(SMALL_BUT_SLOW_SYNC),true)
     SHOULD_SYNC =
+endif
+
+ifneq ($(EMCC_DEBUG),0)
+	export EM_BUILD_VERBOSE=3
+	export EMSCRIPT_MAX_CHUNK_SIZE=4194304
+	export EMCC_CORES=4
 endif
 
 # Error check settings

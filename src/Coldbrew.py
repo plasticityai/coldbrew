@@ -74,7 +74,7 @@ class JavaScriptError(Exception):
 
 def get_variable(expression):
     global js_error
-    val = json.loads(_Coldbrew.run_string("JSON.stringify("+expression+") || null"))
+    val = json.loads(_Coldbrew._run_string("JSON.stringify("+expression+") || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
@@ -91,7 +91,7 @@ def get_variable(expression):
 
 def run(expression):
     global js_error
-    val = json.loads(_Coldbrew.run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || null"))
+    val = json.loads(_Coldbrew._run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
