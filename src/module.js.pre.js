@@ -3,11 +3,29 @@ if (typeof window === 'undefined' && typeof self === 'undefined') {
   var module2 = {exports: {}};
   var module3 = {exports: {}};
   var module4 = {exports: {}};
+  var module5 = {exports: {}};
 }
 
 (function() {
-var _coldbrew_internal_global;
 
+// Get the Comlink library
+function getComlink() {
+  if (IS_NODE_JS) {
+    require('node-comlink').patchMessageChannel();
+    var Comlink = require('comlinkjs/umd/comlink.js');
+    return Comlink;
+  } else {
+    var Comlink;
+    if ((!COLDBREW_GLOBAL_SCOPE || typeof COLDBREW_GLOBAL_SCOPE.Comlink === 'undefined')) {
+      Comlink = module5.exports;
+    } else {
+      Comlink = COLDBREW_GLOBAL_SCOPE.Comlink;
+    }
+    return Comlink;    
+  }
+}
+
+// Define error classes
 class JavaScriptError extends Error {
   constructor(...args) {
     super(...args)
@@ -44,13 +62,11 @@ class HTTPTimeoutError extends Error {
   }
 }
 
-const parseUrl = (string, prop) =>  {
-  const a = document.createElement('a'); 
-  a.setAttribute('href', string);
-  const {host, hostname, pathname, port, protocol, search, hash} = a;
-  const origin = `${protocol}//${hostname}${port.length ? `:${port}`:''}`;
-  return prop ? eval(prop) : {origin, host, hostname, pathname, port, protocol, search, hash}
+// Define utility functions
+function parseUrl(string, prop) {
+  return (new URL(string))[prop];
 }
+COLDBREW_TOP_SCOPE.parseUrl = parseUrl;
 
 function randid() {
   return 'rxxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -282,6 +298,7 @@ function sendRequest(method, url, body, headers, timeout, binary = false, level=
   });
 }
 
+// Define singleton initializers
 var _MODULE_NAME_coldbrew_internal_instance = (function() {
   var executed = false;
   var singleton = null;
@@ -318,13 +335,13 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
         singleton['/tmp'] |=  1;
       }
       if (persistHome) {
-        if (NODE) {
+        if (IS_NODE_JS) {
           throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
         }
         singleton['/home'] |=  2;
       }
       if (persistTmp) {
-        if (NODE) {
+        if (IS_NODE_JS) {
           throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
         }
         singleton['/tmp'] |= 2;
@@ -353,8 +370,11 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   };
 })();
 
-var ColdbrewMountPointNodes;
+COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
 
+MODULE_NAME.PythonError = PythonError;
+MODULE_NAME.pyversion =  "PYVERSION";
+MODULE_NAME.version =  "COLDBREW_VERSION";
 MODULE_NAME._slots = {};
 MODULE_NAME._convertError = function (e) {
   return {
@@ -436,14 +456,14 @@ MODULE_NAME._fsReady = function(cb) {
         Module.FS.createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
         var old = filesystem.mount;
         if (mountPoints[mountPoint]) {
-          if (!ColdbrewMountPointNodes) {
-            ColdbrewMountPointNodes = {};
+          if (!COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes) {
+            COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
           }
           if (isShared) {
             filesystem.mount = function(...args) { 
               var mountPoint = args[0].mountpoint;
-              ColdbrewMountPointNodes[mountPoint] = ColdbrewMountPointNodes[mountPoint] || old(...args);
-              return ColdbrewMountPointNodes[mountPoint]; 
+              COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint] = COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint] || old(...args);
+              return COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint]; 
             };
           }
           Module.FS.mount(filesystem, {}, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
@@ -493,6 +513,7 @@ MODULE_NAME._load = function(arg1, arg2) {
     hideWarnings: false,
     monitorFileUsage: false,
     asyncYieldRate: null,
+    worker: false,
   };
   var finalizedOptions = Object.assign({}, defaultOptions, options);
   if (finalizedOptions.fsOptions) {
@@ -501,13 +522,10 @@ MODULE_NAME._load = function(arg1, arg2) {
   MODULE_NAME._emterpreterFile.then(function(emterpreterFileResponse) {
     MODULE_NAME._emterpreterFileResponse = emterpreterFileResponse;
     MODULE_NAME._fsReady(function(err, mountPoints) {
-      MODULE_NAME.PythonError = PythonError;
-      MODULE_NAME._textDecoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder("utf-8") : new module4.exports.TextDecoder("utf-8");
       MODULE_NAME._usedFiles = new Set();
+      MODULE_NAME._textDecoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder("utf-8") : new module4.exports.TextDecoder("utf-8");
       MODULE_NAME.mountPoints = mountPoints;
       MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
-      MODULE_NAME.pyversion =  "PYVERSION";
-      MODULE_NAME.version =  "COLDBREW_VERSION";
       MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
       MODULE_NAME.setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
       MODULE_NAME._run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
@@ -599,10 +617,10 @@ MODULE_NAME._load = function(arg1, arg2) {
       };
       if (JSZIP) {
         var JSZip;
-        if ((!_coldbrew_internal_global || typeof _coldbrew_internal_global.JSZip === 'undefined')) {
+        if ((!COLDBREW_GLOBAL_SCOPE || typeof COLDBREW_GLOBAL_SCOPE.JSZip === 'undefined')) {
           JSZip = module3.exports;
         } else {
-          JSZip = _coldbrew_internal_global.JSZip;
+          JSZip = COLDBREW_GLOBAL_SCOPE.JSZip;
         }
         MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
           return new JSZip.external.Promise(function (resolve, reject) {
@@ -808,12 +826,95 @@ MODULE_NAME._load = function(arg1, arg2) {
     });
   });
 };
-MODULE_NAME.load = function(options = {}) {
-  return new Promise(function (resolve, reject) {
-    MODULE_NAME._load(options, function() {
-      resolve();
+MODULE_NAME.unload = function(arg1, arg2) {
+  if (MODULE_NAME.loaded) {
+    MODULE_NAME.run('pass');
+    if (MODULE_NAME.worker) {
+      if (IS_NODE_JS) {
+        MODULE_NAME.worker.underlyingWorker.kill();
+      } else {
+        MODULE_NAME.worker.terminate();
+      }
+    }
+    Object.getOwnPropertyNames(MODULE_NAME).forEach(function (prop) {
+      delete MODULE_NAME[prop];
     });
-  });
+    COLDBREW_TOP_SCOPE_FUNC(false, MODULE_NAME);
+  }
+};
+MODULE_NAME.load = function(options = {}) {
+  if (options.worker && !IS_WORKER_SCRIPT && !MODULE_NAME.loaded) {
+    var underlyingWorker;
+    var worker;
+    if (typeof Worker === 'undefined' && IS_NODE_JS) {
+      const fork = require('child_process').fork;
+      require('node-comlink').patchMessageChannel();
+      const NodeMessageAdapter = require('node-comlink').NodeMessageAdapter;
+      underlyingWorker = fork(SCRIPT_SOURCE, { env : { _COLDBREW_WORKER_FORK_ : 1 } });
+      worker = new NodeMessageAdapter(underlyingWorker);
+    } else {
+      worker = new Worker(SCRIPT_SOURCE);
+      underlyingWorker = worker;
+    }
+    worker.underlyingWorker = underlyingWorker;
+    var MODULE_NAME_proxy = getComlink().proxy(worker);
+    MODULE_NAME.worker = worker;
+    MODULE_NAME._workerProxy = MODULE_NAME_proxy;
+    return new Promise(function (resolve, reject) {
+      worker.addEventListener("message", function workerReadyHandler(event) {
+        if (event.data._internal_coldbrew_message && event.data.ready) {
+          // Worker is ready, load Coldbrew in the worker
+          MODULE_NAME._workerProxy.load(options);
+        }
+        if (event.data._internal_coldbrew_message && event.data.props) {
+          // Assign the proxied properties of the worker module to the main module
+          worker.removeEventListener("message", workerReadyHandler);
+          Object.keys(event.data.props).forEach(function (prop) {
+            if (!['unload', '_parseUrl', 'createNewInstance'].includes(prop)  && event.data.props[prop] === 'function') {
+              MODULE_NAME[prop] = MODULE_NAME_proxy[prop];
+            }
+            if (['standardInBuffer', '_standardInTell', 'forwardOut', 'forwardErr'].includes(prop) && 
+                  (
+                    event.data.props[prop] === 'number' ||
+                    event.data.props[prop] === 'string' ||
+                    event.data.props[prop] === 'boolean'
+                  )
+            ) {
+              Object.defineProperty(MODULE_NAME, prop, {
+                get: MODULE_NAME_proxy[prop],
+                set: function(val) {
+                  return MODULE_NAME_proxy[prop](prop, val);
+                }
+              });
+            }
+          });
+          MODULE_NAME.Module = null;
+          MODULE_NAME.loaded = true;
+          // Done loading Coldbrew with worker option
+          resolve();
+        }
+      });
+    });
+  } else {
+    return new Promise(function (resolve, reject) {
+      MODULE_NAME._load(options, function() {
+        // Notify parent of what properties were loaded in, so they can be proxied
+        if (IS_WORKER_SCRIPT) {
+          postMessage({
+            '_internal_coldbrew_message':true, 
+            'props': Object.getOwnPropertyNames(MODULE_NAME).reduce(function(props, prop) {
+              props[prop] = typeof MODULE_NAME[prop];
+              return props;
+            }, {})
+          });
+        }
+        resolve();
+      });
+    });
+  }
+};
+MODULE_NAME.createNewInstance = function() {
+  return COLDBREW_TOP_SCOPE_FUNC(false);
 };
 MODULE_NAME.onReady = function(onReadyFunc) {
   if (onReadyFunc) {
@@ -829,35 +930,47 @@ MODULE_NAME._emterpreterFile = (
   (!SMALL_BUT_NO_ASYNC) ? 
     (
       (typeof XMLHttpRequest !== 'undefined') ? 
-        sendRequest('GET', parseUrl(document.currentScript.src, "origin")+parseUrl(document.currentScript.src, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true)
+        sendRequest('GET', parseUrl(SCRIPT_SOURCE, "origin")+parseUrl(SCRIPT_SOURCE, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true)
         : Promise.resolve(require('fs').readFileSync(require('path').join(__dirname, 'MODULE_NAME_LOWER.asm.embin'), null).buffer)
     ) 
     : Promise.resolve(null)
 );
 
-var EXPORT = (function(MODULE_NAME) {
-  var EXPORT = null;
+if (shouldExportColdbrew) {
+  var EXPORT = (function(MODULE_NAME) {
+    var EXPORT = null;
 
-  // DO NOT TOUCH THE LINE BELOW - IT IS AUTO REPLACED
+    // DO NOT TOUCH THE LINE BELOW - IT IS AUTO REPLACED
 
-  CUSTOMIZED_EXPORTS
+    CUSTOMIZED_EXPORTS
 
-  // DO NOT TOUCH THE LINE ABOVE - IT IS AUTO REPLACED
+    // DO NOT TOUCH THE LINE ABOVE - IT IS AUTO REPLACED
 
-  if (EXPORT === null || typeof EXPORT === 'undefined') {
-    EXPORT = MODULE_NAME;
+    if (EXPORT === null || typeof EXPORT === 'undefined') {
+      EXPORT = MODULE_NAME;
+    }
+    return EXPORT;
+  })(MODULE_NAME);
+
+
+  if (typeof module !== 'undefined') module.exports = EXPORT;
+  if (typeof window !== 'undefined') window.MODULE_NAME = EXPORT;
+  if (typeof self !== 'undefined') self.MODULE_NAME = EXPORT;
+  if (IS_WORKER_SCRIPT) {
+    // Deferring to the next tick here since Comlink is defined later
+    setTimeout(function() {
+      if (IS_NODE_JS) {
+        require('node-comlink').patchMessageChannel();
+        const NodeMessageAdapter = require('node-comlink').NodeMessageAdapter;
+        const messageAdapter = new NodeMessageAdapter();
+        COLDBREW_GLOBAL_SCOPE.postMessage = messageAdapter.postMessage.bind(messageAdapter);
+        getComlink().expose(MODULE_NAME, messageAdapter);
+      } else {
+        getComlink().expose(MODULE_NAME, self);
+      }
+      postMessage({'_internal_coldbrew_message':true, 'ready': true});
+    }, 1);
   }
-  return EXPORT;
-})(MODULE_NAME);
-
-
-if (typeof module !== 'undefined') module.exports = EXPORT;
-if (typeof window !== 'undefined') window.MODULE_NAME = EXPORT;
-if (typeof self !== 'undefined') self.MODULE_NAME = EXPORT;
-if (typeof window !== 'undefined') window._coldbrew_parseUrl = MODULE_NAME._parseUrl;
-if (typeof self !== 'undefined') self._coldbrew_parseUrl = MODULE_NAME._parseUrl;
-
-if (typeof window !== 'undefined') _coldbrew_internal_global = window;
-if (typeof self !== 'undefined') _coldbrew_internal_global = self;
+}
 
 })();

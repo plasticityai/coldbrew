@@ -3,6 +3,7 @@ __pycache__
 *.pyc
 **/*.pyc
 
+node_modules
 build
 dist
 cache

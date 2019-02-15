@@ -45,8 +45,8 @@ def exception_handler(exctype, value, tb):
     _exception = {
             'exctype': exctype.__name__,
             'value': getattr(value, 'message') if hasattr(value, 'message') else str(value),
-            'filename': tb.tb_frame.f_code.co_filename,
-            'tb_lineno': tb.tb_lineno,
+            'filename': (tb and tb.tb_frame.f_code.co_filename) or None,
+            'tb_lineno': (tb and tb.tb_lineno) or None,
         }
     if hasattr(value, 'error_data'):
         _exception['error_data'] = value.error_data
@@ -74,7 +74,7 @@ class JavaScriptError(Exception):
 
 def get_variable(expression):
     global js_error
-    val = json.loads(run_string("JSON.stringify("+expression+") || null"))
+    val = json.loads(_Coldbrew.run_string("JSON.stringify("+expression+") || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
@@ -89,6 +89,22 @@ def get_variable(expression):
     else:
         return val
 
+def run(expression):
+    global js_error
+    val = json.loads(_Coldbrew.run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || null"))
+    if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
+        error = JavaScriptError(val['type']+": "+val['message'])
+        error.error_data = {
+            'type': val['type'],
+            'name': val['name'],
+            'message': val['message'],
+            'stack': val['stack'],
+            'data': val['data'],
+        }
+        js_error = error
+        raise error
+    return 1
+
 def run_function(functionExpression, *args):
     return get_variable(module_name_var+'._try(function () {'+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
 
@@ -97,7 +113,7 @@ def run_function_async(functionExpression, *args, **kwargs):
     _slot_id += 1
     uid = '_internal_pyslot_'+str(_slot_id)
     if is_async():
-        run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
+        _Coldbrew._run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
                 '''+module_name_var+'''._slots["'''+uid+'''"] = val;
                 '''+module_name_var+'''._resume_ie = true;
                 '''+module_name_var+'''.resume(false);
@@ -141,10 +157,10 @@ def reset():
 
 def _warn(message):
     if os.environ['COLDBREW_WARNINGS'] == '1':
-        run("console.warn('Coldbrew Warning: '+"+json.dumps(message)+");")
+        _Coldbrew._run("console.warn('Coldbrew Warning: '+"+json.dumps(message)+");")
 
 def _error(message):
-    run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
+    _Coldbrew._run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
     raise RuntimeError()
 
 # Import Shims

@@ -65,7 +65,7 @@ before_script:
   - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
   - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
   # Install uglify-js
-  - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-js-es6"
+  - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es"
 
 Build and Deploy:
   stage: Build and Deploy

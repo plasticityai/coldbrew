@@ -48,7 +48,14 @@ RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
 RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
 
 # Install uglify-js
-RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-js-es6"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es"
+
+# Increase node memory size
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; mv \$EMSDK_NODE \$EMSDK_NODE.bak"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; echo -e '#!/usr/bin/env bash' >> \$EMSDK_NODE"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; echo -e \"\$EMSDK_NODE.bak --max_old_space_size=16384 \\\"\\\$@\\\"\" >> \$EMSDK_NODE"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; chmod +x \$EMSDK_NODE"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
 
 RUN mkdir -p /BUILD
 
