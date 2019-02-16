@@ -1,4 +1,4 @@
-if (typeof window === 'undefined' && typeof self === 'undefined') {
+if (IS_NODE_JS) {
   var module1 = {exports: {}};
   var module2 = {exports: {}};
   var module3 = {exports: {}};

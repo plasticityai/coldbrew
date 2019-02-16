@@ -133,10 +133,10 @@ $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js ../customize/expor
 	echo "(function COLDBREW_TOP_SCOPE_FUNC(shouldExportColdbrew = true, coldbrewObjectReference={}) {" >> $(MODULE_NAME_LOWER).asm.js
 	echo "const COLDBREW_TOP_SCOPE = {};" >> $(MODULE_NAME_LOWER).asm.js
 	echo "const $(MODULE_NAME) = coldbrewObjectReference;" >> $(MODULE_NAME_LOWER).asm.js
-	echo "const IS_NODE_JS = (typeof window === 'undefined' && typeof self === 'undefined') || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).asm.js
-	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined') || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).asm.js
+	echo "const IS_NODE_JS = typeof process !== 'undefined'" >> $(MODULE_NAME_LOWER).asm.js
+	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof window !== 'undefined') var COLDBREW_GLOBAL_SCOPE = window;" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof self !== 'undefined') var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).asm.js
+	echo "if (typeof self !== 'undefined' && !IS_NODE_JS) var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof global !== 'undefined') var COLDBREW_GLOBAL_SCOPE = global;" >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js;
 	cat $(MODULE_NAME_LOWER).asm.js.bak >> $(MODULE_NAME_LOWER).asm.js
@@ -152,30 +152,30 @@ endif
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat module.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module1 = module };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module1 = module };" >> $(MODULE_NAME_LOWER).asm.js	
 ifeq ($(BROWSERFS),true)
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module2 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module = module2 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).asm.js
 endif
 ifeq ($(JSZIP),true)
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module3 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module = module3 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 endif
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module4 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module = module4 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module5 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module = module5 };" >> $(MODULE_NAME_LOWER).asm.js	
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	cat ../third_party/comlink/comlink.js | $(UGLIFY) >> $(MODULE_NAME_LOWER).asm.js
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window === 'undefined' && typeof self === 'undefined') { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "if (IS_NODE_JS) { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
 
 	# End Global Closure
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
@@ -269,7 +269,7 @@ endif
 	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 
 
-sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
+sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o ../customize/coldbrew_settings.py
 	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
 	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) $(BUILD)/Modules/_sqlite/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
 	llvm-extract -rglob="\.str*" python.o > python-strings.o
@@ -342,7 +342,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
 
-$(PYLIB): ../customize/coldbrew_settings.py ../$(PYVERSION)/Setup.local
+$(PYLIB): ../$(PYVERSION)/Setup.local
 	make -C ../$(PYVERSION)
 
 requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
