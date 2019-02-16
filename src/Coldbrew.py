@@ -103,7 +103,7 @@ def run(expression):
         }
         js_error = error
         raise error
-    return 1
+    return 0
 
 def run_function(functionExpression, *args):
     return get_variable(module_name_var+'._try(function () { return '+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');

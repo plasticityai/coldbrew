@@ -15,6 +15,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
   * [Loading the Environment](#loading-the-environment)
   * [Running Python in JavaScript](#running-python-in-javascript)
     + [Running Python Asynchronously in JavaScript](#running-python-asynchronously-in-javascript)
+  * [Running JavaScript in Python](#running-javascript-in-python)
   * [Running Python Files in JavaScript](#running-python-files-in-javascript)
     + [Running Python Files Asynchronously in JavaScript](#running-python-files-asynchronously-in-javascript)
   * [Communicating between JavaScript and Python](#communicating-between-javascript-and-python)
@@ -37,6 +38,9 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Deleting a Path](#deleting-a-path)
     + [Adding a `.zip` File](#adding-a-zip-file)
     + [Saving and Loading Files to Browser Storage](#saving-and-loading-files-to-browser-storage)
+  * [Extra Performance by using Workers](#extra-performance-by-using-workers)
+  * [Unloading the Environment](#unloading-the-environment)
+  * [Creating a New Instance of the Environment](#creating-a-new-instance-of-the-environment)
   * [Accessing the Environment](#accessing-the-environment)
     + [Get the Current Working Directory](#get-the-current-working-directory)
     + [Change Current Working Directory](#change-current-working-directory)
@@ -105,14 +109,13 @@ The `load` method optionally takes a dictionary of options and returns a Promise
 ```javascript
 var options = {
   fsOptions: {
-    sharedHome: false, /* Makes the /home/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
-    sharedTmp: false, /* Makes the /tmp/ directory in the virtual file system a "shared directory" between multiple instances of Coldbrew running */
     persistHome: false, /* Makes the /home/ directory persistable to browser storage */
     persistTmp: false, /* Makes the /tmp/ directory persistable to browser storage */
   },
   hideWarnings: false, /* Hides warnings */
   monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
   asyncYieldRate: null, /* Allows you to override the default asynchronous yield rate (see setAsyncYieldRate()) */
+  worker: false, /* Runs the Coldbrew Python interpreter in a seperate Web Worker or Worker thread */
 };
 ```
 
@@ -123,7 +126,7 @@ Coldbrew.run("import sys");
 Coldbrew.run("print('The current Python version is:', sys.version)");
 ```
 
-The `run` function returns `0` when successful or throws a `PythonError` if there was an error.
+The `run` function returns `0` when successful or throws a `Coldbrew.PythonError` if there was an error.
 
 #### Running Python Asynchronously in JavaScript
 Python code is run synchronously and will lock up the browser for long running code. To run Python code asynchronously and concurrently with JavaScript, you can run it like so:
@@ -142,7 +145,18 @@ for i in range(5):
 `);
 ```
 
-The `runAsync` function returns a Promise that resolves to `0` when successful or rejects with a `PythonError` if there was an error.
+The `runAsync` function returns a Promise that resolves to `0` when successful or rejects with a `Coldbrew.PythonError` if there was an error.
+
+### Running JavaScript in Python
+You can run JavaScript in Python like so:
+```javascript
+Coldbrew.run("Coldbrew.run('var x = 5;')");
+console.log(x); // Prints 5
+```
+
+The `run` function returns `0` when successful or throws a `Coldbrew.JavaScriptError` if there was an error.
+
+Note: This runs in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
 ### Running Python Files in JavaScript
 You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript:
@@ -156,7 +170,7 @@ Coldbrew.runFile('add.py', {
 
 The `cwd` option is the path to the folder containing the Python file, the `env` option is a dictionary of environment variables, the `args` is a list of arguments to pass to the Python file.
 
-The `runFile` function returns `0` when successful or throws a `PythonError` if there was an error.
+The `runFile` function returns `0` when successful or throws a `Coldbrew.PythonError` if there was an error.
 
 #### Running Python Files Asynchronously in JavaScript
 You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript asynchronously:
@@ -168,7 +182,7 @@ Coldbrew.runFileAsync('add.py', {
 });
 ```
 
-The `runFileAsync` function returns a Promise that resolves to `0` when successful or rejects with a `PythonError` if there was an error.
+The `runFileAsync` function returns a Promise that resolves to `0` when successful or rejects with a `Coldbrew.PythonError` if there was an error.
 
 ### Communicating between JavaScript and Python
 
@@ -334,6 +348,28 @@ Coldbrew.saveFiles();
 To load saved files from browser storage back to the virtual file system later you can use:
 ```javascript
 Coldbrew.loadFiles();
+```
+
+### Extra Performance by using Workers
+You can run the Coldbrew library in a seperate worker thread (Web Workers in the browser and Worker threads in Node.js) by passing `worker: true` to the Coldbrew `load` method. This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. 
+
+Note that when running in workers, every method on the `Coldbrew` object returns a `Promise` since the main thread has to asynchronously communicate back and forth with the worker thread.
+
+### Unloading the Environment
+You can unload the Python environment with `Coldbrew.unload`:
+```javascript
+Coldbrew.unload();
+```
+
+This makes it as if `load()` was never called.
+
+### Creating a New Instance of the Environment
+You can create a new instance of the Coldbrew object with `Coldbrew.createNewInstance`:
+```javascript
+var Coldbrew2 = Coldbrew.createNewInstance();
+Coldbrew2.load(options).then(function() { 
+  console.log("Finished loading another Coldbrew!"); 
+});
 ```
 
 ### Accessing the Environment
