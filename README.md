@@ -150,7 +150,7 @@ The `runAsync` function returns a Promise that resolves to `0` when successful o
 ### Running JavaScript in Python
 You can run JavaScript in Python like so:
 ```javascript
-Coldbrew.run("Coldbrew.run('var x = 5;')");
+Coldbrew.run("Coldbrew.run('x = 5;')");
 console.log(x); // Prints 5
 ```
 
@@ -367,7 +367,7 @@ This makes it as if `load()` was never called.
 You can create a new instance of the Coldbrew object with `Coldbrew.createNewInstance`:
 ```javascript
 var Coldbrew2 = Coldbrew.createNewInstance();
-Coldbrew2.load(options).then(function() { 
+Coldbrew2.load().then(function() { 
   console.log("Finished loading another Coldbrew!"); 
 });
 ```
