@@ -6,7 +6,10 @@ import time
 
 from _Coldbrew import *
 
-_slot_id = 1
+_slot_id = 0
+_var_id = 0
+_vars = {}
+_get_vars = {}
 _exception = None
 _builtins = None
 
@@ -17,6 +20,13 @@ module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 module_name_var = module_name
 js_error = None
+
+def _single_line_try(func, errorType):
+    try:
+        func()
+        return True
+    except errorType as e:
+        return False
 
 def _barg(arg):
     if type(arg) == bytes:
@@ -162,6 +172,42 @@ def _warn(message):
 def _error(message):
     _Coldbrew._run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
     raise RuntimeError()
+
+def _call_func(func, *args):
+    kwargs = {}
+    processed_args = []
+    for arg in args:
+        if isinstance(arg, dict) and '_internal_coldbrew_get_var' in arg and arg['_internal_coldbrew_get_var']:
+            jsarg = get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
+            _Coldbrew._run('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
+            processed_args.append(arg)
+        elif isinstance(arg, dict) and '_internal_coldbrew_keywords' in arg and arg['_internal_coldbrew_keywords']:
+            kwargs.update(arg['keywords'])
+        else:
+            processed_args.append(arg)
+    return func(*processed_args, **kwargs)
+
+
+def _export(obj):
+    global _var_id
+    global _vars
+    try:
+        if hasattr(obj, '__dict__'):
+            raise TypeError()
+        return json.dumps(obj)
+    except TypeError as e:
+        _var_id += 1
+        uid = '_internal_pyvar_'+str(_var_id)
+        _vars[uid] = obj
+        return json.dumps({
+            '_internal_coldbrew_python_object': True,
+            'uid': uid,
+            'constructable': type(obj) == type,
+            'callable': callable(obj),
+            'type': obj.__class__.__name__.replace('-', '_'),
+            'name': (obj.__name__ if hasattr(obj, '__name__') else ('PythonCallable' if callable(obj) else 'PythonUnnamed')).replace('<', '').replace('>', '').replace('-', '_'),
+        })
+
 
 # Import Shims
 import ColdbrewHTTPShim

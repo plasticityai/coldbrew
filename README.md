@@ -202,8 +202,6 @@ var x = Math.pow(5, 2);
 Coldbrew.run("print(Coldbrew.get_variable('x'))") // Prints 25
 ```
 
-Note: This only works if the data in the variable is JSON serializable.
-
 Note: This only works if the variable is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
 #### Run Python Function in JavaScript
@@ -216,8 +214,6 @@ Coldbrew.run(
 Coldbrew.runFunction("foo", 5, 2); // Resolves to 25
 ```
 
-Note: This only works if the data returned by the function is JSON serializable.
-
 #### Run Python Function Asynchronously in JavaScript
 You can run a function from Python asynchronously in JavaScript like so:
 ```javascript
@@ -227,8 +223,6 @@ Coldbrew.run(
 `);
 Coldbrew.runFunctionAsync("foo", 5, 2); // Resolves to 25
 ```
-
-Note: This only works if the data returned by the function is JSON serializable.
 
 #### Run JavaScript Function in Python
 You can run a function from JavaScript in Python like so:
