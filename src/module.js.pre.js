@@ -71,7 +71,7 @@ class PythonVariable {
     );
   };
 }
-class PythonKeywords {
+class _PythonKeywords {
   constructor(keywords) {
     this.keywords = keywords;
   }
@@ -395,7 +395,7 @@ COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
 
 MODULE_NAME.PythonError = PythonError;
 MODULE_NAME.PythonVariable = PythonVariable;
-MODULE_NAME.PythonKeywords = PythonKeywords;
+MODULE_NAME.PythonKeywords = function(...args) { return new _PythonKeywords(...args); };
 MODULE_NAME.pyversion =  "PYVERSION";
 MODULE_NAME.version =  "COLDBREW_VERSION";
 MODULE_NAME._slots = {};
@@ -586,7 +586,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       function serializeToPython(obj) {
         if (MODULE_NAME.PythonVariable.isPythonVariable(obj)) {
           return "Coldbrew._vars['"+obj.__uid__+"']";
-        } else if (obj instanceof MODULE_NAME.PythonKeywords) {
+        } else if (obj instanceof _PythonKeywords) {
           return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
             '_internal_coldbrew_keywords': true,
             'keywords': obj.keywords,
