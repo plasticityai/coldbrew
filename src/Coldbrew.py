@@ -1,6 +1,7 @@
 import _Coldbrew
 import json
 import os
+import re
 import sys
 import time
 
@@ -8,6 +9,7 @@ from _Coldbrew import *
 
 _slot_id = 0
 _var_id = 0
+_get_var_id = 0
 _vars = {}
 _get_vars = {}
 _exception = None
@@ -19,14 +21,9 @@ version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 module_name_var = module_name
+_finalized_options = {}
 js_error = None
 
-def _single_line_try(func, errorType):
-    try:
-        func()
-        return True
-    except errorType as e:
-        return False
 
 def _barg(arg):
     if type(arg) == bytes:
@@ -50,7 +47,7 @@ time.sleep = sleep # Monkey patch the Python sleep() to run our version sleep()
 
 _old_excepthook = sys.excepthook
 
-def exception_handler(exctype, value, tb):
+def _exception_handler(exctype, value, tb):
     global _exception
     _exception = {
             'exctype': exctype.__name__,
@@ -63,7 +60,7 @@ def exception_handler(exctype, value, tb):
     _old_excepthook(exctype, value, tb)
 
 
-sys.excepthook = exception_handler
+sys.excepthook = _exception_handler
 
 import importlib.abc
 import importlib.machinery
@@ -82,9 +79,146 @@ sys.meta_path.append(ImportFinder())
 class JavaScriptError(Exception):
     pass
 
+class JavaScriptVariable(object):
+    internal_key_defs = ['__type__', '__uid__', '__inspect__', '__destroy__', '__destroyed__', '__str__', '__repr__']
+
+    @staticmethod
+    def is_javascript_variable(obj):
+        return isinstance(obj, JavaScriptVariable)
+
+
+def _serialize_to_js(obj):
+    global _get_var_id
+    global _get_vars
+    if JavaScriptVariable.is_javascript_variable(obj):
+        return module_name_var+"._vars['"+obj.__uid__+"']"
+    try:
+        if hasattr(obj, '__dict__'):
+            raise TypeError()
+        return json.dumps(obj)
+    except TypeError as e:
+      _get_var_id += 1
+      uid = '_internal_pygetvar_'+str(_get_var_id)
+      _get_vars[uid] = obj
+      return 'JSON.parse('+json.dumps(json.dumps({
+        '_internal_coldbrew_get_var': True,
+        'uid': uid,
+      }))+')'
+
+def  _unserialize_from_js(arg):
+    if isinstance(arg, dict) and '_internal_coldbrew_get_var' in arg and arg['_internal_coldbrew_get_var']:
+        jsarg = get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
+        _Coldbrew._run('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
+        return jsarg
+    else:
+        return arg
+
+def _transform_prop(prop, reverse=None):
+    if not(isinstance(reverse, list)) and _finalized_options['transformVariableCasing']:
+        if re.match('^[A-Za-z0-9]', prop) is not None:
+            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', prop)
+            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        else:
+            return prop
+    elif _finalized_options['transformVariableCasing']:
+        transformed_keys = [_transform_prop(p) for p in reverse]
+        try:
+            index_of_transformed_prop = transformed_keys.index(prop)
+            return reverse[index_of_transformed_prop]
+        except:
+            return prop
+    return prop
+
+def _create_variable_proxy(obj):
+    if isinstance(obj, dict) and '_internal_coldbrew_javascript_object' in obj and obj['_internal_coldbrew_javascript_object']:
+        class ProxiedJavaScriptVariable(JavaScriptVariable):
+            def __call__(self, *args):
+                if obj['constructable'] or obj['callable']:
+                    return get_variable(module_name_var+"._callFunc("+json.dumps(obj['constructable'])+", "+module_name_var+"._vars['"+obj['uid']+"'],"+','.join([_serialize_to_js(arg) for arg in args])+")")
+                else:
+                    return JavaScriptVariable.__call__(self)
+
+            def __str__(self):
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'].toString") == 'undefined':
+                    return ProxiedJavaScriptVariable.__repr__(self)
+                return get_variable(module_name_var+"._vars['"+obj['uid']+"'].toString()")
+
+            def __repr__(self):
+                if obj['constructable'] or obj['callable']:
+                    return "<JavaScriptVariable '"+obj['name']+"'>"
+                else:
+                    return '<JavaScriptVariable '+obj['type']+'.instance at '+obj['uid']+' (use str() to get the string representation)>'
+
+            def __inspect__(self, transform = True):
+                res = get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"'])")
+                if transform:
+                    return JavaScriptVariable.internal_key_defs+[_transform_prop(p) for p in res]
+                else:
+                    return JavaScriptVariable.internal_key_defs+res
+
+            def __destroy__(self):
+                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']")
+
+            def __getattr__(self, prop):
+                tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
+                if prop == '__destroyed__':
+                    return get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'] === 'undefined'")
+                elif prop == '__type__':
+                    return obj['type']
+                elif prop == '__uid__':
+                    return obj['uid']
+
+                typeofProp = get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+                if typeofProp == 'undefined':
+                    raise AttributeError("'"+obj['type']+"' object has no attribute '"+tprop+"'")
+                else:
+                    if typeofProp == 'function':
+                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
+                    else:
+                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+
+            def __setattr__(self, prop, value):
+                tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
+                run(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"] = "+module_name_var+"._unserializeFromPython("+_serialize_to_js(value)+")")
+                return value
+            
+            def __delattr__(self, prop):
+                tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]") == 'undefined':
+                    raise AttributeError(tprop)
+                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+            
+            def __dir__(self):
+                return ProxiedJavaScriptVariable.__inspect__(self)
+            
+            def __del__(self):
+                ProxiedJavaScriptVariable.__destroy__(self)
+
+            def __len__(self):
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'].length") == 'undefined':
+                    return object.__len__(self)
+                return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
+
+            def __getitem__(self, prop):
+                return ProxiedJavaScriptVariable.__getattr__(self, prop)
+
+            def __setitem__(self, prop, value):
+                return ProxiedJavaScriptVariable.__setattr__(self, prop, value)
+
+            def __delitem__(self, prop):
+                return ProxiedJavaScriptVariable.__delattr__(self, prop)
+
+            def __contains__(self, prop):
+                return get_variable(json.dumps(prop)+" in "+module_name_var+"._vars['"+obj['uid']+"']")
+
+        return ProxiedJavaScriptVariable()
+    else:
+        return obj
+
+
 def get_variable(expression):
     global js_error
-    val = json.loads(_Coldbrew._run_string("JSON.stringify("+expression+") || null"))
+    val = json.loads(_Coldbrew._run_string(module_name_var+"._export("+expression+") || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
@@ -97,7 +231,10 @@ def get_variable(expression):
         js_error = error
         raise error
     else:
-        return val
+        return _create_variable_proxy(val)
+
+def destroy_all_variables():
+    run('for (var member in '+module_name_var+'._vars) delete '+module_name_var+'._vars[member];')
 
 def run(expression):
     global js_error
@@ -116,14 +253,14 @@ def run(expression):
     return 0
 
 def run_function(functionExpression, *args):
-    return get_variable(module_name_var+'._try(function () { return '+functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+')})');
+    return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})');
 
 def run_function_async(functionExpression, *args, **kwargs):
     global _slot_id
     _slot_id += 1
     uid = '_internal_pyslot_'+str(_slot_id)
     if is_async():
-        _Coldbrew._run(functionExpression+'('+','.join([json.dumps(_barg(arg)) for arg in args])+''').then(function(val) {
+        _Coldbrew._run(module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+''').then(function(val) {
                 '''+module_name_var+'''._slots["'''+uid+'''"] = val;
                 '''+module_name_var+'''._resume_ie = true;
                 '''+module_name_var+'''.resume(false);
@@ -166,7 +303,7 @@ def reset():
     return run_function(module_name_var+'.reset')
 
 def _warn(message):
-    if os.environ['COLDBREW_WARNINGS'] == '1':
+    if not(_finalized_options['hideWarnings']):
         _Coldbrew._run("console.warn('Coldbrew Warning: '+"+json.dumps(message)+");")
 
 def _error(message):
@@ -175,17 +312,10 @@ def _error(message):
 
 def _call_func(func, *args):
     kwargs = {}
-    processed_args = []
     for arg in args:
-        if isinstance(arg, dict) and '_internal_coldbrew_get_var' in arg and arg['_internal_coldbrew_get_var']:
-            jsarg = get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
-            _Coldbrew._run('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
-            processed_args.append(arg)
-        elif isinstance(arg, dict) and '_internal_coldbrew_keywords' in arg and arg['_internal_coldbrew_keywords']:
+        if isinstance(arg, dict) and '_internal_coldbrew_keywords' in arg and arg['_internal_coldbrew_keywords']:
             kwargs.update(arg['keywords'])
-        else:
-            processed_args.append(arg)
-    return func(*processed_args, **kwargs)
+    return func(*[_unserialize_from_js(arg) for arg in args], **kwargs)
 
 
 def _export(obj):

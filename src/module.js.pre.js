@@ -92,31 +92,78 @@ function randid() {
   });
 }
 
-function isPlainObject(obj) {
-  return obj!=null && typeof(obj)=="object" && Object.getPrototypeOf(obj)==Object.prototype;
+// isPlainObject from lodash.isPlainObject
+var isPlainObject = null;
+(function() {
+  var objectTag = '[object Object]';
+  function isHostObject(value) {
+    var result = false;
+    if (value != null && typeof value.toString != 'function') {
+      try {
+        result = !!(value + '');
+      } catch (e) {}
+    }
+    return result;
+  }
+  function overArg(func, transform) {
+    return function(arg) {
+      return func(transform(arg));
+    };
+  }
+  var funcProto = Function.prototype,
+      objectProto = Object.prototype;
+  var funcToString = funcProto.toString;
+  var hasOwnProperty = objectProto.hasOwnProperty;
+  var objectCtorString = funcToString.call(Object);
+  var objectToString = objectProto.toString;
+  var getPrototype = overArg(Object.getPrototypeOf, Object);
+  function isObjectLike(value) {
+    return !!value && typeof value == 'object';
+  }
+  isPlainObject = function(value) {
+    if (!isObjectLike(value) ||
+        objectToString.call(value) != objectTag || isHostObject(value)) {
+      return false;
+    }
+    var proto = getPrototype(value);
+    if (proto === null) {
+      return true;
+    }
+    var Ctor = hasOwnProperty.call(proto, 'constructor') && proto.constructor;
+    return (typeof Ctor == 'function' &&
+      Ctor instanceof Ctor && funcToString.call(Ctor) == objectCtorString);
+  };
+})();
+
+function toType(obj) {
+  return ({}).toString.call(obj).match(/\s([a-zA-Z]+)/)[1]
+}
+
+function isConstructor(obj) {
+  return !!obj.prototype && !!obj.prototype.constructor.name;
 }
 
 function isSerializable(obj) {
   var isNestedSerializable;
   function isPlain(val) {
-    return (typeof val === 'undefined' || typeof val === 'string' || typeof val === 'boolean' || typeof val === 'number' || Array.isArray(val) || isPlainObject(val));
+    return (typeof val === 'undefined' || val == null || typeof val === 'string' || typeof val === 'boolean' || typeof val === 'number' || Array.isArray(val) || isPlainObject(val));
   }
   if (!isPlain(obj)) {
     return false;
   }
-  for (var property in obj) {
-    if (obj.hasOwnProperty(property)) {
-      if (!isPlain(obj[property])) {
+  var properties = ((typeof obj ===  'object' && obj != null) || typeof obj ===  'function') ? Object.getOwnPropertyNames(obj) : [];
+  for (var i=0; i<properties.length; i++) {
+    var property = properties[i];
+    if (!isPlain(obj[property])) {
+      return false;
+    }
+    if (typeof obj[property] == "object") {
+      isNestedSerializable = isSerializable(obj[property]);
+      if (!isNestedSerializable) {
         return false;
       }
-      if (typeof obj[property] == "object") {
-        isNestedSerializable = isSerializable(obj[property]);
-        if (!isNestedSerializable) {
-          return false;
-        }
-      }
     }
-  }
+  };
   return true;
 }
 
@@ -391,6 +438,34 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   };
 })();
 
+function serializeToPython(obj) {
+  if (MODULE_NAME.PythonVariable.isPythonVariable(obj)) {
+    return "Coldbrew._vars['"+obj.__uid__+"']";
+  } else if (obj instanceof _PythonKeywords) {
+    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+      '_internal_coldbrew_keywords': true,
+      'keywords': obj.keywords,
+    }))+')';
+  } else if (!isSerializable(obj)) {
+    var uid = randid();
+    MODULE_NAME._get_vars[uid] = obj;
+    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+      '_internal_coldbrew_get_var': true,
+      'uid': uid,
+    }))+')';
+  }
+  return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify(obj))+')';
+}
+function unserializeFromPython(arg) {
+  if (arg && arg._internal_coldbrew_get_var) {
+    var pyarg = MODULE_NAME.getVariable('Coldbrew._get_vars["'+arg['uid']+'"]'); // Grab the Python native variable argument
+    MODULE_NAME.run('del Coldbrew._get_vars["'+arg['uid']+'"]'); // Clean up the temporary reference
+    return pyarg;
+  } else {
+    return arg;
+  }
+}
+
 COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
 
 MODULE_NAME.PythonError = PythonError;
@@ -416,6 +491,30 @@ MODULE_NAME._try = function(func) {
     return func();
   } catch (e) {
     return MODULE_NAME._convertError(e);
+  }
+};
+MODULE_NAME._callFunc = function(constructable, func, ...args) {
+  if (constructable) {
+    return new func(...args.map(unserializeFromPython));
+  } else {
+    return func(...args.map(unserializeFromPython));
+  }
+};
+MODULE_NAME._unserializeFromPython = unserializeFromPython;
+MODULE_NAME._export = function(obj) {
+  if (isSerializable(obj)) {
+    return JSON.stringify(obj);
+  } else {
+    var uid = randid();
+    MODULE_NAME._vars[uid] = obj;
+    return JSON.stringify({
+        '_internal_coldbrew_javascript_object': true,
+        'uid': uid,
+        'constructable': obj instanceof Function && isConstructor(obj),
+        'callable': obj instanceof Function && !isConstructor(obj),
+        'type': (typeof obj.constructor !== 'undefined') ? toType(obj) : (typeof obj),
+        'name': (typeof obj.name !== 'undefined' ? obj.name : 'JavaScriptUnnamed'),
+    });
   }
 };
 MODULE_NAME._parseUrl = parseUrl;
@@ -539,9 +638,10 @@ MODULE_NAME._load = function(arg1, arg2) {
     monitorFileUsage: false,
     asyncYieldRate: null,
     worker: false,
-    useCamelCase: true,
+    transformVariableCasing: true,
   };
-  var finalizedOptions = Object.assign({}, defaultOptions, options);
+  var finalizedOptions = Object.assign(options, Object.assign({}, defaultOptions, options));
+  MODULE_NAME._finalizedOptions = finalizedOptions;
   if (finalizedOptions.fsOptions) {
     MODULE_NAME.configureFS(finalizedOptions.fsOptions);
   }
@@ -583,27 +683,6 @@ MODULE_NAME._load = function(arg1, arg2) {
           async: true,
         });
       }
-      function serializeToPython(obj) {
-        if (MODULE_NAME.PythonVariable.isPythonVariable(obj)) {
-          return "Coldbrew._vars['"+obj.__uid__+"']";
-        } else if (obj instanceof _PythonKeywords) {
-          return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
-            '_internal_coldbrew_keywords': true,
-            'keywords': obj.keywords,
-          }))+')';
-        } else if (!isSerializable(obj)) {
-          if (finalizedOptions.worker) {
-            throw new Error("Trying to pass a native JavaScript variable to Python when using worker mode. This is not possible as native JavaScript objects in the main thread cannot be referenced from the worker thread. Please only use JavaScript primitives or Python variables.");
-          }
-          var uid = randid();
-          MODULE_NAME._get_vars[uid] = obj;
-          return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
-            '_internal_coldbrew_get_var': true,
-            'uid': uid,
-          }))+')';
-        }
-        return JSON.stringify(obj);
-      }
       function createVariableProxy(obj, async=false) {
         if (obj && obj._internal_coldbrew_python_object) {
           if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
@@ -619,7 +698,7 @@ MODULE_NAME._load = function(arg1, arg2) {
             run = MODULE_NAME.runAsync;
           }
           var transformProp = function(prop, reverse=null) {
-            if (!(reverse instanceof Array) && finalizedOptions.useCamelCase) {
+            if (!(reverse instanceof Array) && finalizedOptions.transformVariableCasing) {
               if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
                 return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
                   return $1.toUpperCase()
@@ -629,7 +708,7 @@ MODULE_NAME._load = function(arg1, arg2) {
               } else {
                 return prop;
               }
-            } else if (finalizedOptions.useCamelCase) {
+            } else if (finalizedOptions.transformVariableCasing) {
               var transformedKeys = reverse.map(transformProp);
               var indexOfTransformedProp = transformedKeys.indexOf(prop);
               if (indexOfTransformedProp >= 0) {
@@ -646,7 +725,7 @@ MODULE_NAME._load = function(arg1, arg2) {
                 return getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+args.map(arg => serializeToPython(arg)).join(',')+")")
               },
               apply: function(target, thisArg, argumentsList) {
-                return getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._vars['"+obj.uid+"']("+argumentsList.map(arg => serializeToPython(arg)).join(',')+")")
+                return getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+argumentsList.map(arg => serializeToPython(arg)).join(',')+")")
               },
               get: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
@@ -665,13 +744,13 @@ MODULE_NAME._load = function(arg1, arg2) {
                   // This is a JavaScript special property that the engine expects to be defined for custom JSON serialization.
                   tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
                   return function() {
-                    return getVariable("(Coldbrew._vars['"+obj.uid+"']."+tprop+" if hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"') else lambda: Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))")();
+                    return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else lambda: Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))")();
                   };
                 } else if (prop === 'toString') {
                   // This is a JavaScript special property that the engine expects to be defined for custom string serialization.
                   tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
                   return function() {
-                    return getVariable("(Coldbrew._vars['"+obj.uid+"']."+tprop+" if hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"') else lambda: str(Coldbrew._vars['"+obj.uid+"']))")();
+                    return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else lambda: str(Coldbrew._vars['"+obj.uid+"']))")();
                   };
                 } else if (prop === '__inspect__') {
                   var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
@@ -688,11 +767,11 @@ MODULE_NAME._load = function(arg1, arg2) {
                 } else if (prop === '__uid__') {
                   return obj.uid;
                 } else {
-                  var result = getVariable("(Coldbrew._vars['"+obj.uid+"']."+tprop+" if hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"') else (Coldbrew._vars['"+obj.uid+"']['"+prop+"'] if Coldbrew._single_line_try(lambda: Coldbrew._vars['"+obj.uid+"']['"+prop+"'], TypeError) else {'_internal_coldbrew_python_undefined': True}))");
-                  if (result && result._internal_coldbrew_python_undefined) {
+                  if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"'])")) {
+                    return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"']["+JSON.stringify(prop)+"]");
+                  } else {
                     return undefined;
                   }
-                  return result;
                 }
               },
               set: function(target, prop, value) {
@@ -701,7 +780,7 @@ MODULE_NAME._load = function(arg1, arg2) {
                   return value;
                 }
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"', "+serializeToPython(value)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"') else Coldbrew._vars['"+obj.uid+"'].__setitem__('"+prop+"', "+serializeToPython(value)+"))");
+                MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__("+JSON.stringify(prop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
                 return value;
               },
               ownKeys: function(target) {
@@ -716,11 +795,14 @@ MODULE_NAME._load = function(arg1, arg2) {
               },
               has: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"') or '"+prop+"' in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) else hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"')");
+                return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
               },
               deleteProperty: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                return MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], '"+tprop+"'):\n\tdel Coldbrew._vars['"+obj.uid+"']."+tprop+"\nelse:\n\tdel Coldbrew._vars['"+obj.uid+"']['"+prop+"']");
+                if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"'])")) {
+                  MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdel getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tdel Coldbrew._vars['"+obj.uid+"']["+JSON.stringify(prop)+"]");
+                }
+                return true;
               },
           };
           if (obj.constructable) {
@@ -801,8 +883,8 @@ MODULE_NAME._load = function(arg1, arg2) {
           });
         };
       }
-      MODULE_NAME.garbageCollectAllVariables = function() {
-        return MODULE_NAME.getVariable("Coldbrew._vars.clear()");
+      MODULE_NAME.destroyAllVariables = function() {
+        MODULE_NAME.run("Coldbrew._vars.clear()");
       };
       MODULE_NAME.getExceptionInfo = function() {
         return MODULE_NAME.getVariable('Coldbrew._exception');
@@ -1020,9 +1102,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         }
         MODULE_NAME.run('Coldbrew._clear_argv()');
         MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
-        if (finalizedOptions.hideWarnings) {
-          MODULE_NAME.setenv("COLDBREW_WARNINGS", Number(!finalizedOptions.hideWarnings).toString());
-        }
+        MODULE_NAME.run('Coldbrew._finalized_options = '+serializeToPython(finalizedOptions));
         if (!finalizedOptions.hideWarnings) {
           console.warn('Initialized MODULE_NAME Python Environment.');
         }
