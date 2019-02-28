@@ -277,13 +277,17 @@ sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../in
 	llvm-link sources+python.o python-strings.o --override=python.o > sources+python+strings.o
 
 clean:
-	rm -rf ../cache || true
 	rm -rf ../build || true
 	rm -rf ../downloads || true
 	rm -rf ../installs || true
+	make cleanlocal
+
+cleanlocal:
+	rm -rf ../cache || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	rm -rf root || true
+	rm -rf /root/.emscripten_cache/ || true
 	rm *.bc 2>/dev/null || true
 	rm *.mem 2>/dev/null || true
 	rm *.asm.js 2>/dev/null || true
