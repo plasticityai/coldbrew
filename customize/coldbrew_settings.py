@@ -25,7 +25,7 @@ JSZIP = True
 AGGRESSIVE_VARIABLE_ELIMINATION = ""
 
 # Controls whether to enable debugging mode
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False

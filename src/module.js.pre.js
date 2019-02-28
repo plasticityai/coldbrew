@@ -685,11 +685,14 @@ MODULE_NAME._load = function(arg1, arg2) {
       }
       function createVariableProxy(obj, async=false) {
         if (obj && obj._internal_coldbrew_python_object) {
+          if (IS_WORKER_SCRIPT) {
+            throw new Error("Cannot proxy a non-serializable Python variable when using worker mode. Please only export JSON serializable data.");
+          }
           if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
-            throw new Error("Cannot proxy a Python type with special characters in type name: "+ obj.type);
+            throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
           }
           if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
-            throw new Error("Cannot proxy a Python name with special characters in type name: "+obj.name);
+            throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
           }
           var getVariable = MODULE_NAME.getVariable;
           var run = MODULE_NAME.run;
