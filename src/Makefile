@@ -64,7 +64,7 @@ endif
 ifneq ($(EMCC_DEBUG),0)
 	export EM_BUILD_VERBOSE=3
 	export EMSCRIPT_MAX_CHUNK_SIZE=16777216
-	export EMCC_CORES=4
+	export EMCC_CORES=1
 endif
 
 # Error check settings
