@@ -732,7 +732,7 @@ MODULE_NAME._load = function(arg1, arg2) {
               },
               get: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                if (prop.startsWith('_internal_coldbrew')) {
+                if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
                   return undefined;
                 } else if (typeof prop === 'symbol') {
                   // These are a JavaScript special property that the engine expects to not be defined sometimes, ignore them.
@@ -770,8 +770,8 @@ MODULE_NAME._load = function(arg1, arg2) {
                 } else if (prop === '__uid__') {
                   return obj.uid;
                 } else {
-                  if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"'])")) {
-                    return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"']["+JSON.stringify(prop)+"]");
+                  if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])")) {
+                    return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
                   } else {
                     return undefined;
                   }
@@ -783,7 +783,7 @@ MODULE_NAME._load = function(arg1, arg2) {
                   return value;
                 }
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__("+JSON.stringify(prop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
+                MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"), Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
                 return value;
               },
               ownKeys: function(target) {
@@ -798,12 +798,12 @@ MODULE_NAME._load = function(arg1, arg2) {
               },
               has: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
+                return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
               },
               deleteProperty: function(target, prop) {
                 tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and "+JSON.stringify(prop)+" in Coldbrew._vars['"+obj.uid+"'])")) {
-                  MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdel getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tdel Coldbrew._vars['"+obj.uid+"']["+JSON.stringify(prop)+"]");
+                if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__') or hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')) and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])")) {
+                  MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdel getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tdel Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
                 }
                 return true;
               },

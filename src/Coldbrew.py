@@ -168,25 +168,25 @@ def _create_variable_proxy(obj):
                 elif prop == '__uid__':
                     return obj['uid']
 
-                typeofProp = get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+                typeofProp = get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
                 if typeofProp == 'undefined':
                     raise AttributeError("'"+obj['type']+"' object has no attribute '"+tprop+"'")
                 else:
                     if typeofProp == 'function':
-                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
+                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
                     else:
-                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
 
             def __setattr__(self, prop, value):
                 tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
-                run(module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"] = "+module_name_var+"._unserializeFromPython("+_serialize_to_js(value)+")")
+                run(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")] = "+module_name_var+"._unserializeFromPython("+_serialize_to_js(value)+")")
                 return value
             
             def __delattr__(self, prop):
                 tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
-                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]") == 'undefined':
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]") == 'undefined':
                     raise AttributeError(tprop)
-                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']["+json.dumps(tprop)+"]")
+                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
             
             def __dir__(self):
                 return ProxiedJavaScriptVariable.__inspect__(self)
