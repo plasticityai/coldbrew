@@ -61,11 +61,11 @@ ifeq ($(SMALL_BUT_SLOW_SYNC),true)
     SHOULD_SYNC =
 endif
 
-ifneq ($(EMCC_DEBUG),0)
-	export EM_BUILD_VERBOSE=3
-	export EMSCRIPT_MAX_CHUNK_SIZE=16777216
-	export EMCC_CORES=1
-endif
+# ifneq ($(EMCC_DEBUG),0)
+# 	export EM_BUILD_VERBOSE=3
+# 	export EMSCRIPT_MAX_CHUNK_SIZE=16777216
+# 	export EMCC_CORES=1
+# endif
 
 # Error check settings
 ifeq ($(SMALL_BUT_NO_ASYNC),true)
@@ -237,7 +237,14 @@ ifneq ($(EMCC_DEBUG),0)
 endif
 	# Modify emterpretify.py to branch to the synchronous function bodies when running synchronously with an if-statement
 ifdef SHOULD_SYNC
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0]\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0];\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+endif
+# Modify emterpretify.py on debug builds to ignore duplicated dynCall functions by renaming them and suffixing them with _dup
+ifneq ($(EMCC_DEBUG),0)
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; lines.__setitem__(i, lines[i].replace("function "+func+"(", "function "+func+"_dup(")) if func.startswith("dynCall_") else str(); print("Replaced duplicate function symbol:", lines[i]) if func.startswith("dynCall_") else str()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
+	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""asm.write(outfile)""","""asm.write(outfile);new_outfile_content = re.sub("(dynCall_[a-z0-9A-Z]+): (dynCall_[a-z0-9A-Z]+)", r"\\1_dup: \\2_dup", open(outfile, "r").read());open(outfile, "w+").write(new_outfile_content)"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
 	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
 endif
 	# Build asynchronous version of .asm.js (with branching to synchronous function bodies)
