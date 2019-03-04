@@ -150,7 +150,9 @@ def _create_variable_proxy(obj):
                     return '<JavaScriptVariable '+obj['type']+'.instance at '+obj['uid']+' (use str() to get the string representation)>'
 
             def __inspect__(self, transform = True):
-                res = get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"'])")
+                lookup = set()
+                res = get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"']).concat(Object.getOwnPropertyNames(Object.getPrototypeOf("+module_name_var+"._vars['"+obj['uid']+"'])))")
+                res = [x for x in res if x not in lookup and lookup.add(x) is None]
                 if transform:
                     return JavaScriptVariable.internal_key_defs+[_transform_prop(p) for p in res]
                 else:

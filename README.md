@@ -25,6 +25,11 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Run Python Function Asynchronously in JavaScript](#run-python-function-asynchronously-in-javascript)
     + [Run JavaScript Function in Python](#run-javascript-function-in-python)
     + [Run Asynchronous JavaScript Function in Python](#run-asynchronous-javascript-function-in-python)
+  * [Bridge Variables](#bridge-variables)
+    + [What are Bridge Variables?](#what-are-bridge-variables)
+    + [Interacting with Bridge Variables](#interacting-with-bridge-variables)
+    + [Bridge Variable Introspection](#bridge-variable-introspection)
+    + [Bridge Variable Garbage Collection](#bridge-variable-garbage-collection)
   * [Error Handling](#error-handling)
     + [Catching Python Errors in JavaScript](#catching-python-errors-in-javascript)
     + [Catching JavaScript Errors in Python](#catching-javascript-errors-in-python)
@@ -116,6 +121,7 @@ var options = {
   monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
   asyncYieldRate: null, /* Allows you to override the default asynchronous yield rate (see setAsyncYieldRate()) */
   worker: false, /* Runs the Coldbrew Python interpreter in a seperate Web Worker or Worker thread */
+  transformVariableCasing: true, /* Transforms bridge variable properties and methods to camel case or snake case automatically */
 };
 ```
 
@@ -186,6 +192,8 @@ The `runFileAsync` function returns a Promise that resolves to `0` when successf
 
 ### Communicating between JavaScript and Python
 
+You can communicate between the two languages by tranferring variables and calling functions. While only simple examples are shown below, this can be very powerful with "[bridge variables](#bridge-variables)" that allow you to transfer not just "primitive" types between the two languages, but all types.
+
 #### Get Python Variable in JavaScript
 You can access a variable from Python in JavaScript like so:
 ```javascript
@@ -193,7 +201,7 @@ Coldbrew.run("x = 5**2");
 Coldbrew.getVariable("x"); // Returns 25
 ```
 
-Note: This only works if the data in the variable is JSON serializable.
+Note:
 
 #### Get JavaScript Variable in Python
 You can access a variable from JavaScript in Python like so:
@@ -212,6 +220,15 @@ Coldbrew.run(
   return x**y
 `);
 Coldbrew.runFunction("foo", 5, 2); // Resolves to 25
+```
+
+You can also run a function with keywords from Python in JavaScript like so:
+```javascript
+Coldbrew.run(
+`def foo(x, y=0):
+  return x**y
+`);
+Coldbrew.runFunction("foo", 5, Coldbrew.PythonKeywords({y: 2})); // Resolves to 25
 ```
 
 #### Run Python Function Asynchronously in JavaScript
@@ -233,8 +250,6 @@ function foo(x, y) {
 Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
 ```
 
-Note: This only works if the data returned by the function is JSON serializable.
-
 Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
 #### Run Asynchronous JavaScript Function in Python
@@ -246,9 +261,65 @@ function foo(x, y) {
 Coldbrew.runAsync("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 25
 ```
 
-Note: This only works if the data returned by the function is JSON serializable.
-
 Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+
+### Bridge Variables
+
+#### What are Bridge Variables?
+When you call `getVariable` or `get_variable`, if the type of the variable is a "primitive" type, the data is JSON-serialized, passed to the other language and then JSON-deserialized. When the type of the variable is a non "primitive" type, a bridge variable is returned instead that allows you to interact with a variable from the other language as if it were a native variable by essentially performing [RPC-style](#https://en.wikipedia.org/wiki/Remote_procedure_call) communication between the two languages.
+
+The bridge variable uses [ECMAScript 6 Proxies](#https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy) in JavaScript and [Object Customization](https://docs.python.org/3/reference/datamodel.html#basic-customization) in Python to make it seem like a Python variable is natively accessible in JavaScript and a JavaScript variable is natively accessible in Python.
+
+For example, with bridge variables you can export a Python class like the [`Counter`](https://docs.python.org/3.1/library/collections.html#counter-objects) class from Python to JavaScript and it will behave like it were a JavaScript class:
+```python
+Coldbrew.run("from collections import Counter");
+var Counter = Coldbrew.getVariable("Counter");
+var c = new Counter(['red', 'blue', 'red', 'green', 'blue', 'blue']);
+console.log(c); // Prints "Counter({'blue': 3, 'red': 2, 'green': 1})"
+console.log(c.mostCommon(2)); // Prints "[('blue', 3), ('red', 2)]"
+```
+
+You can also go the other way too. You can export a JavaScript class like the [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) class from JavaScript to Python and it will behave like it were a Python class:
+```python
+Coldbrew.run("Date = getVariable('Date')");
+Coldbrew.run("d = Date(1234567890000)");
+Coldbrew.run("print(d)"); // Prints "Fri Feb 13 2009 15:31:30 GMT-0800 (Pacific Standard Time)"
+Coldbrew.run("print(d.to_iso_string())"); // Prints "2009-02-13T23:31:30.000Z"
+```
+
+You can do this with pretty much any type of variable (classes, object instances, functions, modules, primitives, etc.) between both languages.
+
+#### Interacting with Bridge Variables
+You can interact with bridge variable as if they were a "native" variable. Method names or property names are automatically transformed to camel case from snake case when using a Python bridge variable in JavaScript and vice-versa. You can turn this off by passing `transformVariableCasing: false` to the Coldbrew `load` method.
+
+Using introspection can help you determine what properties or methods the object can be accessed. But if you want more detailed documentation on how syntax in one language will be translated to the other, you can find [more information here](docs/bridge.md).
+
+#### Bridge Variable Introspection
+You can check if a variable is a bridge variable in JavaScript like so:
+```python
+Coldbrew.PythonVariable.isPythonVariable(...) // Returns true or false
+```
+or in Python like so:
+```python
+Coldbrew.run("print(Coldbrew.JavaScriptVariable.isJavaScriptVariable(...))") // Prints true or false
+```
+
+In both languages, you can use the `.__type__` property to find out the actual type of the variable and you can call the `.__inspect__` method to return a list of attributes you can access on the object.
+
+#### Implicit Bridge Variables
+
+We've shown how bridge variables are returned when using `getVariable` and `get_variable`. There are many other places where bridge variables are implicitly returned or created. 
+
+For example, `runFunction`, `runFunctionAsync`, `run_function`, and `run_function_async` can all return bridge variables if the data is not JSON-serializable. Also, any property or method on a bridge variable that is not JSON-serializable is returned as a bridge variable. Moreover, if you pass a bridge variable as an argument to a function that will be run in the other language, it will recieve a reference to the original variable and it should "just work". If you pass a non JSON-serializable variable to a function that will be run in the other language, it will automatically be converted to a bridge variable in the other language.
+
+#### Bridge Variable Garbage Collection
+When creating a bridge variable, a reference to the "real" variable is held in the other language's interpreter to prevent the value from being garbage collected. 
+
+In JavaScript, there are no hooks for the garbage collector, so when a bridge variable is created with `getVariable()` it needs to be explicitly told when it is done being used to remove the reference in the Python interpreter so the memory can be released. You can do this by calling the `__destroy__()` method on the bridge variable. Once destroyed, you should not access the bridge variable anymore and it should be considered invalid. You can check if a variable is already destroyed, by using the `__destroyed__` property. If you want to destroy all bridge variables created at once, run `Coldbrew.destroyAllVariables()`.
+
+In Python, there are hooks for the garbage collector so we know when a bridge variable created by `get_variable()` is garbage collected and can de-reference the variable in JavaScript as well, so there are no memory leaks.
+
+We still expose `__destroy__()`, `__destroyed__`, and `Coldbrew.destroy_all_variables()` in Python for manual garbage collection, if needed.
 
 ### Error Handling
 
