@@ -312,13 +312,16 @@ def _error(message):
     _Coldbrew._run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
     raise RuntimeError()
 
+class _json:
+    json = json
+
 def _call_func(func, *args):
     kwargs = {}
     newArgs = []
     for arg in args:
         if isinstance(arg, dict) and '_internal_coldbrew_keywords' in arg and arg['_internal_coldbrew_keywords']:
             for key, val in arg['keywords'].items():
-                arg['keywords'][key] = _unserialize_from_js(val)
+                arg['keywords'][key] = _unserialize_from_js(eval(val, {'Coldbrew': _json}))
             kwargs.update(arg['keywords'])
         else:
             newArgs.append(arg)
