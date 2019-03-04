@@ -314,10 +314,15 @@ def _error(message):
 
 def _call_func(func, *args):
     kwargs = {}
+    newArgs = []
     for arg in args:
         if isinstance(arg, dict) and '_internal_coldbrew_keywords' in arg and arg['_internal_coldbrew_keywords']:
+            for key, val in arg['keywords'].items():
+                arg['keywords'][key] = _unserialize_from_js(val)
             kwargs.update(arg['keywords'])
-    return func(*[_unserialize_from_js(arg) for arg in args], **kwargs)
+        else:
+            newArgs.append(arg)
+    return func(*[_unserialize_from_js(arg) for arg in newArgs], **kwargs)
 
 
 def _export(obj):

@@ -71,13 +71,17 @@ class PythonVariable {
     );
   };
 }
-class _PythonKeywords {
-  constructor(keywords) {
-    this.keywords = keywords;
-  }
-}
 PythonVariable.internalKeyDefs = ['__type__', '__uid__', '__inspect__', '__destroy__', '__destroyed__', 'toString', 'toJSON'];
 class PythonDynamicallyEvaluatedValue {}
+class _PythonKeywords {
+  constructor(keywords) {
+    var newKeywords = {};
+    Object.keys(keywords).forEach(function(key) {
+      newKeywords[key] = serializeToPython(keywords[key]);
+    });
+    this.keywords = newKeywords;
+  }
+}
 
 // Define utility functions
 function parseUrl(string, prop) {
