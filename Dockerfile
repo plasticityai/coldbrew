@@ -74,26 +74,11 @@ RUN rm -rf /usr/local/coldbrew/clang+llvm
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/bin
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/lib
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/include
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/lib/*
 RUN rm -rf /usr/local/coldbrew/emsdk/zips/
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/binaryen/bin
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-cpp
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-cl
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-6.0
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/scan-build
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-check
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/bugpoint
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-PerfectShuffle
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llc
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-lto2
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-opt-fuzzer
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-lto
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/lli
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-import-test
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-isel-fuzzer
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dsymutil
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-c-test
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/c-index-test
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dwp
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-refactor
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-rename
