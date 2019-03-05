@@ -24,6 +24,7 @@ PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
 EMSCRIPTEN_VERSION=$(shell cd /usr/local/coldbrew/emsdk/emscripten/*; basename $$(pwd);)
 ROOT=$(abspath ..)
+DOWNLOADS=$(ROOT)/downloads
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 INSTALLS=$(ROOT)/installs
 CUSTOMIZED_FILES=../customize/files
@@ -100,7 +101,6 @@ rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst 
 all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js.make index.html
 
 python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
-	rm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
 
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
@@ -386,7 +386,9 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	opt -load ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -syncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
 	llvm-extract -rfunc=".+_coldbrew_sync" -rglob="\.str*|.*PyId_.*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
 	cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o
+	rm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
 	rm -rf $(BUILD)
+	rm -rf $(DOWNLOADS)
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)
 	( \
