@@ -153,6 +153,7 @@ Build Docker Image:
   script:
     - wget https://github.com/jwilder/docker-squash/releases/download/v0.2.0/docker-squash-linux-amd64-v0.2.0.tar.gz
     - tar -C /usr/local/bin -xzvf docker-squash-linux-amd64-v0.2.0.tar.gz
+    - rm docker-squash-linux-amd64-v0.2.0.tar.gz
     - compressed=$(mktemp ~/compressed.XXXXXX)
     - cd $CI_PROJECT_DIR
     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
