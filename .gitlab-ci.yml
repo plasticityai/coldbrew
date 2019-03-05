@@ -159,6 +159,7 @@ Build Docker Image:
     - docker run "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" sleep 1
     - docker export $(docker ps -aq | tail -n1) > $compressed
     - docker import $compressed "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - rm $compressed
     - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
     - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
     - docker push "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
@@ -170,6 +171,7 @@ Build Docker Image:
     - docker run "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" sleep 1
     - docker export $(docker ps -aq | tail -n1) > $compressed
     - docker import $compressed "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
+    - rm $compressed
     - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
     - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
     - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
