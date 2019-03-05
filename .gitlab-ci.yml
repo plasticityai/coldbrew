@@ -151,6 +151,7 @@ Build Docker Image:
   stage: Build Docker Image
   image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
   script:
+    - apt-get install sudo -y
     - wget https://github.com/jwilder/docker-squash/releases/download/v0.2.0/docker-squash-linux-amd64-v0.2.0.tar.gz
     - tar -C /usr/local/bin -xzvf docker-squash-linux-amd64-v0.2.0.tar.gz
     - rm docker-squash-linux-amd64-v0.2.0.tar.gz
@@ -158,26 +159,26 @@ Build Docker Image:
     - cd $CI_PROJECT_DIR
     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
     - docker pull "$CI_REGISTRY_IMAGE:latest" || true
-    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
-    - docker save "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" | docker-squash -o $compressed -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
+    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker save "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" | docker-squash -o $compressed -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - docker load -i $compressed
     - rm $compressed
-    - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
-    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
     - docker push "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
-    - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:latest"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
     - echo -e "\nCOPY . /BUILD/\n\nRUN /bin/bash -c \"cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make python;\"" >> Dockerfile
     - rm .dockerignore
-    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" .
-    - docker save "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" | docker-squash -o $compressed -t "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
+    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" .
+    - docker save "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" | docker-squash -o $compressed -t "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
     - docker load -i $compressed
     - rm $compressed
-    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
-    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
-    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
+    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
     - docker push "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
-    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE/builder:latest"
+    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:latest"
     - docker push "$CI_REGISTRY_IMAGE/builder:latest"
   only:
     - master
