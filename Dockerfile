@@ -93,8 +93,8 @@ RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-lto
 # RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-isel-fuzzer
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dsymutil
 # RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-c-test
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/c-index-test
-# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dwp
+# RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/c-index-test
+RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dwp
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-refactor
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-rename
 RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-diff
