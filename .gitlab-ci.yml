@@ -151,10 +151,14 @@ Build Docker Image:
   stage: Build Docker Image
   image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
   script:
+    - compressed=$(mktemp ~/compressed.XXXXXX)
     - cd $CI_PROJECT_DIR
     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
     - docker pull "$CI_REGISTRY_IMAGE:latest" || true
-    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" .
+    - docker run "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" sleep 1
+    - docker export $(docker ps -aq | tail -n1) > $compressed
+    - docker import $compressed "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
     - docker push "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME"
     - docker tag "$CI_REGISTRY_IMAGE:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
     - docker push "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
@@ -163,6 +167,10 @@ Build Docker Image:
     - echo -e "\nCOPY . /BUILD/\n\nRUN /bin/bash -c \"cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make python;\"" >> Dockerfile
     - rm .dockerignore
     - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" .
+    - docker run "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" sleep 1
+    - docker export $(docker ps -aq | tail -n1) > $compressed
+    - docker import $compressed "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
+    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
     - docker push "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME"
     - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_BUILD_REF_NAME" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
     - docker push "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
