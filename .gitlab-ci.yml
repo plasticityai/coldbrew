@@ -157,9 +157,7 @@ Build Docker Image:
     - docker pull "$CI_REGISTRY_IMAGE:latest" || true
     - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
     - docker run "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" sleep 1
-    - docker ps -a
-    - echo $(docker ps -aq | tail -n1)
-    - docker export $(docker ps -aq | tail -n1) > $compressed
+    - docker export $(docker ps -aq | head -n1) > $compressed
     - docker rmi "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - docker import $compressed "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
     - docker history "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
@@ -173,7 +171,7 @@ Build Docker Image:
     - rm .dockerignore
     - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" .
     - docker run "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" sleep 1
-    - docker export $(docker ps -aq | tail -n1) > $compressed
+    - docker export $(docker ps -aq | head -n1) > $compressed
     - docker rmi "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
     - docker import $compressed "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
     - docker history "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
