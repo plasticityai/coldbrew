@@ -291,7 +291,7 @@ You can do this with pretty much any type of variable (classes, object instances
 #### Interacting with Bridge Variables
 You can interact with bridge variables as if they were a native variable. Method names or property names are automatically transformed to camel case from snake case when using a Python bridge variable in JavaScript and vice-versa. You can turn this off by passing `transformVariableCasing: false` to the Coldbrew `load` method.
 
-Using [introspection](#bridge-variable-introspection) can help you determine what properties or methods on the object can be accessed. But if you want more detailed documentation on how syntax in one language will be translated to the other, you can find [more information here](docs/bridge.md).
+Using [introspection](#bridge-variable-introspection) can help you determine what properties or methods on the object can be accessed. But if you want more [detailed documentation](docs/bridge.md) on how syntax in one language will be translated to the other, you can find [more information here](docs/bridge.md).
 
 #### Bridge Variable Introspection
 You can check if a variable is a bridge variable in JavaScript like so:

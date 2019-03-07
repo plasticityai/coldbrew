@@ -65,6 +65,17 @@
         </p>
         <hr class="hide-SMALL_BUT_NO_ASYNC"/>
         <p class="hide-SMALL_BUT_NO_ASYNC">
+            You can export Python variables (objects, classes, functions, modules, primitives, etc.) and use them like a native JavaScript variable using Coldbrew's <a href="https://github.com/plasticityai/coldbrew#bridge-variables">bridge variables</a>, like, for example, the <a href="https://docs.python.org/3.1/library/collections.html#counter-objects">Counter</a> class:<br/>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
+               MODULE_NAME.run("from collections import Counter");<br/>
+               var Counter = MODULE_NAME.getVariable("Counter");<br/>
+               var c = new Counter(['red', 'blue', 'red', 'green', 'blue', 'blue']);<br/>
+               console.log(c.mostCommon(2));
+            </code>
+        </p>
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
+        <p class="hide-SMALL_BUT_NO_ASYNC">
             You can run Python code asynchronously, which won't lock up the browser for long-running code. <br/><br/>See the difference between running this:<br/>
             <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
             <code class="hide-SMALL_BUT_NO_ASYNC">

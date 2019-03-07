@@ -5,12 +5,15 @@ import re
 import sys
 import time
 
+from collections import deque
 from _Coldbrew import *
 
 _slot_id = 0
 _var_id = 0
 _get_var_id = 0
 _vars = {}
+_vars_map_search = {}
+_vars_list_search = deque()
 _get_vars = {}
 _exception = None
 _builtins = None
@@ -24,6 +27,8 @@ module_name_var = module_name
 _finalized_options = {}
 js_error = None
 
+class _StopIteration:
+    pass
 
 def _barg(arg):
     if type(arg) == bytes:
@@ -201,6 +206,17 @@ def _create_variable_proxy(obj):
                     return object.__len__(self)
                 return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
 
+            def __iter__(self):
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]") == 'undefined':
+                    raise TypeError("'"+obj['type']+"' object is not iterable")
+                jsiter = get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]()")
+                while True:
+                    nexti = jsiter.next()
+                    if nexti['done'] == True:
+                        break
+                    else:
+                        yield nexti['value']
+
             def __getitem__(self, prop):
                 return ProxiedJavaScriptVariable.__getattr__(self, prop)
 
@@ -331,14 +347,32 @@ def _call_func(func, *args):
 def _export(obj):
     global _var_id
     global _vars
+    global _vars_map_search
+    global _vars_list_search
     try:
         if hasattr(obj, '__dict__'):
             raise TypeError()
         return json.dumps(obj)
     except TypeError as e:
         _var_id += 1
-        uid = '_internal_pyvar_'+str(_var_id)
-        _vars[uid] = obj
+        uid = None
+        try:
+            if obj in _vars_map_search:
+                uid = _vars_map_search[obj]
+        except TypeError as e:
+            pass
+        if uid is None:
+            for sobj, suid in _vars_list_search:
+                if obj == sobj and callable(obj):
+                    uid = suid
+                    break
+        if uid is None:
+            uid = '_internal_pyvar_'+str(_var_id)
+            _vars[uid] = obj
+            try:
+                _vars_map_search[obj] = uid
+            except TypeError as e:
+                _vars_list_search.append((obj, uid))
         return json.dumps({
             '_internal_coldbrew_python_object': True,
             'uid': uid,
@@ -348,6 +382,25 @@ def _export(obj):
             'name': (obj.__name__ if hasattr(obj, '__name__') else ('PythonCallable' if callable(obj) else 'PythonUnnamed')).replace('<', '').replace('>', '').replace('-', '_'),
         })
 
+def _delete_uid(uid):
+    global _vars
+    global _vars_map_search
+    global _vars_list_search
+    obj = _vars[uid]
+    uid = None
+    try:
+        if obj in _vars_map_search:
+            uid = _vars_map_search[obj]
+            del _vars_map_search[obj]
+    except TypeError as e:
+        pass
+    if uid is None:
+        for i, (sobj, suid) in enumerate(_vars_list_search):
+            if obj == sobj and callable(obj):
+                uid = suid
+                del _vars_list_search[i]
+                break
+    del _vars[uid]
 
 # Import Shims
 import ColdbrewHTTPShim

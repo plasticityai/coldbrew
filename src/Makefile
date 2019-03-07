@@ -184,9 +184,11 @@ endif
 	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
 	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
 
+ifeq ($(NODE),false)
 	# Final compression
 	cat $(MODULE_NAME_LOWER).asm.js | $(UGLIFY) > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+endif
 
 	touch $(MODULE_NAME_LOWER).asm.js.make
 
