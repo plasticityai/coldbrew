@@ -3,7 +3,7 @@
 The table below provides some more comprehensive information on how bridge variables behave:
 
 | Syntax on Python Bridge Variable (`x`) in JavaScript | Equivalent Python or Effect                                                                                                                                                            |
-| :-----:                                              | :-----:                                                                                                                                                                                |
+| -------                                              | -------                                                                                                                                                                                |
 | `x.attr` or `x['attr']`                              | Returns `x.attr` first, then `x['attr']` if `x.attr` does not exist. For more granularity, explicitly use `x.__getattr__('attr')` and `x.__getitem__('attr')`.                         |
 | `x.attr = ...` or `x['attr'] = ...`                  | Sets `x.attr` if and only if the attribute already existed, else sets `x['attr']`. For more granularity, explicitly use `x.__setattr__('attr', ...)` and `x.__setitem__('attr', ...)`. |
 | `'attr' in x`                                        | Returns if `hasattr(x, 'attr')` or `'attr' in x`.                                                                                                                                      |
@@ -21,7 +21,7 @@ The table below provides some more comprehensive information on how bridge varia
 
 
 | Syntax on JavaScript Bridge Variable (`x`) in Python | Equivalent JavaScript or Effect                                                                                                                                                                                                                                |
-| :-----:                                              | :-----:                                                                                                                                                                                                                                                        |
+| -------                                              | -------                                                                                                                                                                                                                                                        |
 | `x.attr` or `x['attr']`                              | Returns`x['attr']`.                                                                                                                                                                                                                                            |
 | `x.attr = ...` or `x['attr'] = ...`                  | Sets `x['attr']`.                                                                                                                                                                                                                                              |
 | `'attr' in x`                                        | Returns `'attr' in x`.                                                                                                                                                                                                                                         |
