@@ -202,9 +202,13 @@ def _create_variable_proxy(obj):
                 ProxiedJavaScriptVariable.__destroy__(self)
 
             def __len__(self):
-                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'].length") == 'undefined':
+                if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'].length") != 'undefined':
+                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
+                elif get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'].size") != 'undefined':
+                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size()")
+                else:
                     return object.__len__(self)
-                return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
+                
 
             def __iter__(self):
                 if get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]") == 'undefined':

@@ -180,6 +180,59 @@ function toArrayBuffer(buf) {
     return ab;
 }
 
+function makePromiseChainable(p) {
+  function Promise() {};
+  Promise.__repr__ = 'Chainable Promise Value';
+  Promise.__raw_promise__ = p;
+  Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
+    Promise[key] = function(){};
+  });
+  return new Proxy(Promise, {
+    construct: function(target, args) {
+      return makePromiseChainable(p.then(function(val) {
+        return new val(...args);
+      }));
+    },
+    apply: function(target, thisArg, argumentsList) {
+      return makePromiseChainable(p.then(function(val) {
+        return val(...argumentsList);
+      }));
+    },
+    get: function(target, prop) {
+      if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop)) {
+        return Reflect.get(p, prop).bind(p);
+      }
+      if (prop == '__raw_promise__') {
+        return p;
+      }
+      if (typeof prop === 'symbol' || prop === 'call' || prop === 'inspect' || prop === 'prototype' || prop === 'name'  || prop === 'toString' || prop === 'valueOf') {
+        return undefined;
+      }
+      return makePromiseChainable(p.then(function(val) {
+        return val[prop];
+      }));
+    },
+    set: function(target, prop, value) {
+      p.then(function(val) {
+        val[prop] = value;
+      });
+      return value;
+    },
+    ownKeys: function(target) {
+      return Reflect.ownKeys(target);
+    },
+    has: function(target, prop) {
+      return Reflect.has(target, prop);
+    },
+    deleteProperty: function(target, prop) {
+      p.then(function(val) {
+        delete val[prop];
+      });
+      return true;
+    }
+  });
+};
+
 function sendRequest(method, url, body, headers, timeout, binary = false, level=0) {
   if (level > 25) {
     var e = new HTTPResponseError("The request has been redirected too many times.");
@@ -622,6 +675,342 @@ MODULE_NAME.configureFS = function(options = {}, cb) {
     cb
   );
 };
+MODULE_NAME._createVariableProxy = function(transformVariableCasing, obj, async=false) {
+  if (obj && obj._internal_coldbrew_python_object) {
+    if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
+      throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
+    }
+    if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
+      throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
+    }
+    var getVariable = MODULE_NAME.getVariable;
+    var run = MODULE_NAME.run;
+    if (async) {
+      getVariable = MODULE_NAME.getVariableAsync;
+      run = MODULE_NAME.runAsync;
+    }
+    var transformProp = function(prop, reverse=null) {
+      if (!(reverse instanceof Array) && transformVariableCasing) {
+        if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
+          return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
+            return $1.toUpperCase()
+              .replace('-', '')
+              .replace('_', '');
+          });
+        } else {
+          return prop;
+        }
+      } else if (transformVariableCasing) {
+        var transformedKeys = reverse.map(transformProp);
+        var indexOfTransformedProp = transformedKeys.indexOf(prop);
+        if (indexOfTransformedProp >= 0) {
+          return reverse[indexOfTransformedProp];
+        } else {
+          return prop;
+        }
+      } else {
+        return prop;
+      }
+    };
+    function getTProp(prop) {
+      var keys = MODULE_NAME.getVariable("('"+obj.uid+"' in Coldbrew._vars and dir(Coldbrew._vars['"+obj.uid+"'])) or []");
+      if (typeof keys.then !== 'undefined') {
+        return keys.then(function(keys) {
+          return transformProp(prop, keys);
+        });
+      } else {
+        return transformProp(prop, keys);
+      }
+    }
+    var $handler = {
+        construct: function(target, args) {
+          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+args.map(arg => serializeToPython(arg)).join(',')+")"));
+        },
+        apply: function(target, thisArg, argumentsList) {
+          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+argumentsList.map(arg => serializeToPython(arg)).join(',')+")"));
+        },
+        get: function(target, prop) {
+          if (prop === '_internal_coldbrew_repr') {
+            return obj;
+          } else if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
+            return undefined;
+          } else if (prop === Symbol.iterator) {
+            var hasIter = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')");
+            if (typeof hasIter.then === 'undefined') {
+              return (function*() {
+                if (hasIter) {
+                  var pyiter = MODULE_NAME.getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
+                  var sentinel = MODULE_NAME.getVariable("Coldbrew._StopIteration()");
+                  while (true) {
+                    var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
+                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
+                    if (done) {
+                      pyiter.__destroy__();
+                      sentinel.__destroy__();
+                      break;
+                    }
+                    yield nextValue;
+                  }
+                }
+              });
+            } else {
+              return (async function*() {
+                if (await hasIter) {
+                  var pyiter = await getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
+                  var sentinel = await getVariable("Coldbrew._StopIteration()");
+                  while (true) {
+                    var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
+                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
+                    if (done) {
+                      await pyiter.__destroy__();
+                      await sentinel.__destroy__();
+                      break;
+                    }
+                    yield (nextValue);
+                  }
+                }
+              });
+            }          
+          } else if (typeof prop === 'symbol') {
+            // These are a JavaScript special property that the engine expects to not be defined sometimes, ignore them.
+            return undefined;
+          } else if (prop === '__proto__') {
+            // This is a JavaScript special property that the engine expects to be defined;
+            return Reflect.get(target, prop);
+          } else if (prop === 'then') {
+            // This is a JavaScript special property that the engine expects to not be defined if not a Promise.
+            return undefined;
+          } else if (prop === 'toJSON') {
+            // This is a JavaScript special property that the engine expects to be defined for custom JSON serialization.
+            var tprop = getTProp(prop);
+            function toJSON(tprop) {
+              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))");
+            }
+            return function() {
+              if (typeof tprop.then === 'undefined') {
+                return toJSON(tprop);
+              } else {
+                return (tprop.then(function(tprop) {
+                  return toJSON(tprop);
+                }));
+              }
+            };
+          } else if (prop === 'toString') {
+            // This is a JavaScript special property that the engine expects to be defined for custom string serialization.
+            var tprop = getTProp(prop);
+            function toString(tprop) {
+              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else str(Coldbrew._vars['"+obj.uid+"']))");
+            }
+            return function() {
+              if (typeof tprop.then === 'undefined') {
+                return toString(tprop);
+              } else {
+                return (tprop.then(function(tprop) {
+                  return toString(tprop);
+                }));
+              }
+            };
+          } else if (prop === '__inspect__') {
+            var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+            function inspect(res) {
+              res = res.map(transformProp); 
+              return MODULE_NAME.PythonVariable.internalKeyDefs.concat(res); 
+            }
+            return function() { 
+              if (typeof res.then === 'undefined') {
+                return inspect(res);
+              } else {
+                return res.then(function(res) {
+                  return inspect(res);
+                });
+              }
+            };
+          } else if (prop === '__destroy__') {
+            return (function() {
+              return MODULE_NAME.run("Coldbrew._delete_uid('"+obj.uid+"')");
+            });
+          } else if (prop === '__destroyed__') {
+              return MODULE_NAME.getVariable("'"+obj.uid+"' not in Coldbrew._vars");
+          } else if (prop === '__type__') {
+            return obj.type;
+          } else if (prop === '__uid__') {
+            return obj.uid;
+          } else {
+            var tprop = getTProp(prop);
+            function get(tprop) {
+              var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+              function _get(hasAttrOrItem) {
+                if (hasAttrOrItem) {
+                  return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
+                } else {
+                  return undefined;
+                }
+              }
+              if (typeof hasAttrOrItem.then === 'undefined') {
+                return _get(hasAttrOrItem);
+              } else {
+                return hasAttrOrItem.then(function(hasAttrOrItem) {
+                  return _get(hasAttrOrItem);
+                });
+              }
+            }
+            if (typeof tprop.then === 'undefined') {
+              return get(tprop);
+            } else {
+              return (tprop.then(function(tprop) {
+                return get(tprop);
+              }));
+            }
+          }
+        },
+        set: function(target, prop, value) {
+          if (prop === '__proto__') {
+            Reflect.set(target, prop, value);
+            return value;
+          }
+          var tprop = getTProp(prop);
+          function set(tprop) {
+            MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"), Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
+          }
+          if (typeof tprop.then === 'undefined') {
+            set(tprop);
+          } else {
+            return tprop.then(function(tprop) {
+              set(tprop);
+            });
+          }
+          return value;
+        },
+        ownKeys: function(target) {
+          var reflectRes = Reflect.ownKeys(target);
+          var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+          if (typeof res.then === 'undefined') {
+            res = res.map(transformProp);
+            if (reflectRes.length > 0) {
+              return reflectRes.concat(res);
+            } else {
+              return res;
+            }
+          } else {
+            return reflectRes;
+          }
+        },
+        has: function(target, prop) {
+          var tprop = getTProp(prop);
+          if (typeof tprop.then === 'undefined') {
+            return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
+          } else {
+            throw new Error("Cannot run 'has' operation (or `in` operator) on PythonVariable when using worker mode.");
+          }
+        },
+        deleteProperty: function(target, prop) {
+          var tprop = getTProp(prop);
+          function deleteProperty(tprop) {
+            var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+            function _deleteProperty(hasAttrOrItem) {
+              if (hasAttrOrItem) {
+                MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdelattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tColdbrew._vars['"+obj.uid+"'].__delitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"))");
+              }
+            }
+            if (typeof hasAttrOrItem.then === 'undefined') {
+              return _deleteProperty(hasAttrOrItem);
+            } else {
+              return hasAttrOrItem.then(function(hasAttrOrItem) {
+                return _deleteProperty(hasAttrOrItem);
+              });
+            }
+          }
+          if (typeof tprop.then === 'undefined') {
+            deleteProperty(tprop);
+          } else {
+            return tprop.then(function(tprop) {
+              deleteProperty(tprop);
+            });
+          }
+          return true;
+        },
+    };
+    if (obj.constructable) {
+      delete $handler.apply;
+    } else if (obj.callable) {
+      delete $handler.constructable;
+    } else {
+      delete $handler.constructable;
+      delete $handler.apply;
+    }
+    var $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+    function getFinalProxyObject($keyDefs) {
+      var varObj = null;
+      if (obj.constructable || obj.callable) {
+        try {
+          eval(`class ${obj.type} extends MODULE_NAME.PythonVariable {} varObj = ${obj.type};`);
+        } catch (e) {
+          eval(`class py_${obj.type} extends MODULE_NAME.PythonVariable {} varObj = py_${obj.type};`);
+        }
+      } else {
+        varObj = new MODULE_NAME.PythonVariable();
+      }
+      $keyDefs = $keyDefs.map(transformProp).concat(MODULE_NAME.PythonVariable.internalKeyDefs);
+      var keyDefPrototype = {};
+      if ((!obj.constructable && !obj.callable) || IS_NODE_JS) {
+        // Adds introspection/debugging information
+        varObj['__type__'] = $handler.get({}, '__type__');
+        keyDefPrototype['__type__'] = $handler.get({}, '__type__');
+        $keyDefs.forEach(function(keyDef) {
+          if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
+            varObj[keyDef] = $handler.get({}, keyDef);
+            keyDefPrototype[keyDef] = $handler.get({}, keyDef);
+          } else {
+            varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+            keyDefPrototype[keyDef] = new PythonDynamicallyEvaluatedValue();
+          }
+        });
+        Object.setPrototypeOf(varObj, keyDefPrototype);
+        var proxy = new Proxy(varObj, $handler);
+        return proxy;
+      } else if (obj.constructable || obj.callable) {
+        var $proxy = new Proxy(varObj, $handler);
+        var $newProxy = null;
+        // Adds introspection/debugging information
+        if (obj.constructable) {
+          eval(`class ${obj.name} { constructor(...args) { return new $proxy(...args); } } $newProxy = ${obj.name};`);
+        } else if (obj.callable) {
+          eval(`function ${obj.name}(...args) { return $proxy(...args); } $newProxy = ${obj.name};`);
+        }
+        $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
+        $keyDefs.forEach(function(keyDef) {
+          Object.defineProperty($newProxy.__proto__, keyDef, {
+            configurable: false,
+            enumerable: true,
+            get: $handler.get.bind($handler, {}, keyDef),
+            set: $handler.set.bind($handler, {}, keyDef),
+          });
+        });
+        return $newProxy;
+      }
+    }
+    if (typeof $keyDefs.then !== 'undefined') {
+      return $keyDefs.then(function($keyDefs) {
+        return getFinalProxyObject($keyDefs);
+      });
+    } else {
+      return getFinalProxyObject($keyDefs);
+    }
+  } else {
+    return obj;
+  }
+};
+function finalizeMainOptions(options) {
+  var defaultOptions = {
+    fsOptions: {},
+    hideWarnings: false,
+    monitorFileUsage: false,
+    asyncYieldRate: null,
+    worker: false,
+    transformVariableCasing: true,
+  };
+  return Object.assign(options, Object.assign({}, defaultOptions, options));
+}
 MODULE_NAME._load = function(arg1, arg2) {
   if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
     throw new Error("You are trying to run this HTML file under a `file://` URL. This is not supported. You must run this file under a HTTP server under a `http://` or `https://` protocol. On most computers, you can do this by opening terminal, navigating to where this HTML file is, and running either `python -m SimpleHTTPServer` for Python 2 or `python3 -m http.server` for Python 3. Then, you can navigate to `http://localhost:8000` in a web browser to see this file. Alternatively, if you have downloaded the Coldbrew source code, you can just run `./serve.sh` from the project root and navigate to `http://localhost:8000` in a web browser to see this file after building.");
@@ -636,15 +1025,7 @@ MODULE_NAME._load = function(arg1, arg2) {
     options = arg1;
     onReadyFunc = arg2;
   }
-  var defaultOptions = {
-    fsOptions: {},
-    hideWarnings: false,
-    monitorFileUsage: false,
-    asyncYieldRate: null,
-    worker: false,
-    transformVariableCasing: true,
-  };
-  var finalizedOptions = Object.assign(options, Object.assign({}, defaultOptions, options));
+  var finalizedOptions = finalizeMainOptions(options);
   MODULE_NAME._finalizedOptions = finalizedOptions;
   if (finalizedOptions.fsOptions) {
     MODULE_NAME.configureFS(finalizedOptions.fsOptions);
@@ -687,225 +1068,28 @@ MODULE_NAME._load = function(arg1, arg2) {
           async: true,
         });
       }
-      function createVariableProxy(obj, async=false) {
-        if (obj && obj._internal_coldbrew_python_object) {
-          if (IS_WORKER_SCRIPT) {
-            throw new Error("Cannot proxy a non-serializable Python variable when using worker mode. Please only export JSON serializable data.");
-          }
-          if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
-            throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
-          }
-          if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
-            throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
-          }
-          var getVariable = MODULE_NAME.getVariable;
-          var run = MODULE_NAME.run;
-          if (async) {
-            getVariable = MODULE_NAME.getVariableAsync;
-            run = MODULE_NAME.runAsync;
-          }
-          var transformProp = function(prop, reverse=null) {
-            if (!(reverse instanceof Array) && finalizedOptions.transformVariableCasing) {
-              if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
-                return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
-                  return $1.toUpperCase()
-                    .replace('-', '')
-                    .replace('_', '');
-                });
-              } else {
-                return prop;
-              }
-            } else if (finalizedOptions.transformVariableCasing) {
-              var transformedKeys = reverse.map(transformProp);
-              var indexOfTransformedProp = transformedKeys.indexOf(prop);
-              if (indexOfTransformedProp >= 0) {
-                return reverse[indexOfTransformedProp];
-              } else {
-                return prop;
-              }
-            } else {
-              return prop;
-            }
-          };
-          var $handler = {
-              construct: function(target, args) {
-                return getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+args.map(arg => serializeToPython(arg)).join(',')+")")
-              },
-              apply: function(target, thisArg, argumentsList) {
-                return getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+argumentsList.map(arg => serializeToPython(arg)).join(',')+")")
-              },
-              get: function(target, prop) {
-                var tprop = transformProp(prop, MODULE_NAME.getVariable("('"+obj.uid+"' in Coldbrew._vars and dir(Coldbrew._vars['"+obj.uid+"'])) or []"));
-                if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
-                  return undefined;
-                } else if (prop === Symbol.iterator) {
-                  if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')")) {
-                    var pyiter = MODULE_NAME.getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
-                    var sentinel = MODULE_NAME.getVariable("Coldbrew._StopIteration()");
-                    return (function*() {
-                      while (true) {
-                        var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
-                        var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
-                        if (done) {
-                          pyiter.__destroy__();
-                          sentinel.__destroy__();
-                          break;
-                        }
-                        yield nextValue;
-                      }
-                    });
-                  } else {
-                    return undefined;
-                  }            
-                } else if (typeof prop === 'symbol') {
-                  // These are a JavaScript special property that the engine expects to not be defined sometimes, ignore them.
-                  return undefined;
-                } else if (prop === '__proto__') {
-                  // This is a JavaScript special property that the engine expects to be defined;
-                  return Reflect.get(target, prop);
-                } else if (prop === 'then') {
-                  // This is a JavaScript special property that the engine expects to not be defined if not a Promise.
-                  return undefined;
-                } else if (prop === 'toJSON') {
-                  // This is a JavaScript special property that the engine expects to be defined for custom JSON serialization.
-                  var tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                  return function() {
-                    return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else lambda: Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))")();
-                  };
-                } else if (prop === 'toString') {
-                  // This is a JavaScript special property that the engine expects to be defined for custom string serialization.
-                  var tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                  return function() {
-                    return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else lambda: str(Coldbrew._vars['"+obj.uid+"']))")();
-                  };
-                } else if (prop === '__inspect__') {
-                  var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-                  res = res.map(transformProp);
-                  return function() { return MODULE_NAME.PythonVariable.internalKeyDefs.concat(res) };
-                } else if (prop === '__destroy__') {
-                  return (function() {
-                    return MODULE_NAME.run("Coldbrew._delete_uid('"+obj.uid+"')");
-                  });
-                } else if (prop === '__destroyed__') {
-                    return MODULE_NAME.getVariable("'"+obj.uid+"' not in Coldbrew._vars");
-                } else if (prop === '__type__') {
-                  return obj.type;
-                } else if (prop === '__uid__') {
-                  return obj.uid;
-                } else {
-                  if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])")) {
-                    return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
-                  } else {
-                    return undefined;
-                  }
-                }
-              },
-              set: function(target, prop, value) {
-                if (prop === '__proto__') {
-                  Reflect.set(target, prop, value);
-                  return value;
-                }
-                var tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"), Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
-                return value;
-              },
-              ownKeys: function(target) {
-                var reflectRes = Reflect.ownKeys(target);
-                var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-                res = res.map(transformProp);
-                if (reflectRes.length > 0) {
-                  return reflectRes.concat(res);
-                } else {
-                  return res;
-                }
-              },
-              has: function(target, prop) {
-                var tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
-              },
-              deleteProperty: function(target, prop) {
-                var tprop = transformProp(prop, MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])"));
-                if (MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])")) {
-                  MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdelattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tColdbrew._vars['"+obj.uid+"'].__delitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"))");
-                }
-                return true;
-              },
-          };
-          if (obj.constructable) {
-            delete $handler.apply;
-          } else if (obj.callable) {
-            delete $handler.constructable;
-          } else {
-            delete $handler.constructable;
-            delete $handler.apply;
-          }
-          var varObj = null;
-          if (obj.constructable || obj.callable) {
-            try {
-              eval(`class ${obj.type} extends MODULE_NAME.PythonVariable {} varObj = ${obj.type};`);
-            } catch (e) {
-              eval(`class py_${obj.type} extends MODULE_NAME.PythonVariable {} varObj = py_${obj.type};`);
-            }
-          } else {
-            varObj = new MODULE_NAME.PythonVariable();
-          }
-          var $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-          $keyDefs = $keyDefs.map(transformProp).concat(MODULE_NAME.PythonVariable.internalKeyDefs);
-          var keyDefPrototype = {};
-          if ((!obj.constructable && !obj.callable) || IS_NODE_JS) {
-            // Adds introspection/debugging information
-            varObj['__type__'] = $handler.get({}, '__type__');
-            keyDefPrototype['__type__'] = $handler.get({}, '__type__');
-            $keyDefs.forEach(function(keyDef) {
-              if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
-                varObj[keyDef] = $handler.get({}, keyDef);
-                keyDefPrototype[keyDef] = $handler.get({}, keyDef);
-              } else {
-                varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
-                keyDefPrototype[keyDef] = new PythonDynamicallyEvaluatedValue();
-              }
-            });
-            Object.setPrototypeOf(varObj, keyDefPrototype);
-            var proxy = new Proxy(varObj, $handler);
-            return proxy;
-          } else if (obj.constructable || obj.callable) {
-            var $proxy = new Proxy(varObj, $handler);
-            var $newProxy = null;
-            // Adds introspection/debugging information
-            if (obj.constructable) {
-              eval(`class ${obj.name} { constructor(...args) { return new $proxy(...args); } } $newProxy = ${obj.name};`);
-            } else if (obj.callable) {
-              eval(`function ${obj.name}(...args) { return $proxy(...args); } $newProxy = ${obj.name};`);
-            }
-            $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
-            $keyDefs.forEach(function(keyDef) {
-              Object.defineProperty($newProxy.__proto__, keyDef, {
-                configurable: false,
-                enumerable: true,
-                get: $handler.get.bind($handler, {}, keyDef),
-                set: $handler.set.bind($handler, {}, keyDef),
-              });
-            });
-            return $newProxy;
-          }
-        } else {
-          return obj;
-        }
-      }
-      MODULE_NAME.getVariable = function(expression) {
+      MODULE_NAME.getVariable = function(expression, allowProxy = !finalizedOptions.worker) {
         var uid = randid();
         MODULE_NAME.run('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._export('+expression+')))');
         var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
         delete MODULE_NAME._slots[uid];
-        return createVariableProxy(ret);
+        if (allowProxy) {
+          return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
+        } else {
+          return ret;
+        }
       };
       if (!SMALL_BUT_NO_ASYNC) {
-        MODULE_NAME.getVariableAsync = function(expression) {
+        MODULE_NAME.getVariableAsync = function(expression, allowProxy = !finalizedOptions.worker) {
           var uid = randid();
           return MODULE_NAME.runAsync('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._export('+expression+')))').then(function() {
             var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
             delete MODULE_NAME._slots[uid];
-            return createVariableProxy(ret, true);
+            if (allowProxy) {
+              return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);
+            } else {
+              return ret;
+            }
           });
         };
       }
@@ -1179,6 +1363,7 @@ MODULE_NAME.unload = function(arg1, arg2) {
   }
 };
 MODULE_NAME.load = function(options = {}) {
+  var finalizedOptions = finalizeMainOptions(options);
   if (options.worker && !IS_WORKER_SCRIPT && !MODULE_NAME.loaded) {
     var underlyingWorker;
     var worker;
@@ -1206,8 +1391,17 @@ MODULE_NAME.load = function(options = {}) {
           // Assign the proxied properties of the worker module to the main module
           worker.removeEventListener("message", workerReadyHandler);
           Object.keys(event.data.props).forEach(function (prop) {
-            if (!['unload', '_parseUrl', 'createNewInstance'].includes(prop)  && event.data.props[prop] === 'function') {
-              MODULE_NAME[prop] = MODULE_NAME_proxy[prop];
+            if (!['unload', '_parseUrl', 'createNewInstance', '_createVariableProxy', 'PythonVariable', 'PythonKeywords'].includes(prop) && event.data.props[prop] === 'function') {
+              MODULE_NAME[prop] = function(...args) {
+                var retp = MODULE_NAME_proxy[prop](...args);
+                return makePromiseChainable(retp.then(function(ret) {
+                  if (prop.indexOf('Async') >= 0) {
+                    return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);                    
+                  } else {
+                    return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
+                  }
+                }));
+              };
             }
             if (['standardInBuffer', '_standardInTell', 'forwardOut', 'forwardErr'].includes(prop) && 
                   (
