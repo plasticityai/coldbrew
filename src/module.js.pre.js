@@ -65,13 +65,28 @@ class HTTPTimeoutError extends Error {
 // Define other classes
 class PythonVariable {
   static isPythonVariable(obj) {
-    return (
-      obj instanceof Object &&
-      PythonVariable.internalKeyDefs.map(function(internalKeyDef) { return typeof obj[internalKeyDef] !== 'undefined'; }).every(function(val) { return val; })
-    );
+    if (obj instanceof Object ) {
+      var vals = PythonVariable.internalKeyDefs
+        .filter(function(internalKeyDef) { return !['toString', 'toJSON'].includes(internalKeyDef); })
+        .map(function(internalKeyDef) { return obj[internalKeyDef] });
+      var plainPythonVariable = vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then === 'undefined'; });
+      var potentialWorkerPythonVariable = typeof obj.__raw_promise__ !== 'undefined' && vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then !== 'undefined'; });
+      if (plainPythonVariable) {
+        return true;
+      } else if (potentialWorkerPythonVariable) {
+        return Promise.all(vals).then(function(vals) {
+          return vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then === 'undefined'; });
+        });
+      } else {
+        return false;
+      }
+    } else {
+      return false;
+    }
   };
 }
 PythonVariable.internalKeyDefs = ['__type__', '__uid__', '__inspect__', '__destroy__', '__destroyed__', 'toString', 'toJSON'];
+PythonVariable.internalSecretKeyDefs = ['_internal_coldbrew_repr'];
 class PythonDynamicallyEvaluatedValue {}
 class _PythonKeywords {
   constructor(keywords) {
@@ -179,59 +194,6 @@ function toArrayBuffer(buf) {
     }
     return ab;
 }
-
-function makePromiseChainable(p) {
-  function Promise() {};
-  Promise.__repr__ = 'Chainable Promise Value';
-  Promise.__raw_promise__ = p;
-  Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
-    Promise[key] = function(){};
-  });
-  return new Proxy(Promise, {
-    construct: function(target, args) {
-      return makePromiseChainable(p.then(function(val) {
-        return new val(...args);
-      }));
-    },
-    apply: function(target, thisArg, argumentsList) {
-      return makePromiseChainable(p.then(function(val) {
-        return val(...argumentsList);
-      }));
-    },
-    get: function(target, prop) {
-      if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop)) {
-        return Reflect.get(p, prop).bind(p);
-      }
-      if (prop == '__raw_promise__') {
-        return p;
-      }
-      if (typeof prop === 'symbol' || prop === 'call' || prop === 'inspect' || prop === 'prototype' || prop === 'name'  || prop === 'toString' || prop === 'valueOf') {
-        return undefined;
-      }
-      return makePromiseChainable(p.then(function(val) {
-        return val[prop];
-      }));
-    },
-    set: function(target, prop, value) {
-      p.then(function(val) {
-        val[prop] = value;
-      });
-      return value;
-    },
-    ownKeys: function(target) {
-      return Reflect.ownKeys(target);
-    },
-    has: function(target, prop) {
-      return Reflect.has(target, prop);
-    },
-    deleteProperty: function(target, prop) {
-      p.then(function(val) {
-        delete val[prop];
-      });
-      return true;
-    }
-  });
-};
 
 function sendRequest(method, url, body, headers, timeout, binary = false, level=0) {
   if (level > 25) {
@@ -495,21 +457,48 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   };
 })();
 
-function serializeToPython(obj) {
-  if (MODULE_NAME.PythonVariable.isPythonVariable(obj)) {
-    return "Coldbrew._vars['"+obj.__uid__+"']";
+function primitize(obj) {
+  var isPythonVariable = MODULE_NAME.PythonVariable.isPythonVariable(obj);
+  if (isPythonVariable === true) {
+    return obj._internal_coldbrew_repr;
+  } else if (isPythonVariable !== false) {
+    return isPythonVariable.then(function(isPythonVariable) {
+      if (isPythonVariable) {
+        return obj._internal_coldbrew_repr;
+      } else {
+        return primitize(obj);
+      }
+    });
+  } else if (obj && obj._internal_coldbrew_keywords_promise) {
+    return obj.then(function(obj) {
+      return primitize(obj);
+    });
   } else if (obj instanceof _PythonKeywords) {
-    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+    return {
       '_internal_coldbrew_keywords': true,
       'keywords': obj.keywords,
-    }))+')';
+    };
   } else if (!isSerializable(obj)) {
     var uid = randid();
     MODULE_NAME._get_vars[uid] = obj;
-    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+    return {
       '_internal_coldbrew_get_var': true,
       'uid': uid,
-    }))+')';
+    };
+  } else {
+    return obj;
+  }
+}
+
+function serializeToPython(obj) {
+  obj = primitize(obj);
+  if (obj && typeof obj.then === 'function') {
+    return obj.then(function(obj) {
+      return serializeToPython(obj);
+    });
+  }
+  if (obj && obj._internal_coldbrew_python_object) {
+    return "Coldbrew._vars['"+obj.uid+"']";
   }
   return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify(obj))+')';
 }
@@ -523,11 +512,103 @@ function unserializeFromPython(arg) {
   }
 }
 
+function makePromiseChainable(p) {
+  function ChainablePromise() {};
+  ChainablePromise.__repr__ = 'Chainable Promise Value';
+  ChainablePromise.__raw_promise__ = p;
+  Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
+    ChainablePromise[key] = function(){};
+  });
+  return new Proxy(ChainablePromise, {
+    construct: function(target, args) {
+      return makePromiseChainable(p.then(async function(val) {
+        var primitizedArgs = await Promise.all(args.map(function(arg) {
+          return primitize(arg);
+        }));
+        return new val(...primitizedArgs);
+      }));
+    },
+    apply: function(target, thisArg, argumentsList) {
+      return makePromiseChainable(p.then(async function(val) {
+        var primitizedArgs = await Promise.all(argumentsList.map(function(arg) {
+          return primitize(arg);
+        }));
+        return val(...primitizedArgs);
+      }));
+    },
+    get: function(target, prop) {
+      if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop)) {
+        return Reflect.get(p, prop).bind(p);
+      }
+      if (prop == '__raw_promise__') {
+        return p;
+      }
+      if ((typeof prop === 'symbol' && prop !== Symbol.asyncIterator) || prop === 'call' || prop === 'inspect' || prop === 'prototype' || prop === 'name'  || prop === 'toString' || prop === 'valueOf') {
+        return undefined;
+      }
+      if (prop === Symbol.asyncIterator) {
+        return async function*() {
+          var iter = (await p.then(function(val) {
+            return val[Symbol.iterator];
+          }))();
+          var readNext = await iter.next();
+          while (!readNext.done) {
+            yield readNext.value;
+            readNext = await iter.next();
+          }
+        };
+      }
+      return makePromiseChainable(p.then(async function(val) {
+        return val[await primitize(prop)];
+      }));
+    },
+    set: function(target, prop, value) {
+      p.then(async function(val) {
+        val[await primitize(prop)] = await primitize(value);
+      });
+      return value;
+    },
+    ownKeys: function(target) {
+      return Reflect.ownKeys(target);
+    },
+    has: function(target, prop) {
+      return Reflect.has(target, prop);
+    },
+    deleteProperty: function(target, prop) {
+      p.then(async function(val) {
+        delete val[await primitize(prop)];
+      });
+      return true;
+    }
+  });
+};
+
 COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
 
 MODULE_NAME.PythonError = PythonError;
 MODULE_NAME.PythonVariable = PythonVariable;
-MODULE_NAME.PythonKeywords = function(...args) { return new _PythonKeywords(...args); };
+MODULE_NAME.PythonKeywords = function(keywords) { 
+  var pykw = new _PythonKeywords(keywords);
+  async = Object.keys(pykw.keywords).some(function(key) {
+    return typeof pykw.keywords[key].then === 'function';
+  });
+  if (async) {
+    var entries = Object.entries(pykw.keywords);
+    var values = entries.map(function(entry) { return entry[1]; });
+    var keywordsPromise =  Promise.all(values).then(function(values) {
+      var newKeywords = {};
+      entries.forEach(function(entry, i) {
+        newKeywords[entry[0]] = values[i];
+      });
+      pykw.keywords = newKeywords;
+      return pykw;
+    });
+    keywordsPromise._internal_coldbrew_keywords_promise = true;
+    return keywordsPromise;
+  } else {
+    return pykw;
+  }
+};
 MODULE_NAME.pyversion =  "PYVERSION";
 MODULE_NAME.version =  "COLDBREW_VERSION";
 MODULE_NAME._slots = {};
@@ -756,10 +837,10 @@ MODULE_NAME._createVariableProxy = function(transformVariableCasing, obj, async=
             } else {
               return (async function*() {
                 if (await hasIter) {
-                  var pyiter = await getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
-                  var sentinel = await getVariable("Coldbrew._StopIteration()");
+                  var pyiter = getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
+                  var sentinel = getVariable("Coldbrew._StopIteration()");
                   while (true) {
-                    var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
+                    var nextValue = await MODULE_NAME.runFunction('next', pyiter, sentinel);
                     var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
                     if (done) {
                       await pyiter.__destroy__();
@@ -978,7 +1059,7 @@ MODULE_NAME._createVariableProxy = function(transformVariableCasing, obj, async=
           eval(`function ${obj.name}(...args) { return $proxy(...args); } $newProxy = ${obj.name};`);
         }
         $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
-        $keyDefs.forEach(function(keyDef) {
+        $keyDefs.concat(MODULE_NAME.PythonVariable.internalSecretKeyDefs).forEach(function(keyDef) {
           Object.defineProperty($newProxy.__proto__, keyDef, {
             configurable: false,
             enumerable: true,
@@ -1393,13 +1474,18 @@ MODULE_NAME.load = function(options = {}) {
           Object.keys(event.data.props).forEach(function (prop) {
             if (!['unload', '_parseUrl', 'createNewInstance', '_createVariableProxy', 'PythonVariable', 'PythonKeywords'].includes(prop) && event.data.props[prop] === 'function') {
               MODULE_NAME[prop] = function(...args) {
-                var retp = MODULE_NAME_proxy[prop](...args);
-                return makePromiseChainable(retp.then(function(ret) {
-                  if (prop.indexOf('Async') >= 0) {
-                    return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);                    
-                  } else {
-                    return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
-                  }
+                var primitizedArgs = args.map(function(arg) {
+                  return primitize(arg);
+                });
+                return makePromiseChainable(Promise.all(primitizedArgs).then(function(primitizedArgs) {
+                  var retp = MODULE_NAME_proxy[prop](...primitizedArgs);
+                  return retp.then(function(ret) {
+                    if (prop.indexOf('Async') >= 0) {
+                      return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);                    
+                    } else {
+                      return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
+                    }
+                  });
                 }));
               };
             }
@@ -1467,7 +1553,7 @@ MODULE_NAME._emterpreterFile = (
 );
 
 if (shouldExportColdbrew) {
-  var EXPORT = (function(MODULE_NAME) {
+  var EXPORT = (function(Coldbrew) {
     var EXPORT = null;
 
     // DO NOT TOUCH THE LINE BELOW - IT IS AUTO REPLACED
@@ -1477,7 +1563,7 @@ if (shouldExportColdbrew) {
     // DO NOT TOUCH THE LINE ABOVE - IT IS AUTO REPLACED
 
     if (EXPORT === null || typeof EXPORT === 'undefined') {
-      EXPORT = MODULE_NAME;
+      EXPORT = Coldbrew;
     }
     return EXPORT;
   })(MODULE_NAME);

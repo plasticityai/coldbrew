@@ -80,6 +80,8 @@ Coldbrew also allows you to bundle your own Python application, script, library 
 ## Demo
 You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticity.ai](http://coldbrew.plasticity.ai).
 
+We also have a demo project that ports the [Star Wars API](https://swapi.co/)'s Python Library, [swapi-python](https://github.com/phalt/swapi-python), to JavaScript using Coldbrew at [plasticityai/coldbrew-star-wars-api-demo](https://github.com/plasticityai/coldbrew-star-wars-api-demo). It is a good example of a [custom build](#building-a-custom-coldbrew-python-environment) of Coldbrew.
+
 ## Installation
 You can use the library in a browser by embedding `coldbrew.asm.js` via our CDN:
 ```html
