@@ -37,7 +37,7 @@ def endheaders(self, message_body=None, *, encode_chunked=False):
     if type(self.timeout) == int:
         timeout = self.timeout
     try:
-        self.sock = _socket.socket(self, Coldbrew.run_function_async(Coldbrew.module_name_var+'._sendRequest', self._coldbrew_method, self._coldbrew_url, self._coldbrew_body, self._coldbrew_headers, timeout))
+        self.sock = _socket.socket(self, Coldbrew.run_function(Coldbrew.module_name_var+'._sendRequest', self._coldbrew_method, self._coldbrew_url, self._coldbrew_body, self._coldbrew_headers, timeout))
     except Coldbrew.JavaScriptError as e:
         c_error = ConnectionError("An error occurred when Coldbrew sent the HTTP request with JavaScript. See the `Coldbrew.js_error` attribute for more information on the original error.")
         c_error.js_error = e

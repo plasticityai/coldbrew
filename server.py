@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import sys
 
 try:
     import SimpleHTTPServer
@@ -21,5 +22,5 @@ httpd = SocketServer.TCPServer(("", 8000), Handler)
 
 print("Serving HTTP on 0.0.0.0 port 8000 ...")
 
-os.chdir('src')
+os.chdir(sys.argv[1] if len(sys.argv) > 1 else 'src')
 httpd.serve_forever()

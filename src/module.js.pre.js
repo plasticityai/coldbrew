@@ -70,7 +70,7 @@ class PythonVariable {
         .filter(function(internalKeyDef) { return !['toString', 'toJSON'].includes(internalKeyDef); })
         .map(function(internalKeyDef) { return obj[internalKeyDef] });
       var plainPythonVariable = vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then === 'undefined'; });
-      var potentialWorkerPythonVariable = typeof obj.__raw_promise__ !== 'undefined' && vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then !== 'undefined'; });
+      var potentialWorkerPythonVariable = typeof obj.__raw_promise__ !== 'undefined' && vals.every(function(val) { return (typeof val !== 'undefined' && typeof val.then !== 'undefined') || typeof val === 'string' || typeof val === 'function'; });
       if (plainPythonVariable) {
         return true;
       } else if (potentialWorkerPythonVariable) {
@@ -513,13 +513,31 @@ function unserializeFromPython(arg) {
 }
 
 function makePromiseChainable(p) {
-  function ChainablePromise() {};
-  ChainablePromise.__repr__ = 'Chainable Promise Value';
-  ChainablePromise.__raw_promise__ = p;
+  var varObj = null;
+  eval(`class ChainablePromise {} varObj = ChainablePromise;`);
+  varObj.__real_type__ = 'Chainable Promise Value';
+  varObj.__raw_promise__ = p;
   Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
-    ChainablePromise[key] = function(){};
+    varObj[key] = function(){};
   });
-  return new Proxy(ChainablePromise, {
+  p.then(async function(val) {
+    if (await PythonVariable.isPythonVariable(val)) {
+      varObj['__type__'] = await val.__type__;
+      var keyDefs = (await val.__inspect__()).filter(function(keyDef) {
+        return !PythonVariable.internalKeyDefs.includes(keyDef);
+      });
+      keyDefs.concat(PythonVariable.internalKeyDefs.filter(function(internalKeyDef) {
+        return internalKeyDef !== '__type__';
+      })).forEach(async function(keyDef) {
+        if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
+          varObj[keyDef] = await val[keyDef];
+        } else {
+          varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+        }
+      });
+    }
+  });
+  return new Proxy(varObj, {
     construct: function(target, args) {
       return makePromiseChainable(p.then(async function(val) {
         var primitizedArgs = await Promise.all(args.map(function(arg) {
@@ -542,9 +560,6 @@ function makePromiseChainable(p) {
       }
       if (prop == '__raw_promise__') {
         return p;
-      }
-      if ((typeof prop === 'symbol' && prop !== Symbol.asyncIterator) || prop === 'call' || prop === 'inspect' || prop === 'prototype' || prop === 'name'  || prop === 'toString' || prop === 'valueOf') {
-        return undefined;
       }
       if (prop === Symbol.asyncIterator) {
         return async function*() {

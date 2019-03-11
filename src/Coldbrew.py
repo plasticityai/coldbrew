@@ -239,21 +239,45 @@ def _create_variable_proxy(obj):
 
 
 def get_variable(expression):
-    global js_error
-    val = json.loads(_Coldbrew._run_string(module_name_var+"._export("+expression+") || null"))
-    if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
-        error = JavaScriptError(val['type']+": "+val['message'])
-        error.error_data = {
-            'type': val['type'],
-            'name': val['name'],
-            'message': val['message'],
-            'stack': val['stack'],
-            'data': val['data'],
-        }
-        js_error = error
-        raise error
+    def _get_variable(expression):
+        global js_error
+        val = json.loads(_Coldbrew._run_string(module_name_var+"._export("+expression+") || null"))
+        if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
+            error = JavaScriptError(val['type']+": "+val['message'])
+            error.error_data = {
+                'type': val['type'],
+                'name': val['name'],
+                'message': val['message'],
+                'stack': val['stack'],
+                'data': val['data'],
+            }
+            js_error = error
+            raise error
+        else:
+            return _create_variable_proxy(val)
+    def _get_variable_async(expression):
+        global _slot_id
+        _slot_id += 1
+        uid = '_internal_pyslot_'+str(_slot_id)
+        if is_async():
+            _Coldbrew._run('''Promise.resolve('''+expression+''').then(function(val) {
+                    '''+module_name_var+'''._slots["'''+uid+'''"] = val;
+                    '''+module_name_var+'''._resume_ie = true;
+                    '''+module_name_var+'''.resume(false);
+                }).catch(function(e) {
+                    '''+module_name_var+'''._slots["'''+uid+'''"] = '''+module_name_var+'''._convertError(e);
+                    '''+module_name_var+'''._resume_ie = true;
+                    '''+module_name_var+'''.resume(false);
+                });''')
+            while get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
+                sleep(-1)
+            return get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
+        else:
+            _error("Python tried to access a JavaScript Promise. Since you are not running in Python in asynchronous mode, this is not allowed.")
+    if _get_variable('('+expression+') && typeof (('+expression+').then) === "function"'):
+        return _get_variable_async(expression)
     else:
-        return _create_variable_proxy(val)
+        return _get_variable(expression)
 
 def destroy_all_variables():
     run('for (var member in '+module_name_var+'._vars) delete '+module_name_var+'._vars[member];')
@@ -275,27 +299,7 @@ def run(expression):
     return 0
 
 def run_function(functionExpression, *args):
-    return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})');
-
-def run_function_async(functionExpression, *args, **kwargs):
-    global _slot_id
-    _slot_id += 1
-    uid = '_internal_pyslot_'+str(_slot_id)
-    if is_async():
-        _Coldbrew._run(module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+''').then(function(val) {
-                '''+module_name_var+'''._slots["'''+uid+'''"] = val;
-                '''+module_name_var+'''._resume_ie = true;
-                '''+module_name_var+'''.resume(false);
-            }).catch(function(e) {
-                '''+module_name_var+'''._slots["'''+uid+'''"] = '''+module_name_var+'''._convertError(e);
-                '''+module_name_var+'''._resume_ie = true;
-                '''+module_name_var+'''.resume(false);
-            });''')
-        while get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
-            sleep(-1)
-        return get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
-    else:
-        _error("Python tried to call an async JavaScript function "+json.dumps(functionExpression)+". Since you are not running in asynchronous mode, this is not allowed.")
+    return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
 
 class StandardInput():
     def readline(self):
@@ -309,7 +313,7 @@ class StandardInput():
         
     def read(self, size):
         if is_async():
-            return run_function_async(module_name_var+'''.onStandardInReadAsync''', size)
+            return run_function(module_name_var+'''.onStandardInReadAsync''', size)
         else:
             return run_function(module_name_var+'''.onStandardInRead''', size)
 

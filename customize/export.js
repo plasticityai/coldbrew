@@ -4,6 +4,6 @@
 // (the same MODULE_NAME from coldbrew_settings.py) will be set to in browsers or what 
 // will be exported in Node.js when require()-ing this library.
 
-// If you leave EXPORT set to null, the entire Coldbrew Python environment will be exported by default.
+// The entire Coldbrew Python environment is be exported by default.
 
-EXPORT = null;
+EXPORT = Coldbrew;

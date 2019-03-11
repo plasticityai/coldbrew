@@ -252,16 +252,7 @@ Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
 
 Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
-#### Run Asynchronous JavaScript Function in Python
-You can run a asynchronous function from JavaScript (that returns a Promise) in Python like so:
-```javascript
-function foo(x, y) {
-  return Promise.resolve(Math.pow(x, y));
-}
-Coldbrew.runAsync("print(Coldbrew.run_function_async('foo', 5, 2))"); // Prints 25
-```
-
-Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+Note: If the return value is a `Promise`,
 
 ### Bridge Variables
 
@@ -311,7 +302,7 @@ In both languages, you can use the `.__type__` property to find out the actual t
 
 We've shown how bridge variables are returned when using `getVariable` and `get_variable`. There are many other places where bridge variables are implicitly returned or created. 
 
-For example, `runFunction`, `runFunctionAsync`, `run_function`, and `run_function_async` can all return bridge variables if the data is not JSON-serializable. Also, any property or method on a bridge variable that is not JSON-serializable is returned as a bridge variable. Moreover, if you pass a bridge variable as an argument to a function that will be run in the other language, it will recieve a reference to the original variable and it should "just work". If you pass a non JSON-serializable variable to a function that will be run in the other language, it will automatically be converted and accessible as a bridge variable in the other language.
+For example, `runFunction`, `runFunctionAsync`, and `run_function` can all return bridge variables if the data is not JSON-serializable. Also, any property or method on a bridge variable that is not JSON-serializable is returned as a bridge variable. Moreover, if you pass a bridge variable as an argument to a function that will be run in the other language, it will recieve a reference to the original variable and it should "just work". If you pass a non JSON-serializable variable to a function that will be run in the other language, it will automatically be converted and accessible as a bridge variable in the other language.
 
 #### Bridge Variable Garbage Collection
 When creating a bridge variable, a reference to the "real" variable is held in the other language's interpreter to prevent the value from being garbage collected. 
