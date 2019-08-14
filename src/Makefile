@@ -128,17 +128,20 @@ ifeq ($(NODE),true)
 endif
 
 $(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js
-	# Start Global Closure
+	# Start global closure
 	echo "(function () {" > $(MODULE_NAME_LOWER).asm.js
 	echo "const SCRIPT_SOURCE = (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).asm.js
+	# Start a named closure, this is so that we can unload() and reload() everything the library does easily
 	echo "(function COLDBREW_TOP_SCOPE_FUNC(shouldExportColdbrew = true, coldbrewObjectReference={}) {" >> $(MODULE_NAME_LOWER).asm.js
 	echo "const COLDBREW_TOP_SCOPE = {};" >> $(MODULE_NAME_LOWER).asm.js
 	echo "const $(MODULE_NAME) = coldbrewObjectReference;" >> $(MODULE_NAME_LOWER).asm.js
+	# Define some helper indicator variables
 	echo "const IS_NODE_JS = typeof process !== 'undefined'" >> $(MODULE_NAME_LOWER).asm.js
 	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof window !== 'undefined') var COLDBREW_GLOBAL_SCOPE = window;" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof self !== 'undefined' && !IS_NODE_JS) var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (typeof global !== 'undefined') var COLDBREW_GLOBAL_SCOPE = global;" >> $(MODULE_NAME_LOWER).asm.js
+	# Append the file created by Emscripten
 	echo "" >> $(MODULE_NAME_LOWER).asm.js;
 	cat $(MODULE_NAME_LOWER).asm.js.bak >> $(MODULE_NAME_LOWER).asm.js
 
@@ -178,10 +181,11 @@ endif
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
 	echo "if (IS_NODE_JS) { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
 
-	# End Global Closure
 	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	# End named closure
 	echo "return $(MODULE_NAME);" >> $(MODULE_NAME_LOWER).asm.js
 	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
+	# End global closure
 	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
 
 ifeq ($(NODE),false)

@@ -1,14 +1,52 @@
-if (IS_NODE_JS) {
-  var module1 = {exports: {}};
-  var module2 = {exports: {}};
-  var module3 = {exports: {}};
-  var module4 = {exports: {}};
-  var module5 = {exports: {}};
+// This same script is run on the browser, in Node.js, and in workers. Because of that, there is
+// some branching that controls code that specifically needs to run in each of those environments.
+
+// Define only one other thing in the global scope. We need this to track
+// shared mount point nodes.
+if (typeof COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes === 'undefined') {
+  COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
 }
 
-(function() {
+/**********************************************************/
+/***************START MODULE DEFINITIONS*******************/
+/**********************************************************/
+// Since when 'window' is not available, some of the 
+// third-party libraries export to module.exports, we have a list of 
+// modules objects that get assigned to each third-party library
+/**********************************************************/
+if (IS_NODE_JS) {
+  var module1 = {exports: {}}; // the current module (this file!)
+  var module2 = {exports: {}}; // browserfs
+  var module3 = {exports: {}}; // jszip
+  var module4 = {exports: {}}; // fast-text-encoding
+  var module5 = {exports: {}}; // comlink
+}
+/**********************************************************/
+/****************END MODULE DEFINITIONS********************/
+/**********************************************************/
 
-// Get the Comlink library
+/**********************************************************/
+/***********START BEGINNING OF GLOBAL CLOSURE**************/
+/**********************************************************/
+// Creating a closure to wrap all code in this file within
+// a closed scope.
+/**********************************************************/
+(function() {
+/**********************************************************/
+/************END BEGINNING OF GLOBAL CLOSURE***************/
+/**********************************************************/
+
+
+/**********************************************************/
+/***********START DEFINE GETTER FOR COMLINK****************/
+/**********************************************************/
+// Defines a function that returns the Comlink instance,
+// which is used for worker communication. It is
+// particularly different than getting any other library
+// since in Node.js, a monkey-patch needs to be performed
+// using patchMessageChannel() to make a forked-process
+// behave like a Worker with Worker APIs.
+/**********************************************************/
 function getComlink() {
   if (IS_NODE_JS) {
     require('node-comlink').patchMessageChannel();
@@ -24,15 +62,22 @@ function getComlink() {
     return Comlink;    
   }
 }
+/**********************************************************/
+/***********END DEFINE GETTER FOR COMLINK******************/
+/**********************************************************/
 
-// Define error classes
+/**********************************************************/
+/**************START DEFINE MISC CLASSES*******************/
+/**********************************************************/
+// Defines miscellaneous classes that the Coldbrew runtime
+// uses. 
+/**********************************************************/
 class JavaScriptError extends Error {
   constructor(...args) {
     super(...args)
     Error.captureStackTrace(this, JavaScriptError);
   }
 }
-
 class PythonError extends Error {
   constructor(...args) {
     super(...args)
@@ -40,32 +85,31 @@ class PythonError extends Error {
     this.errorData = MODULE_NAME.getExceptionInfo();
   }
 }
-
 class HTTPResponseError extends Error {
   constructor(...args) {
     super(...args)
     Error.captureStackTrace(this, HTTPResponseError);
   }
 }
-
 class HTTPAbortError extends Error {
   constructor(...args) {
     super(...args)
     Error.captureStackTrace(this, HTTPAbortError);
   }
 }
-
 class HTTPTimeoutError extends Error {
   constructor(...args) {
     super(...args)
     Error.captureStackTrace(this, HTTPTimeoutError);
   }
 }
-
-// Define other classes
 class PythonVariable {
   static isPythonVariable(obj) {
-    if (obj instanceof Object ) {
+    if (obj instanceof Object) {
+      if (obj._internal_coldbrew_native_js_worker_proxy === true) {
+        // Since this is also a proxy variable it can easily get confused, immediately return false
+        return false;
+      }
       var vals = PythonVariable.internalKeyDefs
         .filter(function(internalKeyDef) { return !['toString', 'toJSON'].includes(internalKeyDef); })
         .map(function(internalKeyDef) { return obj[internalKeyDef] });
@@ -89,19 +133,28 @@ PythonVariable.internalKeyDefs = ['__type__', '__uid__', '__inspect__', '__destr
 PythonVariable.internalSecretKeyDefs = ['_internal_coldbrew_repr'];
 class PythonDynamicallyEvaluatedValue {}
 class _PythonKeywords {
-  constructor(keywords) {
+  constructor(keywords, resolvePromises = false) {
     var newKeywords = {};
     Object.keys(keywords).forEach(function(key) {
-      newKeywords[key] = serializeToPython(keywords[key]);
+      newKeywords[key] = serializeToPython(keywords[key], false, resolvePromises);
     });
     this.keywords = newKeywords;
   }
 }
+/**********************************************************/
+/**************END DEFINE MISC CLASSES*********************/
+/**********************************************************/
 
-// Define utility functions
+/**********************************************************/
+/*****************START HELPER UTILITIES*******************/
+/**********************************************************/
+// Defines various helper utility functions.
+/**********************************************************/
 function parseUrl(string, prop) {
   return (new URL(string))[prop];
 }
+// Exporting parseUrl to the top scope, since we actually use it
+// to load assets for the wasm like (.data, .embin, .wasm) files.
 COLDBREW_TOP_SCOPE.parseUrl = parseUrl;
 
 function randid() {
@@ -111,7 +164,7 @@ function randid() {
   });
 }
 
-// isPlainObject from lodash.isPlainObject
+// Source: isPlainObject from lodash.isPlainObject
 var isPlainObject = null;
 (function() {
   var objectTag = '[object Object]';
@@ -195,6 +248,23 @@ function toArrayBuffer(buf) {
     return ab;
 }
 
+function isPromise(val) {
+  return !(val && val._internal_coldbrew_native_js_worker_proxy === true) && !!(val && typeof val.then === 'function');
+}
+/**********************************************************/
+/******************END HELPER UTILITIES********************/
+/**********************************************************/
+
+/**********************************************************/
+/*****************START HTTP SEND REQUEST******************/
+/**********************************************************/
+// A HTTP/HTTPS sendRequest function that helps send a
+// HTTP/HTTPS request in both the browser through XHR
+// or in Node.js through the `http` client library.
+// This function is used to load some assets for the wasm
+// like (.embin) or load .zip files. It is also what 
+// ultimately shims Python's HTTP library.
+/**********************************************************/
 function sendRequest(method, url, body, headers, timeout, binary = false, level=0) {
   if (level > 25) {
     var e = new HTTPResponseError("The request has been redirected too many times.");
@@ -384,8 +454,18 @@ function sendRequest(method, url, body, headers, timeout, binary = false, level=
     }
   });
 }
+/**********************************************************/
+/******************END HTTP SEND REQUEST*******************/
+/**********************************************************/
 
-// Define singleton initializers
+/**********************************************************/
+/***********START DEFINE SINGLETON INTIALIZERS*************/
+/**********************************************************/
+// These singletons initialze the underlying Emscripten
+// Module or configure the options for the virtual file
+// system (which should both only be done once).
+/**********************************************************/
+/**********************************************************/
 var _MODULE_NAME_coldbrew_internal_instance = (function() {
   var executed = false;
   var singleton = null;
@@ -397,7 +477,6 @@ var _MODULE_NAME_coldbrew_internal_instance = (function() {
     return singleton;
   };
 })();
-
 var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   var executed = false;
   var singleton = {};
@@ -456,8 +535,362 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
     }
   };
 })();
+/**********************************************************/
+/************END DEFINE SINGLETON INTIALIZERS**************/
+/**********************************************************/
 
-function primitize(obj) {
+/**********************************************************/
+/*********START DEFINE CREATE VARIABLE PROXY***************/
+/**********************************************************/
+// This function takes what might be returned by Python 
+// and converts it into an ES6 proxy object that tries to
+// mirror that Python variables and make it look like a 
+// native JavaScript variable. If the argument is not a 
+// reference to a native Python variable, it is simply
+// returned.
+/**********************************************************/
+function createVariableProxy(obj) {
+  if (obj && obj._internal_coldbrew_python_object) {
+    if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
+      throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
+    }
+    if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
+      throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
+    }
+    var getVariable = MODULE_NAME.getVariable;
+    var run = MODULE_NAME.run;
+    if (obj.is_async) {
+      getVariable = MODULE_NAME.getVariableAsync;
+      run = MODULE_NAME.runAsync;
+    }
+    var transformProp = function(prop, reverse=null) {
+      if (!(reverse instanceof Array) && MODULE_NAME._finalizedOptions.transformVariableCasing) {
+        if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
+          return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
+            return $1.toUpperCase()
+              .replace('-', '')
+              .replace('_', '');
+          });
+        } else {
+          return prop;
+        }
+      } else if (MODULE_NAME._finalizedOptions.transformVariableCasing) {
+        var transformedKeys = reverse.map(transformProp);
+        var indexOfTransformedProp = transformedKeys.indexOf(prop);
+        if (indexOfTransformedProp >= 0) {
+          return reverse[indexOfTransformedProp];
+        } else {
+          return prop;
+        }
+      } else {
+        return prop;
+      }
+    };
+    function getTProp(prop) {
+      var keys = MODULE_NAME.getVariable("('"+obj.uid+"' in Coldbrew._vars and dir(Coldbrew._vars['"+obj.uid+"'])) or []");
+      if (typeof keys.then !== 'undefined') {
+        return keys.then(function(keys) {
+          return transformProp(prop, keys);
+        });
+      } else {
+        return transformProp(prop, keys);
+      }
+    }
+    var $handler = {
+        construct: function(target, args) {
+          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+args.map(arg => serializeToPython(arg)).join(',')+")"));
+        },
+        apply: function(target, thisArg, argumentsList) {
+          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+argumentsList.map(arg => serializeToPython(arg)).join(',')+")"));
+        },
+        get: function(target, prop) {
+          if (prop === '_internal_coldbrew_repr') {
+            return obj;
+          } else if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
+            return undefined;
+          } else if (prop === Symbol.iterator) {
+            var hasIter = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')");
+            if (!isPromise(hasIter)) {
+              return (function*() {
+                if (hasIter) {
+                  var pyiter = MODULE_NAME.getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
+                  var sentinel = MODULE_NAME.getVariable("Coldbrew._StopIteration()");
+                  while (true) {
+                    var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
+                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
+                    if (done) {
+                      pyiter.__destroy__();
+                      sentinel.__destroy__();
+                      break;
+                    }
+                    yield nextValue;
+                  }
+                }
+              });
+            } else {
+              return (async function*() {
+                if (await hasIter) {
+                  var pyiter = getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
+                  var sentinel = getVariable("Coldbrew._StopIteration()");
+                  while (true) {
+                    var nextValue = await MODULE_NAME.runFunction('next', pyiter, sentinel);
+                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
+                    if (done) {
+                      await pyiter.__destroy__();
+                      await sentinel.__destroy__();
+                      break;
+                    }
+                    yield (nextValue);
+                  }
+                }
+              });
+            }          
+          } else if (typeof prop === 'symbol') {
+            // These are a JavaScript special property that the engine expects to not be defined sometimes, ignore them.
+            return undefined;
+          } else if (prop === '__proto__') {
+            // This is a JavaScript special property that the engine expects to be defined;
+            return Reflect.get(target, prop);
+          } else if (prop === 'then') {
+            // This is a JavaScript special property that the engine expects to not be defined if not a Promise.
+            return undefined;
+          } else if (prop === 'toJSON') {
+            // This is a JavaScript special property that the engine expects to be defined for custom JSON serialization.
+            var tprop = getTProp(prop);
+            function toJSON(tprop) {
+              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))");
+            }
+            return function() {
+              if (!isPromise(tprop)) {
+                return toJSON(tprop);
+              } else {
+                return (tprop.then(function(tprop) {
+                  return toJSON(tprop);
+                }));
+              }
+            };
+          } else if (prop === 'toString') {
+            // This is a JavaScript special property that the engine expects to be defined for custom string serialization.
+            var tprop = getTProp(prop);
+            function toString(tprop) {
+              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else str(Coldbrew._vars['"+obj.uid+"']))");
+            }
+            return function() {
+              if (!isPromise(tprop)) {
+                return toString(tprop);
+              } else {
+                return (tprop.then(function(tprop) {
+                  return toString(tprop);
+                }));
+              }
+            };
+          } else if (prop === '__inspect__') {
+            var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+            function inspect(res) {
+              res = res.map(transformProp); 
+              return MODULE_NAME.PythonVariable.internalKeyDefs.concat(res); 
+            }
+            return function() { 
+              if (!isPromise(res)) {
+                return inspect(res);
+              } else {
+                return res.then(function(res) {
+                  return inspect(res);
+                });
+              }
+            };
+          } else if (prop === '__destroy__') {
+            return (function() {
+              return MODULE_NAME.run("Coldbrew._delete_uid('"+obj.uid+"')");
+            });
+          } else if (prop === '__destroyed__') {
+              return MODULE_NAME.getVariable("'"+obj.uid+"' not in Coldbrew._vars");
+          } else if (prop === '__type__') {
+            return obj.type;
+          } else if (prop === '__uid__') {
+            return obj.uid;
+          } else {
+            var tprop = getTProp(prop);
+            function get(tprop) {
+              var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+              function _get(hasAttrOrItem) {
+                if (hasAttrOrItem) {
+                  return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
+                } else {
+                  return undefined;
+                }
+              }
+              if (!isPromise(hasAttrOrItem)) {
+                return _get(hasAttrOrItem);
+              } else {
+                return hasAttrOrItem.then(function(hasAttrOrItem) {
+                  return _get(hasAttrOrItem);
+                });
+              }
+            }
+            if (!isPromise(tprop)) {
+              return get(tprop);
+            } else {
+              return (tprop.then(function(tprop) {
+                return get(tprop);
+              }));
+            }
+          }
+        },
+        set: function(target, prop, value) {
+          if (prop === '__proto__') {
+            Reflect.set(target, prop, value);
+            return value;
+          }
+          var tprop = getTProp(prop);
+          function set(tprop) {
+            MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"), Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
+          }
+          if (!isPromise(tprop)) {
+            set(tprop);
+          } else {
+            return tprop.then(function(tprop) {
+              set(tprop);
+            });
+          }
+          return value;
+        },
+        ownKeys: function(target) {
+          var reflectRes = Reflect.ownKeys(target);
+          var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+          if (!isPromise(res)) {
+            res = res.map(transformProp);
+            if (reflectRes.length > 0) {
+              return reflectRes.concat(res);
+            } else {
+              return res;
+            }
+          } else {
+            return reflectRes;
+          }
+        },
+        has: function(target, prop) {
+          var tprop = getTProp(prop);
+          if (!isPromise(tprop)) {
+            return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
+          } else {
+            throw new Error("Cannot run 'has' operation (or `in` operator) on PythonVariable when using worker mode.");
+          }
+        },
+        deleteProperty: function(target, prop) {
+          var tprop = getTProp(prop);
+          function deleteProperty(tprop) {
+            var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+            function _deleteProperty(hasAttrOrItem) {
+              if (hasAttrOrItem) {
+                MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdelattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tColdbrew._vars['"+obj.uid+"'].__delitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"))");
+              }
+            }
+            if (!isPromise(hasAttrOrItem)) {
+              return _deleteProperty(hasAttrOrItem);
+            } else {
+              return hasAttrOrItem.then(function(hasAttrOrItem) {
+                return _deleteProperty(hasAttrOrItem);
+              });
+            }
+          }
+          if (!isPromise(tprop)) {
+            deleteProperty(tprop);
+          } else {
+            return tprop.then(function(tprop) {
+              deleteProperty(tprop);
+            });
+          }
+          return true;
+        },
+    };
+    if (obj.constructable) {
+      delete $handler.apply;
+    } else if (obj.callable) {
+      delete $handler.constructable;
+    } else {
+      delete $handler.constructable;
+      delete $handler.apply;
+    }
+    var varObj = null;
+    if (obj.constructable || obj.callable) {
+      try {
+        eval(`class ${obj.type} extends MODULE_NAME.PythonVariable {} varObj = ${obj.type};`);
+      } catch (e) {
+        eval(`class py_${obj.type} extends MODULE_NAME.PythonVariable {} varObj = py_${obj.type};`);
+      }
+    } else {
+      varObj = new MODULE_NAME.PythonVariable();
+    }
+    var $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+    
+    // This function adds introspection/debugging information that
+    // displays when using the browser's console or the Node.js REPL
+    // to interactively view the proxy variable.
+    function attachDebuggingInformation(varObj, $handler, $keyDefs) {
+      $keyDefs = $keyDefs.map(transformProp).concat(MODULE_NAME.PythonVariable.internalKeyDefs);
+      var keyDefPrototype = {};
+      if ((!obj.constructable && !obj.callable) || IS_NODE_JS) {
+        varObj['__type__'] = $handler.get({}, '__type__');
+        keyDefPrototype['__type__'] = $handler.get({}, '__type__');
+        $keyDefs.forEach(function(keyDef) {
+          if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
+            varObj[keyDef] = $handler.get({}, keyDef);
+            keyDefPrototype[keyDef] = $handler.get({}, keyDef);
+          } else {
+            varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+            keyDefPrototype[keyDef] = new PythonDynamicallyEvaluatedValue();
+          }
+        });
+        Object.setPrototypeOf(varObj, keyDefPrototype);
+        var proxy = new Proxy(varObj, $handler);
+        return proxy;
+      } else if (obj.constructable || obj.callable) {
+        var $proxy = new Proxy(varObj, $handler);
+        var $newProxy = null;
+        // Adds introspection/debugging information
+        if (obj.constructable) {
+          eval(`class ${obj.name} { constructor(...args) { return new $proxy(...args); } } $newProxy = ${obj.name};`);
+        } else if (obj.callable) {
+          eval(`function ${obj.name}(...args) { return $proxy(...args); } $newProxy = ${obj.name};`);
+        }
+        $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
+        $keyDefs.concat(MODULE_NAME.PythonVariable.internalSecretKeyDefs).forEach(function(keyDef) {
+          Object.defineProperty($newProxy.__proto__, keyDef, {
+            configurable: false,
+            enumerable: true,
+            get: $handler.get.bind($handler, {}, keyDef),
+            set: $handler.set.bind($handler, {}, keyDef),
+          });
+        });
+        return $newProxy;
+      }
+    }
+
+    if (typeof $keyDefs.then !== 'undefined') {
+      return $keyDefs.then(function($keyDefs) {
+        return attachDebuggingInformation(varObj, $handler, $keyDefs);
+      });
+    } else {
+      return attachDebuggingInformation(varObj, $handler, $keyDefs);
+    }
+  } else {
+    return obj;
+  }
+};
+/**********************************************************/
+/*********END DEFINE CREATE VARIABLE PROXY***************/
+/**********************************************************/
+
+/**********************************************************/
+/*********START DEFINE COMMUNICATION HELPERS***************/
+/**********************************************************/
+// Various functions that help communicate between the 
+// languages (JavaScript and Python) or between the main
+// thread and a worker thread by serializing and
+// unserializing data.
+/**********************************************************/
+function primitize(obj, _export = false, resolvePromises = false) {
   var isPythonVariable = MODULE_NAME.PythonVariable.isPythonVariable(obj);
   if (isPythonVariable === true) {
     return obj._internal_coldbrew_repr;
@@ -466,52 +899,133 @@ function primitize(obj) {
       if (isPythonVariable) {
         return obj._internal_coldbrew_repr;
       } else {
-        return primitize(obj);
+        return primitize(obj, _export, resolvePromises);
       }
     });
-  } else if (obj && obj._internal_coldbrew_keywords_promise) {
+  } else if (obj && obj._internal_coldbrew_keywords_promise === true) {
     return obj.then(function(obj) {
-      return primitize(obj);
+      return primitize(obj, _export, resolvePromises);
     });
   } else if (obj instanceof _PythonKeywords) {
     return {
       '_internal_coldbrew_keywords': true,
       'keywords': obj.keywords,
     };
+  } else if (isPromise(obj) && resolvePromises === true) {
+    return obj.then(function(obj) {
+      return primitize(obj, false, true);
+    });
   } else if (!isSerializable(obj)) {
-    var uid = randid();
-    MODULE_NAME._get_vars[uid] = obj;
-    return {
-      '_internal_coldbrew_get_var': true,
-      'uid': uid,
-    };
+    if (_export) {
+      var uid = randid();
+      MODULE_NAME._vars[uid] = obj;
+      return {
+          '_internal_coldbrew_javascript_object': true,
+          'uid': uid,
+          'constructable': (typeof obj._internal_coldbrew_constructable == 'boolean') ? obj._internal_coldbrew_constructable : (obj instanceof Function && isConstructor(obj)),
+          'callable': (typeof obj._internal_coldbrew_callable == 'boolean') ? obj._internal_coldbrew_callable : (obj instanceof Function && !isConstructor(obj)),
+          'type': obj._internal_coldbrew_type || ((typeof obj.constructor !== 'undefined') ? toType(obj) : (typeof obj)),
+          'name': obj._internal_coldbrew_name || ((typeof obj.name !== 'undefined' ? obj.name : 'JavaScriptUnnamed')),
+      };
+    } else {
+      var uid = randid();
+      if (MODULE_NAME._finalizedOptions.worker && !IS_WORKER_SCRIPT) {
+        MODULE_NAME._get_vars[uid] = obj;
+        MODULE_NAME.worker.postMessage({
+          '_internal_coldbrew_message': true, 
+          '_get_var': uid,
+          'constructable': obj instanceof Function && isConstructor(obj),
+          'callable': obj instanceof Function && !isConstructor(obj),
+          'type': (typeof obj.constructor !== 'undefined') ? toType(obj) : (typeof obj),
+          'name': (typeof obj.name !== 'undefined' ? obj.name : 'JavaScriptUnnamed'),
+        });
+      } else {
+        MODULE_NAME._get_vars[uid] = obj;
+      }
+      return {
+        '_internal_coldbrew_get_var': true,
+        'uid': uid,
+      };     
+    }
   } else {
     return obj;
   }
 }
 
-function serializeToPython(obj) {
-  obj = primitize(obj);
-  if (obj && typeof obj.then === 'function') {
+function serializeToPython(obj, _export = false, resolvePromises = false) {
+  obj = primitize(obj, _export, resolvePromises);
+  if (typeof obj === 'undefined') {
+    obj = null;
+  } else if (isPromise(obj)) {
     return obj.then(function(obj) {
-      return serializeToPython(obj);
+      return serializeToPython(obj, _export, resolvePromises);
     });
   }
   if (obj && obj._internal_coldbrew_python_object) {
-    return "Coldbrew._vars['"+obj.uid+"']";
+    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+      '_internal_coldbrew_var': true,
+      'uid': obj.uid,
+    }))+')';
   }
   return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify(obj))+')';
 }
+
 function unserializeFromPython(arg) {
-  if (arg && arg._internal_coldbrew_get_var) {
+  arg = createVariableProxy(arg);
+  if (arg && arg._internal_coldbrew_get_var === true) {
     var pyarg = MODULE_NAME.getVariable('Coldbrew._get_vars["'+arg['uid']+'"]'); // Grab the Python native variable argument
     MODULE_NAME.run('del Coldbrew._get_vars["'+arg['uid']+'"]'); // Clean up the temporary reference
     return pyarg;
+  } else if (arg && arg._internal_coldbrew_get_js_var === true) {
+    return MODULE_NAME._get_vars[arg['uid']];
+  } else if (arg && arg._internal_coldbrew_var === true) {
+    return MODULE_NAME._vars[arg.uid];
   } else {
     return arg;
   }
 }
 
+function serializeToJS(obj) {
+  if (isSerializable(obj) || typeof obj === 'symbol') {
+    return obj;
+  } else {
+    return primitize(obj, false, true);
+  }
+}
+
+function unserializeFromJS(arg) {
+  if (arg && arg._internal_coldbrew_get_var && MODULE_NAME._finalizedOptions.worker && IS_WORKER_SCRIPT) {
+    return MODULE_NAME._get_vars[arg.uid];
+  } else {
+    return unserializeFromPython(arg);
+  }
+}
+/**********************************************************/
+/**********END DEFINE COMMUNICATION HELPERS****************/
+/**********************************************************/
+
+
+/**********************************************************/
+/************START DEFINE CHAINABLE PROMISE****************/
+/**********************************************************/
+// This function takes a Promise and returns a 
+// "ChainablePromise." When using workers, you might have
+// to do something like this normally since every operation
+// has to be asynchronous due to the communciation with the 
+// worker over postMessage():
+// getVariable('os')
+//  .then(os => os.getcwd)
+//  .then(getcwd => getcwd())
+//  .then(res => console.log(res))
+//
+// When that same original promise is wrapped 
+// (and we do this automatically) as a ChainablePromise you 
+// can still do what you did above OR you can more 
+// succinctly do:
+// getVariable('os').getcwd().then(res => console.log(res))
+//
+// This makes a big difference when you go many levels deep.
+/**********************************************************/
 function makePromiseChainable(p) {
   var varObj = null;
   eval(`class ChainablePromise {} varObj = ChainablePromise;`);
@@ -520,6 +1034,10 @@ function makePromiseChainable(p) {
   Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
     varObj[key] = function(){};
   });
+
+  // This attaches introspection/debugging information that
+  // displays when using the browser's console or the Node.js REPL
+  // after the promise resolves.
   p.then(async function(val) {
     if (await PythonVariable.isPythonVariable(val)) {
       varObj['__type__'] = await val.__type__;
@@ -537,24 +1055,28 @@ function makePromiseChainable(p) {
       });
     }
   });
+
   return new Proxy(varObj, {
     construct: function(target, args) {
       return makePromiseChainable(p.then(async function(val) {
-        var primitizedArgs = await Promise.all(args.map(function(arg) {
-          return primitize(arg);
+        var serializedArgs = await Promise.all(args.map(function(arg) {
+          return serializeToJS(arg);
         }));
-        return new val(...primitizedArgs);
+        return new val(...serializedArgs);
       }));
     },
     apply: function(target, thisArg, argumentsList) {
       return makePromiseChainable(p.then(async function(val) {
-        var primitizedArgs = await Promise.all(argumentsList.map(function(arg) {
-          return primitize(arg);
+        var serializedArgs = await Promise.all(argumentsList.map(function(arg) {
+          return serializeToJS(arg);
         }));
-        return val(...primitizedArgs);
+        return val(...serializedArgs);
       }));
     },
     get: function(target, prop) {
+      if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
+        return undefined;
+      }
       if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop)) {
         return Reflect.get(p, prop).bind(p);
       }
@@ -574,12 +1096,12 @@ function makePromiseChainable(p) {
         };
       }
       return makePromiseChainable(p.then(async function(val) {
-        return val[await primitize(prop)];
+        return val[await serializeToJS(prop)];
       }));
     },
     set: function(target, prop, value) {
       p.then(async function(val) {
-        val[await primitize(prop)] = await primitize(value);
+        val[await serializeToJS(prop)] = await serializeToJS(value);
       });
       return value;
     },
@@ -591,21 +1113,22 @@ function makePromiseChainable(p) {
     },
     deleteProperty: function(target, prop) {
       p.then(async function(val) {
-        delete val[await primitize(prop)];
+        delete val[await serializeToJS(prop)];
       });
       return true;
     }
   });
 };
-
-COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes = {};
+/**********************************************************/
+/*************END DEFINE CHAINABLE PROMISE*****************/
+/**********************************************************/
 
 MODULE_NAME.PythonError = PythonError;
 MODULE_NAME.PythonVariable = PythonVariable;
 MODULE_NAME.PythonKeywords = function(keywords) { 
-  var pykw = new _PythonKeywords(keywords);
+  var pykw = new _PythonKeywords(keywords, MODULE_NAME._finalizedOptions.worker && !IS_WORKER_SCRIPT);
   async = Object.keys(pykw.keywords).some(function(key) {
-    return typeof pykw.keywords[key].then === 'function';
+    return isPromise(pykw.keywords[key]);
   });
   if (async) {
     var entries = Object.entries(pykw.keywords);
@@ -629,6 +1152,7 @@ MODULE_NAME.version =  "COLDBREW_VERSION";
 MODULE_NAME._slots = {};
 MODULE_NAME._vars = {};
 MODULE_NAME._get_vars = {};
+MODULE_NAME._isPromise = isPromise;
 MODULE_NAME._convertError = function (e) {
   return {
     '_internal_coldbrew_error': true,
@@ -653,23 +1177,8 @@ MODULE_NAME._callFunc = function(constructable, func, ...args) {
     return func(...args.map(unserializeFromPython));
   }
 };
+MODULE_NAME._serializeToPython = serializeToPython;
 MODULE_NAME._unserializeFromPython = unserializeFromPython;
-MODULE_NAME._export = function(obj) {
-  if (isSerializable(obj)) {
-    return JSON.stringify(obj);
-  } else {
-    var uid = randid();
-    MODULE_NAME._vars[uid] = obj;
-    return JSON.stringify({
-        '_internal_coldbrew_javascript_object': true,
-        'uid': uid,
-        'constructable': obj instanceof Function && isConstructor(obj),
-        'callable': obj instanceof Function && !isConstructor(obj),
-        'type': (typeof obj.constructor !== 'undefined') ? toType(obj) : (typeof obj),
-        'name': (typeof obj.name !== 'undefined' ? obj.name : 'JavaScriptUnnamed'),
-    });
-  }
-};
 MODULE_NAME._parseUrl = parseUrl;
 MODULE_NAME.loaded = false;
 MODULE_NAME.exited = false;
@@ -771,331 +1280,6 @@ MODULE_NAME.configureFS = function(options = {}, cb) {
     cb
   );
 };
-MODULE_NAME._createVariableProxy = function(transformVariableCasing, obj, async=false) {
-  if (obj && obj._internal_coldbrew_python_object) {
-    if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
-      throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
-    }
-    if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
-      throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
-    }
-    var getVariable = MODULE_NAME.getVariable;
-    var run = MODULE_NAME.run;
-    if (async) {
-      getVariable = MODULE_NAME.getVariableAsync;
-      run = MODULE_NAME.runAsync;
-    }
-    var transformProp = function(prop, reverse=null) {
-      if (!(reverse instanceof Array) && transformVariableCasing) {
-        if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
-          return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
-            return $1.toUpperCase()
-              .replace('-', '')
-              .replace('_', '');
-          });
-        } else {
-          return prop;
-        }
-      } else if (transformVariableCasing) {
-        var transformedKeys = reverse.map(transformProp);
-        var indexOfTransformedProp = transformedKeys.indexOf(prop);
-        if (indexOfTransformedProp >= 0) {
-          return reverse[indexOfTransformedProp];
-        } else {
-          return prop;
-        }
-      } else {
-        return prop;
-      }
-    };
-    function getTProp(prop) {
-      var keys = MODULE_NAME.getVariable("('"+obj.uid+"' in Coldbrew._vars and dir(Coldbrew._vars['"+obj.uid+"'])) or []");
-      if (typeof keys.then !== 'undefined') {
-        return keys.then(function(keys) {
-          return transformProp(prop, keys);
-        });
-      } else {
-        return transformProp(prop, keys);
-      }
-    }
-    var $handler = {
-        construct: function(target, args) {
-          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+args.map(arg => serializeToPython(arg)).join(',')+")"));
-        },
-        apply: function(target, thisArg, argumentsList) {
-          return (getVariable("Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'].im_func,"+serializeToPython(thisArg)+","+argumentsList.map(arg => serializeToPython(arg)).join(',')+") if hasattr(Coldbrew._vars['"+obj.uid+"'], 'im_func') else Coldbrew._call_func(Coldbrew._vars['"+obj.uid+"'],"+argumentsList.map(arg => serializeToPython(arg)).join(',')+")"));
-        },
-        get: function(target, prop) {
-          if (prop === '_internal_coldbrew_repr') {
-            return obj;
-          } else if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
-            return undefined;
-          } else if (prop === Symbol.iterator) {
-            var hasIter = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')");
-            if (typeof hasIter.then === 'undefined') {
-              return (function*() {
-                if (hasIter) {
-                  var pyiter = MODULE_NAME.getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
-                  var sentinel = MODULE_NAME.getVariable("Coldbrew._StopIteration()");
-                  while (true) {
-                    var nextValue = MODULE_NAME.runFunction('next', pyiter, sentinel);
-                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
-                    if (done) {
-                      pyiter.__destroy__();
-                      sentinel.__destroy__();
-                      break;
-                    }
-                    yield nextValue;
-                  }
-                }
-              });
-            } else {
-              return (async function*() {
-                if (await hasIter) {
-                  var pyiter = getVariable("iter(Coldbrew._vars['"+obj.uid+"'])");
-                  var sentinel = getVariable("Coldbrew._StopIteration()");
-                  while (true) {
-                    var nextValue = await MODULE_NAME.runFunction('next', pyiter, sentinel);
-                    var done = (typeof nextValue.__type__ !== 'undefined') ? nextValue.__type__ == '_StopIteration' : false;
-                    if (done) {
-                      await pyiter.__destroy__();
-                      await sentinel.__destroy__();
-                      break;
-                    }
-                    yield (nextValue);
-                  }
-                }
-              });
-            }          
-          } else if (typeof prop === 'symbol') {
-            // These are a JavaScript special property that the engine expects to not be defined sometimes, ignore them.
-            return undefined;
-          } else if (prop === '__proto__') {
-            // This is a JavaScript special property that the engine expects to be defined;
-            return Reflect.get(target, prop);
-          } else if (prop === 'then') {
-            // This is a JavaScript special property that the engine expects to not be defined if not a Promise.
-            return undefined;
-          } else if (prop === 'toJSON') {
-            // This is a JavaScript special property that the engine expects to be defined for custom JSON serialization.
-            var tprop = getTProp(prop);
-            function toJSON(tprop) {
-              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew.json.dumps(str(Coldbrew._vars['"+obj.uid+"'])))");
-            }
-            return function() {
-              if (typeof tprop.then === 'undefined') {
-                return toJSON(tprop);
-              } else {
-                return (tprop.then(function(tprop) {
-                  return toJSON(tprop);
-                }));
-              }
-            };
-          } else if (prop === 'toString') {
-            // This is a JavaScript special property that the engine expects to be defined for custom string serialization.
-            var tprop = getTProp(prop);
-            function toString(tprop) {
-              return getVariable("(getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")() if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else str(Coldbrew._vars['"+obj.uid+"']))");
-            }
-            return function() {
-              if (typeof tprop.then === 'undefined') {
-                return toString(tprop);
-              } else {
-                return (tprop.then(function(tprop) {
-                  return toString(tprop);
-                }));
-              }
-            };
-          } else if (prop === '__inspect__') {
-            var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-            function inspect(res) {
-              res = res.map(transformProp); 
-              return MODULE_NAME.PythonVariable.internalKeyDefs.concat(res); 
-            }
-            return function() { 
-              if (typeof res.then === 'undefined') {
-                return inspect(res);
-              } else {
-                return res.then(function(res) {
-                  return inspect(res);
-                });
-              }
-            };
-          } else if (prop === '__destroy__') {
-            return (function() {
-              return MODULE_NAME.run("Coldbrew._delete_uid('"+obj.uid+"')");
-            });
-          } else if (prop === '__destroyed__') {
-              return MODULE_NAME.getVariable("'"+obj.uid+"' not in Coldbrew._vars");
-          } else if (prop === '__type__') {
-            return obj.type;
-          } else if (prop === '__uid__') {
-            return obj.uid;
-          } else {
-            var tprop = getTProp(prop);
-            function get(tprop) {
-              var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
-              function _get(hasAttrOrItem) {
-                if (hasAttrOrItem) {
-                  return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
-                } else {
-                  return undefined;
-                }
-              }
-              if (typeof hasAttrOrItem.then === 'undefined') {
-                return _get(hasAttrOrItem);
-              } else {
-                return hasAttrOrItem.then(function(hasAttrOrItem) {
-                  return _get(hasAttrOrItem);
-                });
-              }
-            }
-            if (typeof tprop.then === 'undefined') {
-              return get(tprop);
-            } else {
-              return (tprop.then(function(tprop) {
-                return get(tprop);
-              }));
-            }
-          }
-        },
-        set: function(target, prop, value) {
-          if (prop === '__proto__') {
-            Reflect.set(target, prop, value);
-            return value;
-          }
-          var tprop = getTProp(prop);
-          function set(tprop) {
-            MODULE_NAME.run("(setattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+", Coldbrew._unserialize_from_js("+serializeToPython(value)+")) if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'].__setitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"), Coldbrew._unserialize_from_js("+serializeToPython(value)+")))");
-          }
-          if (typeof tprop.then === 'undefined') {
-            set(tprop);
-          } else {
-            return tprop.then(function(tprop) {
-              set(tprop);
-            });
-          }
-          return value;
-        },
-        ownKeys: function(target) {
-          var reflectRes = Reflect.ownKeys(target);
-          var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-          if (typeof res.then === 'undefined') {
-            res = res.map(transformProp);
-            if (reflectRes.length > 0) {
-              return reflectRes.concat(res);
-            } else {
-              return res;
-            }
-          } else {
-            return reflectRes;
-          }
-        },
-        has: function(target, prop) {
-          var tprop = getTProp(prop);
-          if (typeof tprop.then === 'undefined') {
-            return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
-          } else {
-            throw new Error("Cannot run 'has' operation (or `in` operator) on PythonVariable when using worker mode.");
-          }
-        },
-        deleteProperty: function(target, prop) {
-          var tprop = getTProp(prop);
-          function deleteProperty(tprop) {
-            var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
-            function _deleteProperty(hasAttrOrItem) {
-              if (hasAttrOrItem) {
-                MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdelattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tColdbrew._vars['"+obj.uid+"'].__delitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"))");
-              }
-            }
-            if (typeof hasAttrOrItem.then === 'undefined') {
-              return _deleteProperty(hasAttrOrItem);
-            } else {
-              return hasAttrOrItem.then(function(hasAttrOrItem) {
-                return _deleteProperty(hasAttrOrItem);
-              });
-            }
-          }
-          if (typeof tprop.then === 'undefined') {
-            deleteProperty(tprop);
-          } else {
-            return tprop.then(function(tprop) {
-              deleteProperty(tprop);
-            });
-          }
-          return true;
-        },
-    };
-    if (obj.constructable) {
-      delete $handler.apply;
-    } else if (obj.callable) {
-      delete $handler.constructable;
-    } else {
-      delete $handler.constructable;
-      delete $handler.apply;
-    }
-    var $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
-    function getFinalProxyObject($keyDefs) {
-      var varObj = null;
-      if (obj.constructable || obj.callable) {
-        try {
-          eval(`class ${obj.type} extends MODULE_NAME.PythonVariable {} varObj = ${obj.type};`);
-        } catch (e) {
-          eval(`class py_${obj.type} extends MODULE_NAME.PythonVariable {} varObj = py_${obj.type};`);
-        }
-      } else {
-        varObj = new MODULE_NAME.PythonVariable();
-      }
-      $keyDefs = $keyDefs.map(transformProp).concat(MODULE_NAME.PythonVariable.internalKeyDefs);
-      var keyDefPrototype = {};
-      if ((!obj.constructable && !obj.callable) || IS_NODE_JS) {
-        // Adds introspection/debugging information
-        varObj['__type__'] = $handler.get({}, '__type__');
-        keyDefPrototype['__type__'] = $handler.get({}, '__type__');
-        $keyDefs.forEach(function(keyDef) {
-          if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
-            varObj[keyDef] = $handler.get({}, keyDef);
-            keyDefPrototype[keyDef] = $handler.get({}, keyDef);
-          } else {
-            varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
-            keyDefPrototype[keyDef] = new PythonDynamicallyEvaluatedValue();
-          }
-        });
-        Object.setPrototypeOf(varObj, keyDefPrototype);
-        var proxy = new Proxy(varObj, $handler);
-        return proxy;
-      } else if (obj.constructable || obj.callable) {
-        var $proxy = new Proxy(varObj, $handler);
-        var $newProxy = null;
-        // Adds introspection/debugging information
-        if (obj.constructable) {
-          eval(`class ${obj.name} { constructor(...args) { return new $proxy(...args); } } $newProxy = ${obj.name};`);
-        } else if (obj.callable) {
-          eval(`function ${obj.name}(...args) { return $proxy(...args); } $newProxy = ${obj.name};`);
-        }
-        $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
-        $keyDefs.concat(MODULE_NAME.PythonVariable.internalSecretKeyDefs).forEach(function(keyDef) {
-          Object.defineProperty($newProxy.__proto__, keyDef, {
-            configurable: false,
-            enumerable: true,
-            get: $handler.get.bind($handler, {}, keyDef),
-            set: $handler.set.bind($handler, {}, keyDef),
-          });
-        });
-        return $newProxy;
-      }
-    }
-    if (typeof $keyDefs.then !== 'undefined') {
-      return $keyDefs.then(function($keyDefs) {
-        return getFinalProxyObject($keyDefs);
-      });
-    } else {
-      return getFinalProxyObject($keyDefs);
-    }
-  } else {
-    return obj;
-  }
-};
 function finalizeMainOptions(options) {
   var defaultOptions = {
     fsOptions: {},
@@ -1166,11 +1350,11 @@ MODULE_NAME._load = function(arg1, arg2) {
       }
       MODULE_NAME.getVariable = function(expression, allowProxy = !finalizedOptions.worker) {
         var uid = randid();
-        MODULE_NAME.run('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._export('+expression+')))');
+        MODULE_NAME.run('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._serialize_to_js('+expression+', True)))');
         var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
         delete MODULE_NAME._slots[uid];
         if (allowProxy) {
-          return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
+          return unserializeFromPython(ret);
         } else {
           return ret;
         }
@@ -1178,15 +1362,15 @@ MODULE_NAME._load = function(arg1, arg2) {
       if (!SMALL_BUT_NO_ASYNC) {
         MODULE_NAME.getVariableAsync = function(expression, allowProxy = !finalizedOptions.worker) {
           var uid = randid();
-          return MODULE_NAME.runAsync('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._export('+expression+')))').then(function() {
+          return makePromiseChainable(MODULE_NAME.runAsync('Coldbrew.run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._serialize_to_js('+expression+')))').then(function() {
             var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
             delete MODULE_NAME._slots[uid];
             if (allowProxy) {
-              return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);
+              return unserializeFromPython(ret);
             } else {
               return ret;
             }
-          });
+          }));
         };
       }
       MODULE_NAME.destroyAllVariables = function() {
@@ -1461,6 +1645,7 @@ MODULE_NAME.unload = function(arg1, arg2) {
 MODULE_NAME.load = function(options = {}) {
   var finalizedOptions = finalizeMainOptions(options);
   if (options.worker && !IS_WORKER_SCRIPT && !MODULE_NAME.loaded) {
+    MODULE_NAME._finalizedOptions = finalizedOptions;
     var underlyingWorker;
     var worker;
     if (typeof Worker === 'undefined' && IS_NODE_JS) {
@@ -1482,24 +1667,18 @@ MODULE_NAME.load = function(options = {}) {
         if (event.data._internal_coldbrew_message && event.data.ready) {
           // Worker is ready, load Coldbrew in the worker
           MODULE_NAME._workerProxy.load(options);
-        }
-        if (event.data._internal_coldbrew_message && event.data.props) {
+        } else if (event.data._internal_coldbrew_message && event.data.props) {
           // Assign the proxied properties of the worker module to the main module
-          worker.removeEventListener("message", workerReadyHandler);
           Object.keys(event.data.props).forEach(function (prop) {
-            if (!['unload', '_parseUrl', 'createNewInstance', '_createVariableProxy', 'PythonVariable', 'PythonKeywords'].includes(prop) && event.data.props[prop] === 'function') {
+            if (!['unload', '_parseUrl', 'createNewInstance', 'PythonVariable', 'PythonKeywords'].includes(prop) && event.data.props[prop] === 'function') {
               MODULE_NAME[prop] = function(...args) {
-                var primitizedArgs = args.map(function(arg) {
-                  return primitize(arg);
+                var serializedArgs = args.map(function(arg) {
+                  return serializeToJS(arg);
                 });
-                return makePromiseChainable(Promise.all(primitizedArgs).then(function(primitizedArgs) {
-                  var retp = MODULE_NAME_proxy[prop](...primitizedArgs);
+                return makePromiseChainable(Promise.all(serializedArgs).then(function(serializedArgs) {
+                  var retp = MODULE_NAME_proxy[prop](...serializedArgs);
                   return retp.then(function(ret) {
-                    if (prop.indexOf('Async') >= 0) {
-                      return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret, true);                    
-                    } else {
-                      return MODULE_NAME._createVariableProxy(finalizedOptions.transformVariableCasing, ret);
-                    }
+                    return unserializeFromPython(ret);
                   });
                 }));
               };
@@ -1523,6 +1702,48 @@ MODULE_NAME.load = function(options = {}) {
           MODULE_NAME.loaded = true;
           // Done loading Coldbrew with worker option
           resolve();
+        } else if (event.data._internal_coldbrew_message && event.data._get_var_action) {
+          console.log('GETVARACTION', event.data._get_var_action);
+          (async function() {
+            var value = null;
+            var getvar = MODULE_NAME._get_vars[event.data.uid];
+            if (event.data._get_var_action === 'construct') {
+              value = new getvar(...(await Promise.all(event.data.args.map(unserializeFromJS)))); 
+            } else if (event.data._get_var_action === 'apply') {
+              value = getvar(...(await Promise.all(event.data.argumentsList.map(unserializeFromJS)))); 
+            } else if (event.data._get_var_action === 'has') {
+              value = Reflect.has(getvar, await unserializeFromJS(event.data.prop)); 
+            } else if (event.data._get_var_action === 'ownKeys') {
+              value = Object.getOwnPropertyNames(getvar).concat(Object.getOwnPropertyNames(Object.getPrototypeOf(getvar))); 
+            } else if (event.data._get_var_action === 'isPromise') {
+              value = isPromise(getvar); 
+            } else if (event.data._get_var_action === 'destroy') {
+              delete MODULE_NAME._get_vars[event.data.uid];
+              value = true; 
+            } else if (event.data._get_var_action === 'typeofProp') {
+              value = typeof Reflect.get(getvar, await unserializeFromJS(event.data.prop));
+            } else if (event.data._get_var_action === 'get') {
+              value = await Reflect.get(getvar, await unserializeFromJS(event.data.prop));
+              if (typeof value === "function") {
+                value = value.bind(getvar);
+              }
+            } else if (event.data._get_var_action === 'set') {
+              var unserializedValue = await unserializeFromJS(event.data.value);
+              Reflect.set(getvar, await unserializeFromJS(event.data.prop), unserializedValue);
+              value = unserializedValue; 
+            } else if (event.data._get_var_action === 'deleteProperty') {
+              var unserializedValue = await unserializeFromJS(event.data.value);
+              Reflect.deleteProperty(getvar, await unserializeFromJS(event.data.prop));
+              value = true; 
+            }
+            console.log('RESPONSING', event.data._get_var_action, event.data, value);
+            MODULE_NAME.worker.postMessage({
+              '_internal_coldbrew_message': true,
+              '_get_var_action_response': true,
+              'actionId': event.data.actionId,
+              'value': await serializeToJS(value)
+            });
+          })();
         }
       });
     });
@@ -1532,7 +1753,7 @@ MODULE_NAME.load = function(options = {}) {
         // Notify parent of what properties were loaded in, so they can be proxied
         if (IS_WORKER_SCRIPT) {
           postMessage({
-            '_internal_coldbrew_message':true, 
+            '_internal_coldbrew_message': true, 
             'props': Object.getOwnPropertyNames(MODULE_NAME).reduce(function(props, prop) {
               props[prop] = typeof MODULE_NAME[prop];
               return props;
@@ -1567,6 +1788,168 @@ MODULE_NAME._emterpreterFile = (
     : Promise.resolve(null)
 );
 
+
+/**********************************************************/
+/************START WORKER SPECIFIC ROUTINE*****************/
+/**********************************************************/
+// Does 3 things:
+// 1. Informs the main thread when it is ready.
+// 2. Exposes the Coldbrew variable using Comlink.
+// 3. Creates a ES6 Proxy Variable in the worker thread that 
+//    behaves like native JavaScript variable that models
+//    native JavaScript variables on the main thread that
+//    might need to be passed to Python.
+/**********************************************************/
+if (IS_WORKER_SCRIPT) {
+  // Deferring to the next tick here since Comlink is defined later
+  setTimeout(function() {
+    if (IS_NODE_JS) {
+      require('node-comlink').patchMessageChannel();
+      const NodeMessageAdapter = require('node-comlink').NodeMessageAdapter;
+      const messageAdapter = new NodeMessageAdapter();
+      COLDBREW_GLOBAL_SCOPE.postMessage = messageAdapter.postMessage.bind(messageAdapter);
+      COLDBREW_GLOBAL_SCOPE.addEventListener = messageAdapter.addEventListener.bind(messageAdapter);
+      getComlink().expose(MODULE_NAME, messageAdapter);
+    } else {
+      getComlink().expose(MODULE_NAME, self);
+    }
+    var responsePromises = {};
+    addEventListener("message", function GetVarHandler(event) {
+      if (event.data._internal_coldbrew_message && event.data._get_var_action_response) {
+        var resolve = responsePromises[event.data.actionId];
+        delete responsePromises[event.data.actionId];
+        console.log("RESOLVING", event.data.value, event.data);
+        resolve(unserializeFromJS(event.data.value));
+      } else if (event.data._internal_coldbrew_message && event.data._get_var) {
+        console.log('SETTING', event.data._get_var, event.data);
+        MODULE_NAME._get_vars[event.data._get_var] = new Proxy(function() {}, {
+          construct: async function(target, args) {
+            var actionId = randid();
+            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'construct', 'uid': event.data._get_var, 'actionId': actionId, 'args': await Promise.all(args.map(serializeToJS))});
+            return new Promise(function (resolve, reject) {
+              responsePromises[actionId] = resolve;
+            });              
+          },
+          apply: async function(target, thisArg, argumentsList) {
+            var actionId = randid();
+            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'apply', 'uid': event.data._get_var, 'actionId': actionId, 'argumentsList': await Promise.all(argumentsList.map(serializeToJS))});
+            return new Promise(function (resolve, reject) {
+              responsePromises[actionId] = resolve;
+            }); 
+          },
+          get: function(target, prop) {
+            if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
+              return undefined;
+            }
+            console.log('PROP', prop);
+            if (prop === '_internal_coldbrew_native_js_worker_proxy') {
+              return true;
+            } else if (prop === '_internal_coldbrew_get_var_id') {
+              return event.data._get_var;
+            } else if (prop === '_internal_coldbrew_constructable') {
+              return event.data.constructable;
+            } else if (prop === '_internal_coldbrew_callable') {
+              return event.data.callable;
+            } else if (prop === '_internal_coldbrew_name') {
+              return event.data.name;
+            } else if (prop === '_internal_coldbrew_type') {
+              return event.data.type;
+            } else if (prop === '_internal_coldbrew_has') {
+              return async function(prop) {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'has', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
+            } else if (prop === '_internal_coldbrew_own_keys') {
+              return function() {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'ownKeys', 'uid': event.data._get_var, 'actionId': actionId});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
+            } else if (prop === '_internal_coldbrew_is_promise') {
+              return function() {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'isPromise', 'uid': event.data._get_var, 'actionId': actionId});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
+            } else if (prop === '_internal_coldbrew_destroy') {
+              return function() {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'destroy', 'uid': event.data._get_var, 'actionId': actionId});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
+            } else if (prop === '_internal_coldbrew_typeof_prop') {
+              return async function(prop) {
+                var actionId = randid();
+                console.log('SENDING GETVARACTION', 'typeofProp');
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'typeofProp', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
+            } else {
+              return (async function() {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'get', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              })();
+            }
+          },
+          set: async function(target, prop, value) {
+            var actionId = randid();
+            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'set', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop), 'value': await serializeToJS(value)});
+            new Promise(function (resolve, reject) {
+              responsePromises[actionId] = resolve;
+            });
+            return value;
+          },
+          ownKeys: function(target) {
+            return Reflect.ownKeys(target);
+          },
+          has: function(target, prop) {
+            return Reflect.has(target, prop);
+          },
+          deleteProperty: async function(target, prop) {
+            var actionId = randid();
+            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'deleteProperty', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
+            new Promise(function (resolve, reject) {
+              responsePromises[actionId] = resolve;
+            });
+            return true;
+          }
+        });
+      }
+    });
+    postMessage({'_internal_coldbrew_message': true, 'ready': true});
+  }, 1);
+}
+/**********************************************************/
+/*************END WORKER SPECIFIC ROUTINE******************/
+/**********************************************************/
+
+
+/**********************************************************/
+/*****************START EXPORT OF COLDBREW*****************/
+/**********************************************************/
+// Export the Coldbrew module defined in this file.
+// Only exports if `shouldExportColdbrew` is true.
+// `shouldExportColdbrew` is only false when unload() is 
+// called and the named closure COLDBREW_TOP_SCOPE_FUNC
+// is re-called. In that case, Coldbrew has already been
+// exported and the already exported object is modified, 
+// instead of replaced (cause you can't replace an export
+// after it has been exported in environments like Node.js).
+/**********************************************************/
 if (shouldExportColdbrew) {
   var EXPORT = (function(Coldbrew) {
     var EXPORT = null;
@@ -1587,21 +1970,18 @@ if (shouldExportColdbrew) {
   if (typeof module !== 'undefined') module.exports = EXPORT;
   if (typeof window !== 'undefined') window.MODULE_NAME = EXPORT;
   if (typeof self !== 'undefined') self.MODULE_NAME = EXPORT;
-  if (IS_WORKER_SCRIPT) {
-    // Deferring to the next tick here since Comlink is defined later
-    setTimeout(function() {
-      if (IS_NODE_JS) {
-        require('node-comlink').patchMessageChannel();
-        const NodeMessageAdapter = require('node-comlink').NodeMessageAdapter;
-        const messageAdapter = new NodeMessageAdapter();
-        COLDBREW_GLOBAL_SCOPE.postMessage = messageAdapter.postMessage.bind(messageAdapter);
-        getComlink().expose(MODULE_NAME, messageAdapter);
-      } else {
-        getComlink().expose(MODULE_NAME, self);
-      }
-      postMessage({'_internal_coldbrew_message':true, 'ready': true});
-    }, 1);
-  }
 }
+/**********************************************************/
+/******************END EXPORT OF COLDBREW******************/
+/**********************************************************/
 
+/**********************************************************/
+/************START ENDING OF GLOBAL CLOSURE***************/
+/**********************************************************/
+// Closes the closure that wraps all code in this file
+// within a closed scope.
+/**********************************************************/
 })();
+/**********************************************************/
+/************END ENDING OF GLOBAL CLOSURE******************/
+/**********************************************************/

@@ -212,6 +212,8 @@ Coldbrew.run("print(Coldbrew.get_variable('x'))") // Prints 25
 
 Note: This only works if the variable is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
+Note: If the variable is a `Promise`, it is automatically resolved to the value (requires running in asynchronous mode).
+
 #### Run Python Function in JavaScript
 You can run a function from Python in JavaScript like so:
 ```javascript
@@ -252,7 +254,7 @@ Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
 
 Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
 
-Note: If the return value is a `Promise`,
+Note: If the return value is a `Promise`, it is automatically resolved to the value (requires running in asynchronous mode).
 
 ### Bridge Variables
 
