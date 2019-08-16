@@ -191,9 +191,9 @@ class _StandardInput():
         
     def read(self, size):
         if is_async():
-            return run_function(module_name_var+'''.onStandardInReadAsync''', size)
+            return _run_function(module_name_var+'''.onStandardInReadAsync''', size)
         else:
-            return run_function(module_name_var+'''.onStandardInRead''', size)
+            return _run_function(module_name_var+'''.onStandardInRead''', size)
 sys.stdin = _StandardInput()
 ############################################################
 ##################END MISCELLANEOUS SHIMS###################
@@ -225,12 +225,12 @@ def _create_variable_proxy(obj):
 
             def __typeof_prop__(self, tprop):
                 if tprop == '_internal_coldbrew_native_js_worker_proxy':
-                    return get_variable("(("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_native_js_worker_proxy === true) ? 'boolean' : 'undefined')") 
-                return get_variable("(("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_native_js_worker_proxy === true) ? ("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_typeof_prop("+_serialize_to_js(tprop)+")) : (typeof "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]))")
+                    return _get_variable("(("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_native_js_worker_proxy === true) ? 'boolean' : 'undefined')") 
+                return _get_variable("(("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_native_js_worker_proxy === true) ? ("+module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_typeof_prop("+_serialize_to_js(tprop)+")) : (typeof "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]))")
 
             def __call__(self, *args):
                 if obj['constructable'] or obj['callable']:
-                    return get_variable(module_name_var+"._callFunc("+json.dumps(obj['constructable'])+", "+module_name_var+"._vars['"+obj['uid']+"'],"+','.join([_serialize_to_js(arg) for arg in args])+")")
+                    return _get_variable(module_name_var+"._callFunc("+json.dumps(obj['constructable'])+", "+module_name_var+"._vars['"+obj['uid']+"'],"+','.join([_serialize_to_js(arg) for arg in args])+")")
                 else:
                     return JavaScriptVariable.__call__(self)
 
@@ -241,7 +241,7 @@ def _create_variable_proxy(obj):
                 if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
                     return ProxiedJavaScriptVariable.__getattr__(self, 'toString')()
                 else:
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].toString()")
+                    return _get_variable(module_name_var+"._vars['"+obj['uid']+"'].toString()")
 
             def __repr__(self):
                 if obj['constructable'] or obj['callable']:
@@ -252,9 +252,9 @@ def _create_variable_proxy(obj):
             def __inspect__(self, transform = True):
                 lookup = set()
                 if not ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
-                    res = get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"']).concat(Object.getOwnPropertyNames(Object.getPrototypeOf("+module_name_var+"._vars['"+obj['uid']+"'])))")
+                    res = _get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"']).concat(Object.getOwnPropertyNames(Object.getPrototypeOf("+module_name_var+"._vars['"+obj['uid']+"'])))")
                 else:
-                    res = get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_own_keys")()
+                    res = _get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_own_keys")()
                 res = [x for x in res if x not in lookup and lookup.add(x) is None]
                 if transform:
                     return JavaScriptVariable.internal_key_defs+[_transform_prop(p) for p in res]
@@ -263,15 +263,15 @@ def _create_variable_proxy(obj):
 
             def __destroy__(self):
                 if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
-                    get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_destroy")()
-                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']")
+                    _get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_destroy")()
+                return _run("delete "+module_name_var+"._vars['"+obj['uid']+"']")
 
             def __getattr__(self, prop):
                 tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
                 if prop == '_internal_coldbrew_native_js_worker_proxy':
                     return ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self)
                 elif prop == '__destroyed__':
-                    return get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'] === 'undefined'")
+                    return _get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'] === 'undefined'")
                 elif prop == '__type__':
                     return obj['type']
                 elif prop == '__uid__':
@@ -283,15 +283,15 @@ def _create_variable_proxy(obj):
                 else:
                     if typeofProp == 'function':
                         if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
-                            return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
+                            return _get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
                         else:
-                            return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
+                            return _get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
                     else:
-                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
+                        return _get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
 
             def __setattr__(self, prop, value):
                 tprop = _transform_prop(prop, ProxiedJavaScriptVariable.__inspect__(self, False))
-                run(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")] = "+module_name_var+"._unserializeFromPython("+_serialize_to_js(value)+")")
+                _run(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")] = "+module_name_var+"._unserializeFromPython("+_serialize_to_js(value)+")")
                 return value
             
             def __delattr__(self, prop):
@@ -299,7 +299,7 @@ def _create_variable_proxy(obj):
                 typeofProp = ProxiedJavaScriptVariable.__typeof_prop__(self, tprop)
                 if typeofProp == 'undefined':
                     raise AttributeError(tprop)
-                return run("delete "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
+                return _run("delete "+module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
             
             def __dir__(self):
                 return ProxiedJavaScriptVariable.__inspect__(self)
@@ -311,19 +311,19 @@ def _create_variable_proxy(obj):
                 typeofPropLength = ProxiedJavaScriptVariable.__typeof_prop__(self, 'length')
                 typeofPropSize = ProxiedJavaScriptVariable.__typeof_prop__(self, 'size')
                 if typeofPropLength != 'undefined':
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
+                    return _get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
                 elif typeofPropSize == 'function':
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")()
+                    return _get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")()
                 elif typeofPropSize == 'number':
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")
+                    return _get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")
                 else:
                     return object.__len__(self)
                 
 
             def __iter__(self):
-                if get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]") is None:
+                if _get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]") is None:
                     raise TypeError("'"+obj['type']+"' object is not iterable")
-                jsiter = get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]")()
+                jsiter = _get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]")()
                 while True:
                     nexti = jsiter.next()
                     if nexti['done'] == True:
@@ -342,9 +342,9 @@ def _create_variable_proxy(obj):
 
             def __contains__(self, prop):
                 if not ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
-                    return get_variable(module_name_var+"._unserializeFromPython("+_serialize_to_js(prop)+") in "+module_name_var+"._vars['"+obj['uid']+"']")
+                    return _get_variable(module_name_var+"._unserializeFromPython("+_serialize_to_js(prop)+") in "+module_name_var+"._vars['"+obj['uid']+"']")
                 else:
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_has("+module_name_var+"._unserializeFromPython("+_serialize_to_js(prop)+")")
+                    return _get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_has("+module_name_var+"._unserializeFromPython("+_serialize_to_js(prop)+")")
 
         return ProxiedJavaScriptVariable()
     else:
@@ -425,7 +425,7 @@ def _unserialize_from_js(arg):
 
     arg = _create_variable_proxy(arg)
     if isinstance(arg, dict) and '_internal_coldbrew_get_var' in arg and arg['_internal_coldbrew_get_var']:
-        jsarg = get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
+        jsarg = _get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
         _Coldbrew._run('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
         return jsarg
     elif isinstance(arg, dict) and '_internal_coldbrew_var' in arg and arg['_internal_coldbrew_var']:
@@ -459,14 +459,14 @@ class JavaScriptVariable(object):
 ''' Public functions that allow Python code to interact
 with the Coldbrew environment '''
 ############################################################
-def get_variable(expression):
+def _get_variable(expression):
     _internal_coldbrew_native_js_worker_proxy = _finalized_options['worker']
     
     class Coldbrew:
         json = json
         _vars = _vars
 
-    def _get_variable(expression):
+    def __get_variable(expression):
         global js_error
         val = eval(_Coldbrew._run_string(module_name_var+"._serializeToPython("+expression+", true) || null"), {'Coldbrew': Coldbrew})
         if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
@@ -483,7 +483,7 @@ def get_variable(expression):
         else:
             return _unserialize_from_js(val)
 
-    def _get_variable_async(expression):
+    def __get_variable_async(expression):
         global _slot_id
         _slot_id += 1
         uid = '_internal_pyslot_'+str(_slot_id)
@@ -497,24 +497,30 @@ def get_variable(expression):
                     '''+module_name_var+'''._resume_ie = true;
                     '''+module_name_var+'''.resume(false);
                 });''')
-            while get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
+            while _get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
                 sleep(-1)
-            return get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
+            return _get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
         else:
             _error("Python tried to access a JavaScript Promise. Since you are not running in Python in asynchronous mode, this is not allowed.")
-    jsvar = _get_variable(expression)
+    jsvar = __get_variable(expression)
     if JavaScriptVariable.is_javascript_variable(jsvar):
-        is_promise = get_variable(module_name_var+'._isPromise('+module_name_var+'._vars["'+jsvar.__uid__+'"])')
+        is_promise = _get_variable(module_name_var+'._isPromise('+module_name_var+'._vars["'+jsvar.__uid__+'"])')
         if is_promise:
-            return _get_variable_async(module_name_var+'._vars["'+jsvar.__uid__+'"]')
+            return __get_variable_async(module_name_var+'._vars["'+jsvar.__uid__+'"]')
     return jsvar
 
-def destroy_all_variables():
-    run('for (var member in '+module_name_var+'._vars) delete '+module_name_var+'._vars[member];')
+def get_variable(expression):
+    if _finalized_options['worker']:
+        return _run_function(module_name_var+'._getMainVariable', expression)
+    else:
+        return _get_variable(expression)
 
-def run(expression):
+def destroy_all_variables():
+    _run('for (var member in '+module_name_var+'._vars) delete '+module_name_var+'._vars[member];')
+
+
+def _handle_run_error(val):
     global js_error
-    val = json.loads(_Coldbrew._run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || null"))
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
@@ -526,13 +532,25 @@ def run(expression):
         }
         js_error = error
         raise error
+
+def _run(expression):
+    val = json.loads(_Coldbrew._run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
+    _handle_run_error(val)
     return 0
+
+def run(expression):
+    val = json.loads(get_variable("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
+    _handle_run_error(val)
+    return 0
+
+def _run_function(functionExpression, *args):
+    return _get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
 
 def run_function(functionExpression, *args):
     return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
 
 def reset():
-    return run_function(module_name_var+'.reset')
+    return _run_function(module_name_var+'.reset')
 ############################################################
 #####################END PUBLIC FUNCTIONS###################
 ############################################################

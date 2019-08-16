@@ -164,7 +164,7 @@ console.log(x); // Prints 5
 
 The `run` function returns `0` when successful or throws a `Coldbrew.JavaScriptError` if there was an error.
 
-Note: This runs in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+Note: This runs in the scope of `window` (browser) or `global` (Node.js).
 
 ### Running Python Files in JavaScript
 You can also run Python files like [add.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py) in JavaScript:
@@ -210,7 +210,7 @@ var x = Math.pow(5, 2);
 Coldbrew.run("print(Coldbrew.get_variable('x'))") // Prints 25
 ```
 
-Note: This only works if the variable is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+Note: This only works if the variable is in the scope of `window` (browser) or `global` (Node.js).
 
 Note: If the variable is a `Promise`, it is automatically resolved to the value (requires running in asynchronous mode).
 
@@ -252,7 +252,7 @@ function foo(x, y) {
 Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))"); // Prints 25
 ```
 
-Note: This only works if the function is in the scope of `window` (browser), `self` (worker), or `global` (Node.js).
+Note: This only works if the function is in the scope of `window` (browser) or `global` (Node.js).
 
 Note: If the return value is a `Promise`, it is automatically resolved to the value (requires running in asynchronous mode).
 
