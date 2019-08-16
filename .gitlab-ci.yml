@@ -28,7 +28,7 @@ before_script:
   # Install Coldbrew dependencies
   - apt-get update
   # Install Java
-  - apt-get install default-jre -y
+  - apt-get install default-jre cmake -y
   # Install Emscripten
   - ./install_emscripten.sh
   # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
@@ -39,14 +39,7 @@ before_script:
   - cd /tmp/binaryen && cmake . && make
   - cd /usr/local/coldbrew/emsdk/upstream/bin/ && cp asm2wasm asm2wasm.bak
   - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/upstream/bin/asm2wasm
-  - rm -rf /tmp/binaryen 
-  # Install Clang libraries
-  - cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz
-  - cd /usr/local/coldbrew/ && mkdir -p ./clang+llvm && tar -C ./clang+llvm -xvf clang+llvm.tar.xz
-  - cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/lib/
-  - cd /usr/local/coldbrew/emsdk/clang/lib/lib && (cp * ../ || true)
-  - cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/include/
-  - cd /usr/local/coldbrew/emsdk/clang/include/include && (cp -r * ../ || true)
+  - rm -rf /tmp/binaryen
   # Install Python dependencies
   - apt-get install build-essential -y
   - apt-get install libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev  -y
