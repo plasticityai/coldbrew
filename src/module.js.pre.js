@@ -1328,7 +1328,14 @@ MODULE_NAME._load = function(arg1, arg2) {
       MODULE_NAME.mountPoints = mountPoints;
       MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
       MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
-      MODULE_NAME.setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
+      MODULE_NAME._setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
+      MODULE_NAME.setAsyncYieldRate = function(rate) {
+        if (MODULE_NAME._finalizedOptions.worker) {
+          MODULE_NAME.run('Coldbrew._warn("Ignoring manually setting the async yield rate. When workers mode is enabled, we automatically set the yield rate to a very high number for you to improve performance. =)")');
+          return null;
+        }
+        return MODULE_NAME._setAsyncYieldRate(rate);
+      };
       MODULE_NAME._run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
       MODULE_NAME.run = function(script) {
         var ret = MODULE_NAME._run(script);
@@ -1597,6 +1604,9 @@ MODULE_NAME._load = function(arg1, arg2) {
         });
       };
       MODULE_NAME._initializer = function() {
+        if (finalizedOptions.worker) {
+          MODULE_NAME._setAsyncYieldRate(2147483647);
+        }
         if (finalizedOptions.asyncYieldRate !== null && typeof finalizedOptions.asyncYieldRate !== 'undefined') {
           MODULE_NAME.setAsyncYieldRate(finalizedOptions.asyncYieldRate);
         }

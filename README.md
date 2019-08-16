@@ -122,7 +122,7 @@ var options = {
   hideWarnings: false, /* Hides warnings */
   monitorFileUsage: false, /* Monitors file usage for slimming the data bundle for a custom Coldbrew Python environment */
   asyncYieldRate: null, /* Allows you to override the default asynchronous yield rate (see setAsyncYieldRate()) */
-  worker: false, /* Runs the Coldbrew Python interpreter in a seperate Web Worker or Worker thread */
+  worker: false, /* Runs the Coldbrew Python interpreter in a separate Web Worker or Worker thread */
   transformVariableCasing: true, /* Transforms bridge variable properties and methods to camel case or snake case automatically */
 };
 ```
@@ -410,9 +410,25 @@ Coldbrew.loadFiles();
 ```
 
 ### Extra Performance by using Workers
-You can run the Coldbrew library in a seperate worker thread (Web Workers in the browser and Worker threads in Node.js) by passing `worker: true` to the Coldbrew `load` method. This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. 
+You can run the Coldbrew library in a separate worker thread (Web Workers in the browser and Worker threads in Node.js) by passing `worker: true` to the Coldbrew `load` method. 
 
-Note that when running in workers, every method on the `Coldbrew` object returns a `Promise` since the main thread has to asynchronously communicate back and forth with the worker thread.
+This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. When running in asynchronous mode, the yield rate is automatically set very high, since you never need to yield back as it is running on a separate thread. [A high yield rate increases performance as well](#benchmarks).
+
+Note that when running in workers, every method on the `Coldbrew` object returns a `Promise` since the main thread has to asynchronously communicate back and forth with the worker thread. For example, you would get return values like so:
+```javascript
+Coldbrew.unload();
+Coldbrew.load({worker: true}).then(function() { // Load Coldbrew using workers
+  // Done loading!
+
+  // This gets executed in a separate worker thread
+  Coldbrew.run("x = 5**2");
+  
+  // This will fetch the variable 'x' from the separate worker thread
+  Coldbrew.getVariableAsync("x").then(function(result) { 
+    console.log(result); // Prints 25
+  });
+});
+```
 
 ### Unloading the Environment
 You can unload the Python environment with `Coldbrew.unload`:
