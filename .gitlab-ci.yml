@@ -4,7 +4,7 @@ services:
   - docker:dind
 
 stages:
-  - Build and Deploy
+  - Test and Deploy
   - Build Docker Image
 
 before_script:
@@ -73,7 +73,7 @@ before_script:
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; chmod +x \$EMSDK_NODE"
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
 
-Build and Deploy:
+Test and Deploy:
   stage: Test and Deploy
   script:
     # Add GitLab SSH private deploy key
