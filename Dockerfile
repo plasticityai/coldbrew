@@ -6,7 +6,8 @@ RUN apt-get update
 RUN apt-get install default-jre -y
 
 # Install Emscripten
-RUN curl https://gitlab.com/Plasticity/coldbrew/raw/master/install_emscripten.sh | /bin/bash
+ADD install_emscripten.sh /tmp/install_emscripten.sh
+RUN /tmp/install_emscripten.sh
 
 # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
 RUN apt-get install nano cmake -y

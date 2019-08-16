@@ -30,7 +30,7 @@ before_script:
   # Install Java
   - apt-get install default-jre -y
   # Install Emscripten
-  - curl https://gitlab.com/Plasticity/coldbrew/raw/master/install_emscripten.sh | /bin/bash
+  - ./install_emscripten.sh
   # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
   - apt-get install nano cmake -y
   - cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
