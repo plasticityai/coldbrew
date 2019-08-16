@@ -957,9 +957,9 @@ function serializeToPython(obj, _export = false, resolvePromises = false) {
   if (typeof obj === 'undefined') {
     obj = null;
   } else if (isPromise(obj)) {
-    return obj.then(function(obj) {
+    obj = primitize(obj.then(function(obj) {
       return serializeToPython(obj, _export, resolvePromises);
-    });
+    }), _export, resolvePromises);
   }
   if (obj && obj._internal_coldbrew_python_object) {
     return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
@@ -1077,7 +1077,7 @@ function makePromiseChainable(p) {
       if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
         return undefined;
       }
-      if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop)) {
+      if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop) && prop != 'toString') {
         return Reflect.get(p, prop).bind(p);
       }
       if (prop == '__raw_promise__') {
@@ -1703,7 +1703,6 @@ MODULE_NAME.load = function(options = {}) {
           // Done loading Coldbrew with worker option
           resolve();
         } else if (event.data._internal_coldbrew_message && event.data._get_var_action) {
-          console.log('GETVARACTION', event.data._get_var_action);
           (async function() {
             var value = null;
             var getvar = MODULE_NAME._get_vars[event.data.uid];
@@ -1721,7 +1720,12 @@ MODULE_NAME.load = function(options = {}) {
               delete MODULE_NAME._get_vars[event.data.uid];
               value = true; 
             } else if (event.data._get_var_action === 'typeofProp') {
-              value = typeof Reflect.get(getvar, await unserializeFromJS(event.data.prop));
+              value = typeof (await Reflect.get(getvar, await unserializeFromJS(event.data.prop)));
+            } else if (event.data._get_var_action === 'iterator') {
+              value = await Reflect.get(getvar, await unserializeFromJS(Symbol.iterator));
+              if (typeof value === "function") {
+                value = value.bind(getvar);
+              }
             } else if (event.data._get_var_action === 'get') {
               value = await Reflect.get(getvar, await unserializeFromJS(event.data.prop));
               if (typeof value === "function") {
@@ -1736,7 +1740,6 @@ MODULE_NAME.load = function(options = {}) {
               Reflect.deleteProperty(getvar, await unserializeFromJS(event.data.prop));
               value = true; 
             }
-            console.log('RESPONSING', event.data._get_var_action, event.data, value);
             MODULE_NAME.worker.postMessage({
               '_internal_coldbrew_message': true,
               '_get_var_action_response': true,
@@ -1818,30 +1821,34 @@ if (IS_WORKER_SCRIPT) {
       if (event.data._internal_coldbrew_message && event.data._get_var_action_response) {
         var resolve = responsePromises[event.data.actionId];
         delete responsePromises[event.data.actionId];
-        console.log("RESOLVING", event.data.value, event.data);
         resolve(unserializeFromJS(event.data.value));
       } else if (event.data._internal_coldbrew_message && event.data._get_var) {
-        console.log('SETTING', event.data._get_var, event.data);
         MODULE_NAME._get_vars[event.data._get_var] = new Proxy(function() {}, {
-          construct: async function(target, args) {
-            var actionId = randid();
-            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'construct', 'uid': event.data._get_var, 'actionId': actionId, 'args': await Promise.all(args.map(serializeToJS))});
-            return new Promise(function (resolve, reject) {
-              responsePromises[actionId] = resolve;
-            });              
+          construct: function(...args) {
+            return (async function(target, args) {
+              var actionId = randid();
+              postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'construct', 'uid': event.data._get_var, 'actionId': actionId, 'args': await Promise.all(args.map(serializeToJS))});
+              return new Promise(function (resolve, reject) {
+                responsePromises[actionId] = resolve;
+              });              
+            })(...args);
           },
-          apply: async function(target, thisArg, argumentsList) {
-            var actionId = randid();
-            postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'apply', 'uid': event.data._get_var, 'actionId': actionId, 'argumentsList': await Promise.all(argumentsList.map(serializeToJS))});
-            return new Promise(function (resolve, reject) {
-              responsePromises[actionId] = resolve;
-            }); 
+          apply: function(...args) {
+            return (async function(target, thisArg, argumentsList) {
+              if (typeof argumentsList === 'undefined') {
+                argumentsList = [];
+              }
+              var actionId = randid();
+              postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'apply', 'uid': event.data._get_var, 'actionId': actionId, 'argumentsList': await Promise.all(argumentsList.map(serializeToJS))});
+              return new Promise(function (resolve, reject) {
+                responsePromises[actionId] = resolve;
+              });
+            })(...args);
           },
           get: function(target, prop) {
-            if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
+            if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'then') {
               return undefined;
             }
-            console.log('PROP', prop);
             if (prop === '_internal_coldbrew_native_js_worker_proxy') {
               return true;
             } else if (prop === '_internal_coldbrew_get_var_id') {
@@ -1889,12 +1896,19 @@ if (IS_WORKER_SCRIPT) {
             } else if (prop === '_internal_coldbrew_typeof_prop') {
               return async function(prop) {
                 var actionId = randid();
-                console.log('SENDING GETVARACTION', 'typeofProp');
                 postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'typeofProp', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
                 return new Promise(function (resolve, reject) {
                   responsePromises[actionId] = resolve;
                 });
               };
+            } else if (prop === Symbol.iterator) {
+              return (async function() {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'iterator', 'uid': event.data._get_var, 'actionId': actionId});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              })();
             } else {
               return (async function() {
                 var actionId = randid();

@@ -238,7 +238,10 @@ def _create_variable_proxy(obj):
                 typeofProp = ProxiedJavaScriptVariable.__typeof_prop__(self, 'toString')
                 if typeofProp == 'undefined':
                     return ProxiedJavaScriptVariable.__repr__(self)
-                return get_variable(module_name_var+"._vars['"+obj['uid']+"'].toString()")
+                if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
+                    return ProxiedJavaScriptVariable.__getattr__(self, 'toString')()
+                else:
+                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].toString()")
 
             def __repr__(self):
                 if obj['constructable'] or obj['callable']:
@@ -251,7 +254,7 @@ def _create_variable_proxy(obj):
                 if not ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
                     res = get_variable("Object.getOwnPropertyNames("+module_name_var+"._vars['"+obj['uid']+"']).concat(Object.getOwnPropertyNames(Object.getPrototypeOf("+module_name_var+"._vars['"+obj['uid']+"'])))")
                 else:
-                    res = get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_own_keys()")
+                    res = get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_own_keys")()
                 res = [x for x in res if x not in lookup and lookup.add(x) is None]
                 if transform:
                     return JavaScriptVariable.internal_key_defs+[_transform_prop(p) for p in res]
@@ -260,7 +263,7 @@ def _create_variable_proxy(obj):
 
             def __destroy__(self):
                 if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
-                    get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_destroy()")
+                    get_variable(module_name_var+"._vars['"+obj['uid']+"']._internal_coldbrew_destroy")()
                 return run("delete "+module_name_var+"._vars['"+obj['uid']+"']")
 
             def __getattr__(self, prop):
@@ -279,7 +282,10 @@ def _create_variable_proxy(obj):
                     raise AttributeError("'"+obj['type']+"' object has no attribute '"+tprop+"'")
                 else:
                     if typeofProp == 'function':
-                        return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
+                        if ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self):
+                            return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
+                        else:
+                            return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")].bind("+module_name_var+"._vars['"+obj['uid']+"'])")
                     else:
                         return get_variable(module_name_var+"._vars['"+obj['uid']+"']["+module_name_var+"._unserializeFromPython("+_serialize_to_js(tprop)+")]")
 
@@ -307,7 +313,7 @@ def _create_variable_proxy(obj):
                 if typeofPropLength != 'undefined':
                     return get_variable(module_name_var+"._vars['"+obj['uid']+"'].length")
                 elif typeofPropSize == 'function':
-                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size()")
+                    return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")()
                 elif typeofPropSize == 'number':
                     return get_variable(module_name_var+"._vars['"+obj['uid']+"'].size")
                 else:
@@ -317,7 +323,7 @@ def _create_variable_proxy(obj):
             def __iter__(self):
                 if get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]") is None:
                     raise TypeError("'"+obj['type']+"' object is not iterable")
-                jsiter = get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]()")
+                jsiter = get_variable(module_name_var+"._vars['"+obj['uid']+"'][Symbol.iterator]")()
                 while True:
                     nexti = jsiter.next()
                     if nexti['done'] == True:

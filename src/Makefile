@@ -391,7 +391,7 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	g++ ../$(PYVERSION)/SyncPathCreator.cpp -o ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -shared -fPIC $(shell llvm-config --cxxflags --ldflags --libs) -I/usr/local/coldbrew/emsdk/clang/include
 	opt -load ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -syncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
 	llvm-extract -rfunc=".+_coldbrew_sync" -rglob="\.str*|.*PyId_.*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
-	cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o
+	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
 	rm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
 	rm -rf $(BUILD)
 	rm -rf $(DOWNLOADS)
