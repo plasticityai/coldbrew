@@ -37,8 +37,8 @@ before_script:
   - sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
   - mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
   - cd /tmp/binaryen && cmake . && make
-  - cd /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/ && cp asm2wasm asm2wasm.bak
-  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/asm2wasm
+  - cd /usr/local/coldbrew/emsdk/fastcomp/bin/ && cp asm2wasm asm2wasm.bak
+  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/fastcomp/bin/asm2wasm
   - rm -rf /tmp/binaryen 
   # Install Clang libraries
   - cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz
@@ -97,7 +97,7 @@ Test and Deploy:
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
     # Test
-    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; npm install; ./test.sh
+    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; npm install; echo 'Running tests...'; ./test.sh
     # Build Debug and Build Node
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../
     - git checkout ./customize/coldbrew_settings.py

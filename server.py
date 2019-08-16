@@ -14,7 +14,8 @@ except:
 
 
 class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
-    pass
+    def log_message(self, format, *args):
+        pass
 
 Handler.extensions_map['.wasm'] = 'application/wasm'
 

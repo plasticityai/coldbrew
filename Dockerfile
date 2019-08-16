@@ -15,8 +15,8 @@ RUN cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
 RUN sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
 RUN mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
 RUN cd /tmp/binaryen && cmake . && make
-RUN cd /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/ && cp asm2wasm asm2wasm.bak
-RUN cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/clang/*/binaryen/bin/asm2wasm
+RUN cd /usr/local/coldbrew/emsdk/fastcomp/bin/ && cp asm2wasm asm2wasm.bak
+RUN cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/fastcomp/bin/asm2wasm
 RUN rm -rf /tmp/binaryen 
 
 # Install Clang libraries
