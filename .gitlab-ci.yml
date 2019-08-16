@@ -74,7 +74,7 @@ before_script:
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
 
 Build and Deploy:
-  stage: Build and Deploy
+  stage: Test and Deploy
   script:
     # Add GitLab SSH private deploy key
     - eval $(ssh-agent -s)
@@ -96,6 +96,9 @@ Build and Deploy:
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
+    # Test
+    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; npm install; ./test.sh
+    # Build Debug and Build Node
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../
     - git checkout ./customize/coldbrew_settings.py
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "NODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-node make; cd ../
