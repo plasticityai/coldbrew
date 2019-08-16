@@ -37,8 +37,8 @@ before_script:
   - sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
   - mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
   - cd /tmp/binaryen && cmake . && make
-  - cd /usr/local/coldbrew/emsdk/fastcomp/bin/ && cp asm2wasm asm2wasm.bak
-  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/fastcomp/bin/asm2wasm
+  - cd /usr/local/coldbrew/emsdk/upstream/bin/ && cp asm2wasm asm2wasm.bak
+  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/upstream/bin/asm2wasm
   - rm -rf /tmp/binaryen 
   # Install Clang libraries
   - cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz

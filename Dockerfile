@@ -3,7 +3,7 @@ FROM python:latest
 RUN apt-get update
 
 # Install Java
-RUN apt-get install default-jre -y
+RUN apt-get install default-jre cmake -y
 
 # Install Emscripten
 ADD install_emscripten.sh /tmp/install_emscripten.sh
@@ -15,17 +15,9 @@ RUN cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
 RUN sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
 RUN mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
 RUN cd /tmp/binaryen && cmake . && make
-RUN cd /usr/local/coldbrew/emsdk/fastcomp/bin/ && cp asm2wasm asm2wasm.bak
-RUN cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/fastcomp/bin/asm2wasm
-RUN rm -rf /tmp/binaryen 
-
-# Install Clang libraries
-RUN cd /usr/local/coldbrew/ && curl -o clang+llvm.tar.xz http://releases.llvm.org/6.0.1/clang+llvm-6.0.1-x86_64-linux-gnu-ubuntu-16.04.tar.xz
-RUN cd /usr/local/coldbrew/ && mkdir -p ./clang+llvm && tar -C ./clang+llvm -xvf clang+llvm.tar.xz
-RUN cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/lib/
-RUN cd /usr/local/coldbrew/emsdk/clang/lib/lib && (cp * ../ || true)
-RUN cd /usr/local/coldbrew/ && cp -R ./clang+llvm/*/ ./emsdk/clang/include/
-RUN cd /usr/local/coldbrew/emsdk/clang/include/include && (cp -r * ../ || true)
+RUN cd /usr/local/coldbrew/emsdk/upstream/bin/ && cp asm2wasm asm2wasm.bak
+RUN cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/upstream/bin/asm2wasm
+RUN rm -rf /tmp/binaryen
 
 # Install Python dependencies
 RUN apt-get install build-essential -y
