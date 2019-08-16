@@ -1123,6 +1123,26 @@ function makePromiseChainable(p) {
 /*************END DEFINE CHAINABLE PROMISE*****************/
 /**********************************************************/
 
+/**********************************************************/
+/***********START DEFINE MAIN COLDBREW API*****************/
+/**********************************************************/
+// A couple of notable things:
+// 1. The _load() function adds a bunch of
+//    properties / methods to the MODULE_NAME
+//    when called.
+// 2. When worker mode is enabled, the true MODULE_NAME
+//    is initialized in the worker thread. A proxy to it
+//    is given to the main thread by the Comlink library,
+//    and a reference to it is stored in _workerProxy.
+//    Only a couple of methods on MODULE_NAME in the main
+//    thread actually run in the main thread and aren't
+//    just proxies to the worker thread.
+// 3. The message handling (from the worker thread to 
+//    the main thread) is handled in this section. The
+//    handler can be found in load(). The worker sends
+//    messages to the main thread requesting information
+//    about variables in the main thread scope.
+/**********************************************************/
 MODULE_NAME.PythonError = PythonError;
 MODULE_NAME.PythonVariable = PythonVariable;
 MODULE_NAME.PythonKeywords = function(keywords) { 
@@ -1149,9 +1169,9 @@ MODULE_NAME.PythonKeywords = function(keywords) {
 };
 MODULE_NAME.pyversion =  "PYVERSION";
 MODULE_NAME.version =  "COLDBREW_VERSION";
-MODULE_NAME._slots = {};
-MODULE_NAME._vars = {};
-MODULE_NAME._get_vars = {};
+MODULE_NAME._slots = {}; // Stores references to JavaScript variables, while Python has proxy objects that shim them.
+MODULE_NAME._vars = {}; // Stores proxy JavaScript objects that shim Python variables.
+MODULE_NAME._get_vars = {}; // Stores references to main thread JavaScript variables, while the worker thread has proxy objects that shim them.
 MODULE_NAME._isPromise = isPromise;
 MODULE_NAME._convertError = function (e) {
   return {
@@ -1841,7 +1861,9 @@ MODULE_NAME._emterpreterFile = (
     ) 
     : Promise.resolve(null)
 );
-
+/**********************************************************/
+/************END DEFINE MAIN COLDBREW API******************/
+/**********************************************************/
 
 /**********************************************************/
 /************START WORKER SPECIFIC ROUTINE*****************/
