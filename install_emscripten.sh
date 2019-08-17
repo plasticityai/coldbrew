@@ -3,6 +3,16 @@
 # List all of the installable things
 mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git clone https://github.com/juj/emsdk.git && cd ./emsdk && ./emsdk list --old
 
-# Install
-mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git clone https://github.com/juj/emsdk.git && cd ./emsdk && ./emsdk install latest-upstream && ./emsdk activate latest-upstream && source /usr/local/coldbrew/emsdk/emsdk_env.sh && ./emsdk install clang-master-64bit
+# Install emsdk
+mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git clone https://github.com/juj/emsdk.git && cd ./emsdk && ./emsdk install latest-upstream && ./emsdk activate latest-upstream
+
+# Install latest clang
+# Temporarily make it so that ld cannot run in parallel (since compiling clang crashes when linking in parallel due to large files)
+mv /usr/bin/ld /usr/bin/ld.bak
+echo -e '#!/bin/sh\n\nflock /tmp/llvm-build.lock /usr/bin/ld.bak "$@"' > /usr/bin/ld
+chmod +x /usr/bin/ld
+mkdir -p /usr/local/coldbrew/emsdk/clang/fastcomp/ && cd /usr/local/coldbrew/emsdk/clang/fastcomp/ && git clone --recurse-submodules https://github.com/llvm-mirror/llvm.git && mkdir -p build_master_64 && cd build_master_64 && cmake -GNinja ../llvm && ninja
+# Restore old version of ld
+mv /usr/bin/ld.bak /usr/bin/ld
+
 echo -e "\n\nPATH=/usr/local/coldbrew/emsdk/upstream/bin:/usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin:$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh

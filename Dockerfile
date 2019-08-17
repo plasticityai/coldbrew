@@ -3,7 +3,7 @@ FROM python:latest
 RUN apt-get update
 
 # Install Java
-RUN apt-get install default-jre cmake -y
+RUN apt-get install default-jre cmake ninja-build -y
 
 # Install Emscripten
 ADD install_emscripten.sh /tmp/install_emscripten.sh

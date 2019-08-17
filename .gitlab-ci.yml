@@ -28,7 +28,7 @@ before_script:
   # Install Coldbrew dependencies
   - apt-get update
   # Install Java
-  - apt-get install default-jre cmake -y
+  - apt-get install default-jre cmake ninja-build -y
   # Install Emscripten
   - ./install_emscripten.sh
   # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
