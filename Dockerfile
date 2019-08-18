@@ -62,22 +62,9 @@ RUN rm -rf /usr/lib/x86_64-linux-gnu/libicui18n.a
 RUN rm -rf /usr/lib/x86_64-linux-gnu/libicuuc.a
 RUN rm -rf /usr/lib/x86_64-linux-gnu/perl
 RUN rm -rf /usr/lib/jvm/*
-RUN rm -rf /usr/local/coldbrew/clang+llvm.tar.xz
-RUN rm -rf /usr/local/coldbrew/clang+llvm
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/bin
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/lib
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/include/include
-RUN rm -rf /usr/local/coldbrew/emsdk/zips/
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/scan-build
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-check
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/bugpoint
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-PerfectShuffle
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/llvm-dwp
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-refactor
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-rename
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-diff
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/arcmt-test
-RUN rm -rf /usr/local/coldbrew/emsdk/clang/e*/clang-func-mapping
+RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/llvm -mindepth 1 -maxdepth 1 ! -name 'include' -type d,f,l -exec rm -rf {} +
+RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64 -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'include' ! -name 'bin' -type d,f,l -exec rm -rf {} +
+RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin -mindepth 1 -maxdepth 1  ! -name 'llvm-config' ! -name 'llvm-extract' -type d,f,l -exec rm -rf {} +
 
 RUN mkdir -p /BUILD
 
