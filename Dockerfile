@@ -64,8 +64,11 @@ RUN rm -rf /usr/lib/x86_64-linux-gnu/perl
 RUN rm -rf /usr/lib/jvm/*
 RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/llvm -mindepth 1 -maxdepth 1 ! -name 'include' -type d,f,l -exec rm -rf {} +
 RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64 -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'include' ! -name 'bin' -type d,f,l -exec rm -rf {} +
-RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin -mindepth 1 -maxdepth 1  ! -name 'llvm-config' ! -name 'llvm-extract' -type d,f,l -exec rm -rf {} +
+RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin -mindepth 1 -maxdepth 1  ! -name 'llvm-config' ! -name 'llvm-extract' ! -name 'opt' -type d,f,l -exec rm -rf {} +
 
 RUN mkdir -p /BUILD
+
+ADD src/library_async.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/library_async.js
+ADD src/preamble.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/preamble.js
 
 CMD /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make"

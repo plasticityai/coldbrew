@@ -1852,15 +1852,7 @@ MODULE_NAME.onReady = function(onReadyFunc) {
   }
 };
 MODULE_NAME._sendRequest = sendRequest;
-MODULE_NAME._emterpreterFile = (
-  (!SMALL_BUT_NO_ASYNC) ? 
-    (
-      (typeof XMLHttpRequest !== 'undefined') ? 
-        sendRequest('GET', parseUrl(SCRIPT_SOURCE, "origin")+parseUrl(SCRIPT_SOURCE, "pathname").split("/").slice(0, -1).join("/")+'/MODULE_NAME_LOWER.asm.embin', null, {}, true, true)
-        : Promise.resolve(require('fs').readFileSync(require('path').join(__dirname, 'MODULE_NAME_LOWER.asm.embin'), null).buffer)
-    ) 
-    : Promise.resolve(null)
-);
+MODULE_NAME._emterpreterFile = Promise.resolve(null);
 /**********************************************************/
 /************END DEFINE MAIN COLDBREW API******************/
 /**********************************************************/

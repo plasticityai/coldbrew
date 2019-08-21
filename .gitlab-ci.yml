@@ -125,8 +125,8 @@ Test and Deploy:
     - git push -f origin HEAD:releases --tags
     # End Push Tags
     # Push to Amazon S3
-    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote.html
-    - sed -e "s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist-debug\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote-debug.html
+    - sed -e "s/localhost:8000/coldbrew.plasticity.ai/g; s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote.html
+    - sed -e "s/localhost:8000/coldbrew.plasticity.ai/g; s/coldbrew.asm.js/https:\/\/cdn.jsdelivr.net\/gh\/plasticityai\/coldbrew@$(python -c "import version; print(version.__version__)")\/dist-debug\/coldbrew.asm.js/g;" dist/index.html > dist/index.remote-debug.html
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index.html
     - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-debug.html
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)").html

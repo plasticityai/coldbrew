@@ -14,15 +14,17 @@ SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
 SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_NO_ASYNC).lower())")
-SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(False).lower())")
+SMALL_BUT_SLOW_SYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(SMALL_BUT_SLOW_SYNC).lower())")
 
-ALWAYS_ASYNC_FUNCS='_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep\n__coldbrew_yield_to_javascript'
+ALWAYS_ASYNC_FUNCS='_export_runAsync\n_export__runFileAsync\n__Coldbrew__sleep\n__coldbrew_yield_to_javascript\n__coldbrew_sleep'
+ALWAYS_ASYNC_FUNCS_2='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\n_coldbrew_sleep'
 ASYNC_FUNCS=$(eval ASYNC_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g' | grep -v -E "$(shell echo -e $(ALWAYS_ASYNC_FUNCS) | sed -e ':a;N;$$!ba;s/\n/|/g' )") | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(ASYNC_FUNCS)
 PYTHON_FUNCS=$(eval PYTHON_FUNCS:=$(shell (llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o | grep -E '\-\-\-\-\-\-\-\- T |\-\-\-\-\-\-\-\- t ' | sed -e 's/-------- T /_/g'| sed -e 's/-------- t /_/g') | cat | sed -e ':a;N;$$!ba;s/\n/","/g';))$(PYTHON_FUNCS)
 
 PYVERSION=3.5.2
 PYMINOR=$(basename $(PYVERSION))
-EMSCRIPTEN_VERSION=$(shell cd /usr/local/coldbrew/emsdk/emscripten/*; basename $$(pwd);)
+EMSCRIPTEN_PATH=/usr/local/coldbrew/emsdk/upstream/emscripten
+EMSCRIPTEN_VERSION=$(shell cd $(EMSCRIPTEN_PATH)/*; basename $$(pwd);)
 ROOT=$(abspath ..)
 DOWNLOADS=$(ROOT)/downloads
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
@@ -32,11 +34,11 @@ COLDBREW_DIST_DIR ?= dist
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
 OPTFLAGS=-O3
-CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS)
+CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS) -s WASM_OBJECT_FILES=0
 LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
   -s TOTAL_MEMORY=$(DEFAULT_MEMORY) \
   -s EMULATE_FUNCTION_POINTER_CASTS=1 \
-  -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap", "FS", "ENV"]' \
+  -s EXTRA_EXPORTED_RUNTIME_METHODS='["callMain", "ccall", "cwrap", "FS", "ENV"]' \
   $(PTHREAD_LDFLAGS) \
   $(AGGRESSIVE_VARIABLE_ELIMINATION) \
   --llvm-lto 1 --memory-init-file 0 \
@@ -62,6 +64,7 @@ ifeq ($(SMALL_BUT_SLOW_SYNC),true)
     SHOULD_SYNC =
 endif
 
+# Might need to uncomment (if build is not working to try and debug?)
 # ifneq ($(EMCC_DEBUG),0)
 # 	export EM_BUILD_VERBOSE=3
 # 	export EMSCRIPT_MAX_CHUNK_SIZE=16777216
@@ -84,7 +87,7 @@ $(eval EMCC_FILE_FLAG = --preload-file)
 endif
 
 ifdef SHOULD_EMTERPRET
-$(eval EMTERPRETERFLAGS = -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST=@async_funcs.tmp -s 'EMTERPRETIFY_FILE="$(MODULE_NAME_LOWER).asm.embin"')
+$(eval EMTERPRETERFLAGS = -s ASYNCIFY=1 -s ASYNCIFY_WHITELIST=@async_funcs.tmp)
 endif
 ifneq ($(EMCC_DEBUG),0)
 $(eval UGLIFY = cat)
@@ -202,19 +205,25 @@ $(MODULE_NAME_LOWER).asm.js: root root.make sources+python+strings.o extract_syn
 	sed -e 's/SMALL_BUT_SLOW_SYNC/$(SMALL_BUT_SLOW_SYNC)/g; s/SMALL_BUT_NO_ASYNC/$(SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
 	# Build async_funcs.tmp
 ifdef SHOULD_EMTERPRET
-	(echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o | grep 'coldbrew_sync' | grep '\-\-\-\-\-\-\-\- W ' | sed -e 's/-------- W /_/g') | sed -e 's/_coldbrew_sync//g' | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
+	(echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS_2); llvm-nm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o | grep -E '\-\-\-\-\-\-\-\- (t|T) ' | sed -e 's/-------- t //g' | sed -e 's/-------- T //g') | sed -e 's/_coldbrew_sync//g' | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g' > async_funcs.tmp
 else
 	echo '[]' > async_funcs.tmp
 endif
-	# Keep a back up of emterpretify.py
-	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak
+	# Keep a back up of emmc.py
+	cp $(EMSCRIPTEN_PATH)/emcc.py $(EMSCRIPTEN_PATH)/emcc.py.bak
+	# Modify emcc.py to run asm-patcher in build process
+	cp asm-patcher.py $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+	python -c 'source = open("$(EMSCRIPTEN_PATH)/emcc.py", "r").read(); source = source.replace("""# Remove some trivial whitespace""","""args = [shared.PYTHON,shared.path_from_root("tools", "asm-patcher.py"),final,final];shared.check_call(args);\n# Remove some trivial whitespace"""); print(source)' > $(EMSCRIPTEN_PATH)/emcc.py.tmp
+	! cmp $(EMSCRIPTEN_PATH)/emcc.py.tmp $(EMSCRIPTEN_PATH)/emcc.py
+	mv $(EMSCRIPTEN_PATH)/emcc.py.tmp $(EMSCRIPTEN_PATH)/emcc.py
 ifdef SHOULD_SYNC
-	# Modify emterpretify.py to keep intermediate files
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean();sys.exit(1)"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	# Modify asm-patcher.py to keep intermediate files
+	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/sync-$@.intermediate.js");temp_files.clean();sys.exit(1)"""); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
 	# Build synchronous version of .asm.js
 	rm sync-$@.intermediate.js 2>/dev/null || true
-	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s EMTERPRETIFY=1 -s EMTERPRETIFY_ASYNC=1 -s EMTERPRETIFY_WHITELIST='["_export_runAsync"]' \
+	$(CC) -o sync-$@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) -s ASYNCIFY_WHITELIST='["export_runAsync"]' \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d)) || true
 	cat sync-$@.intermediate.js 1>/dev/null
 	# Extract the synchronous function bodies of functions we will want to run both synchronously and asynchronously
@@ -230,30 +239,33 @@ ifneq ($(EMCC_DEBUG),0)
 	mv tmp-sync-coldbrew.asm.js.intermediate.js.tmp sync-coldbrew.asm.js.intermediate.js
 endif
 endif
-	# Restore the backup copy of emterpretify.py
-	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
-	# Modify emterpretify.py to add in the synchronous function bodies
+	# Modify asm-patcher.py to add in the synchronous function bodies
 ifdef SHOULD_SYNC
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""# second pass, finalize trampolines""","""# second pass, finalize trampolines\n  lines = [lines[0]] + open("synchronous-func-bodies.intermediate.js", "r").read().split("\\n")+ lines[1:]"""); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
 endif
-	# Modify emterpretify.py to keep intermediate files
-ifneq ($(EMCC_DEBUG),0)
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
-endif
-	# Modify emterpretify.py to branch to the synchronous function bodies when running synchronously with an if-statement
+# 	# Modify asm-patcher.py to keep intermediate files
+# ifneq ($(EMCC_DEBUG),0)
+# 	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""temp_files.clean()""","""os.system("cp "+outfile+" "+os.getcwd()+"/$@.intermediate.js");temp_files.clean()"""); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+# 	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# 	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# endif
+	# Modify asm-patcher.py to branch to the synchronous function bodies when running synchronously with an if-statement
 ifdef SHOULD_SYNC
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0];\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; funcargs = line.split('\''('\'')[1].split('\'')'\'')[0];\n    elif "if ((asyncState | 0) != 2) {" in lines[i]:\n      lines[i] = ("if ((HEAP32["+re.search("function __Coldbrew_is_async.*?HEAP32\\[(.*?)\\]", asm.js, flags=re.S|re.M).groups()[0]+"] | 0) == 0) {  return " + func + "_coldbrew_sync("+ funcargs +"); }" if func + "_coldbrew_sync" in [func.strip() for func in open("extract_sync_code_arg_1.tmp", "r").read().replace("\\"", "").split(",")] else "") + lines[i] """); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
 endif
-# Modify emterpretify.py on debug builds to ignore duplicated dynCall functions by renaming them and suffixing them with _dup
-ifneq ($(EMCC_DEBUG),0)
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; lines.__setitem__(i, lines[i].replace("function "+func+"(", "function "+func+"_dup(")) if func.startswith("dynCall_") else str(); print("Replaced duplicate function symbol:", lines[i]) if func.startswith("dynCall_") else str()"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
-	python -c 'source = open("/usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py", "r").read(); source = source.replace("""asm.write(outfile)""","""asm.write(outfile);new_outfile_content = re.sub("(dynCall_[a-z0-9A-Z]+): (dynCall_[a-z0-9A-Z]+)", r"\\1_dup: \\2_dup", open(outfile, "r").read());open(outfile, "w+").write(new_outfile_content)"""); print(source)' > /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp
-	mv /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.tmp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
-endif
+# # Modify asm-patcher.py on debug builds to ignore duplicated dynCall functions by renaming them and suffixing them with _dup
+# ifneq ($(EMCC_DEBUG),0)
+# 	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""func = line.split('\'' '\'')[1].split('\''('\'')[0]""", """func = line.split('\'' '\'')[1].split('\''('\'')[0]; lines.__setitem__(i, lines[i].replace("function "+func+"(", "function "+func+"_dup(")) if func.startswith("dynCall_") else str(); print("Replaced duplicate function symbol:", lines[i]) if func.startswith("dynCall_") else str()"""); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+# 	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# 	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# 	python -c 'source = open("$(EMSCRIPTEN_PATH)/tools/asm-patcher.py", "r").read(); source = source.replace("""asm.write(outfile)""","""asm.write(outfile);new_outfile_content = re.sub("(dynCall_[a-z0-9A-Z]+): (dynCall_[a-z0-9A-Z]+)", r"\\1_dup: \\2_dup", open(outfile, "r").read());open(outfile, "w+").write(new_outfile_content)"""); print(source)' > $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp
+# 	! cmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# 	mv $(EMSCRIPTEN_PATH)/tools/asm-patcher.py.tmp $(EMSCRIPTEN_PATH)/tools/asm-patcher.py
+# endif
 	# Build asynchronous version of .asm.js (with branching to synchronous function bodies)
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(EMTERPRETERFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
@@ -279,8 +291,8 @@ else
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 endif
 	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
-	# Restore the backup copy of emterpretify.py
-	cp /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py.bak /usr/local/coldbrew/emsdk/emscripten/$(EMSCRIPTEN_VERSION)/tools/emterpretify.py
+	# Restore the backup copy of emcc.py
+	cp $(EMSCRIPTEN_PATH)/emcc.py.bak $(EMSCRIPTEN_PATH)/emcc.py
 
 
 sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o ../customize/coldbrew_settings.py
@@ -388,8 +400,8 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	)
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../$(PYVERSION)/SyncPathCreator.cpp
-	g++ ../$(PYVERSION)/SyncPathCreator.cpp -o ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -shared -fPIC $(shell llvm-config --cxxflags --ldflags --libs) -I/usr/local/coldbrew/emsdk/clang/include
-	opt -load ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -syncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
+	g++ ../$(PYVERSION)/SyncPathCreator.cpp -o ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -shared -fPIC $(shell llvm-config --cxxflags --ldflags) -I/usr/local/coldbrew/emsdk/clang/include
+	$(dir $(shell which llvm-config))/opt -load ../installs/python-$(PYVERSION)/lib/SyncPathCreator.o -syncify ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o
 	llvm-extract -rfunc=".+_coldbrew_sync" -rglob="\.str*|.*PyId_.*" ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.o > ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o
 	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
 	rm ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).syncified.extracted.o

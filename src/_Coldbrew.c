@@ -46,6 +46,7 @@ _Coldbrew__run_string(PyObject* self, PyObject* args)
     return PyUnicode_FromString(emscripten_run_script_string(script));
 }
 
+
 static PyObject*
 _Coldbrew__sleep(PyObject* self, PyObject* args)
 {
@@ -53,7 +54,7 @@ _Coldbrew__sleep(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "f", &time))
         return NULL;
     if (_coldbrew_is_async) {
-      emscripten_sleep((int) (time*1000));
+      emscripten_sleep((long) (time*1000));
     }
     Py_RETURN_NONE;
 }
