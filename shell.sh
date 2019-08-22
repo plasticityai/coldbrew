@@ -12,6 +12,6 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
       echo "Using locally built Coldbrew Docker image...";
       docker build . -t coldbrew:latest;
       mkdir -p $(pwd)/cache;
-      docker run --rm -it -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; source /root/.cargo/env; cd /BUILD/; /bin/bash";
+      docker run --rm -it -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; source /root/.cargo/env; cp -p /root/.emscripten /root/.emscripten_cache/.emscripten; export EM_CONFIG=/root/.emscripten_cache/.emscripten; cd /BUILD/; /bin/bash";
   fi
 )
