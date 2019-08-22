@@ -1364,7 +1364,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         }
         return ret;
       };
-      if (!SMALL_BUT_NO_ASYNC) {
+      if (!FAST_AND_SMALL_BUT_NO_ASYNC) {
         MODULE_NAME._runAsync = MODULE_NAME.Module.cwrap('export_runAsync', 'number', ['string'], {
           async: true,
         });
@@ -1380,7 +1380,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         };
       }
       MODULE_NAME._runFile = MODULE_NAME.Module.cwrap('export__runFile', 'number', ['string']);
-      if (!SMALL_BUT_NO_ASYNC) {
+      if (!FAST_AND_SMALL_BUT_NO_ASYNC) {
         MODULE_NAME._runFileAsync = MODULE_NAME.Module.cwrap('export__runFileAsync', 'number', ['string'], {
           async: true,
         });
@@ -1396,7 +1396,7 @@ MODULE_NAME._load = function(arg1, arg2) {
           return ret;
         }
       };
-      if (!SMALL_BUT_NO_ASYNC) {
+      if (!FAST_AND_SMALL_BUT_NO_ASYNC) {
         MODULE_NAME.getVariableAsync = function(expression, allowProxy = !finalizedOptions.worker) {
           var uid = randid();
           return makePromiseChainable(MODULE_NAME.runAsync('Coldbrew._run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._serialize_to_js('+expression+')))').then(function() {
@@ -1419,7 +1419,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       MODULE_NAME.runFunction = function(functionExpression, ...args) {
         return MODULE_NAME.getVariable('Coldbrew._call_func('+functionExpression+','+args.map(arg => serializeToPython(arg)).join(',')+')');
       };
-      if (!SMALL_BUT_NO_ASYNC) {
+      if (!FAST_AND_SMALL_BUT_NO_ASYNC) {
         MODULE_NAME.runFunctionAsync = function(functionExpression, ...args) {
           return MODULE_NAME.getVariableAsync('Coldbrew._call_func('+functionExpression+','+args.map(arg => serializeToPython(arg)).join(',')+')');
         };
@@ -1587,7 +1587,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         MODULE_NAME.chdir(oldcwd);
         return ret;
       };
-      if (!SMALL_BUT_NO_ASYNC) {
+      if (!FAST_AND_SMALL_BUT_NO_ASYNC) {
         MODULE_NAME.runFileAsync = function(path, options={}) {
           var oldcwd = MODULE_NAME.getcwd();
           var defaultOptions = {

@@ -9,16 +9,6 @@ RUN apt-get install default-jre cmake ninja-build -y
 ADD install_emscripten.sh /tmp/install_emscripten.sh
 RUN /tmp/install_emscripten.sh
 
-# Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
-RUN apt-get install nano cmake -y
-RUN cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
-RUN sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
-RUN mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
-RUN cd /tmp/binaryen && cmake . && make
-RUN cd /usr/local/coldbrew/emsdk/upstream/bin/ && cp asm2wasm asm2wasm.bak
-RUN cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/upstream/bin/asm2wasm
-RUN rm -rf /tmp/binaryen
-
 # Install Python dependencies
 RUN apt-get install build-essential -y
 RUN apt-get install libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev  -y

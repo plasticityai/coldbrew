@@ -31,8 +31,7 @@ DEBUG_MODE = False
 NO_ASSERTIONS = False
 
 # Optional Optimizations
-SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted, but removes asynchronous execution functionality
-SMALL_BUT_SLOW_SYNC = True # Reduces the code size emitted, but is synchronous execution is slower
+FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes faster, but removes asynchronous execution functionality
 
 ######################################################################
 ### Internal Settings 
