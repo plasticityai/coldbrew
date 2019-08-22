@@ -344,6 +344,7 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		cd ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
 		emar -x ../libpython$(PYMINOR).a; \
 	)
+	# echo for d in $(find installs/python-3.5.2/lib/libpython3.5 -type f); do (llvm-nm $d 2>/dev/null | grep "T PyInit__" 1>/dev/null) && echo "$d"; done ###### TODO unused modules
 	llvm-link ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
 	rm -rf $(BUILD)
