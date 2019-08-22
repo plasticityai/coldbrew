@@ -35,7 +35,7 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
 RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
 
-# Install uglify-js
+# Install uglify-js and Google Closure Compiler
 RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es google-closure-compiler"
 
 # Increase node memory size

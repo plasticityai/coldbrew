@@ -31,15 +31,6 @@ before_script:
   - apt-get install default-jre cmake ninja-build -y
   # Install Emscripten
   - ./install_emscripten.sh
-  # Patch binaryen Optimizer to prevent StackIR.cpp - Assertion Failed: values.size() > 0 error
-  - apt-get install nano cmake -y
-  - cd /tmp && git clone https://github.com/WebAssembly/binaryen.git
-  - sed -e 's/assert(values.size() > 0);/if(values.size() <= 0) { return; } assert(values.size() > 0);/g;' /tmp/binaryen/src/passes/StackIR.cpp > /tmp/binaryen/src/passes/StackIR.cpp.tmp
-  - mv /tmp/binaryen/src/passes/StackIR.cpp.tmp /tmp/binaryen/src/passes/StackIR.cpp
-  - cd /tmp/binaryen && cmake . && make
-  - cd /usr/local/coldbrew/emsdk/upstream/bin/ && cp asm2wasm asm2wasm.bak
-  - cp /tmp/binaryen/bin/asm2wasm /usr/local/coldbrew/emsdk/upstream/bin/asm2wasm
-  - rm -rf /tmp/binaryen
   # Install Python dependencies
   - apt-get install build-essential -y
   - apt-get install libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev  -y
@@ -51,20 +42,27 @@ before_script:
   - cd openssl-1.0.1g && make
   - cd openssl-1.0.1g && make install_sw
   - rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
+  # Install Java for Closure Compiler
+  - cd opt && curl -L https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u222-b10/OpenJDK8U-jre_x64_linux_hotspot_8u222b10.tar.gz -o jre.tar.gz && tar zxvf jre.tar.gz --one-top-level=jre
+  - rm /opt/jre.tar.gz
+  - echo "\n\nPATH=/opt/jre/jdk8u222-b10-jre/bin:\$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh
   # Install Makefile dependencies
-  - apt-get install unzip rsync -y
+  - apt-get install zip unzip rsync -y
   # Install wasm-nm and wasm-gc
   - curl https://sh.rustup.rs -sSf | sh -s -- -y
   - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
   - /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
-  # Install uglify-js
-  - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es"
+  # Install uglify-js and Google Closure Compiler
+  - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es google-closure-compiler"
   # Increase node memory size
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; mv \$EMSDK_NODE \$EMSDK_NODE.bak"
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; echo -e '#!/usr/bin/env bash' >> \$EMSDK_NODE"
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; echo -e \"\$EMSDK_NODE.bak --max_old_space_size=16384 \\\"\\\$@\\\"\" >> \$EMSDK_NODE"
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; chmod +x \$EMSDK_NODE"
   - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
+  # Patch some emscripten files
+  - src/library_async.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/library_async.js
+  - src/preamble.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/preamble.js
 
 Test and Deploy:
   stage: Test and Deploy
