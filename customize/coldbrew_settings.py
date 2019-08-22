@@ -31,6 +31,7 @@ DEBUG_MODE = False
 NO_ASSERTIONS = False
 
 # Optional Optimizations
+USE_COMPRESSION = True # Compresses the the distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web
 FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes faster, but removes asynchronous execution functionality
 
 ######################################################################

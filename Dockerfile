@@ -23,7 +23,7 @@ RUN cd openssl-1.0.1g && make install_sw
 RUN rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
 
 # Install Makefile dependencies
-RUN apt-get install unzip rsync -y
+RUN apt-get install zip unzip rsync -y
 
 # Install wasm-nm and wasm-gc
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y

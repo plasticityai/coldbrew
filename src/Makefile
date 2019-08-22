@@ -7,12 +7,13 @@ DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); 
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
-JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP).lower())")
+JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or USE_COMPRESSION).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
+USE_COMPRESSION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(USE_COMPRESSION and not NODE).lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\nPyCFunction_Call'
@@ -205,6 +206,22 @@ else
 	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
 	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
 endif
+	# Compress the output files
+ifeq ($(USE_COMPRESSION),true)
+	zip -9 -j $(MODULE_NAME_LOWER).asm.wasm.tmp $(MODULE_NAME_LOWER).asm.wasm;
+	mv $(MODULE_NAME_LOWER).asm.wasm.tmp $(MODULE_NAME_LOWER).asm.wasm;
+	zip -9 -j $(MODULE_NAME_LOWER).asm.data.tmp $(MODULE_NAME_LOWER).asm.data;
+	mv $(MODULE_NAME_LOWER).asm.data.tmp $(MODULE_NAME_LOWER).asm.data;
+	sed -e 's/typeof WebAssembly.instantiateStreaming/undefined/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/callback(packageData)/Promise.resolve(packageData).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") }).then(callback)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
+	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+endif
+	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
 
 sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../customize/coldbrew_settings.py
