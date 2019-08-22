@@ -1147,7 +1147,7 @@ MODULE_NAME.PythonError = PythonError;
 MODULE_NAME.PythonVariable = PythonVariable;
 MODULE_NAME.PythonKeywords = function(keywords) { 
   var pykw = new _PythonKeywords(keywords, MODULE_NAME._finalizedOptions.worker && !IS_WORKER_SCRIPT);
-  async = Object.keys(pykw.keywords).some(function(key) {
+  var async = Object.keys(pykw.keywords).some(function(key) {
     return isPromise(pykw.keywords[key]);
   });
   if (async) {

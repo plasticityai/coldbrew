@@ -7,13 +7,13 @@ DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); 
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
-JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or USE_COMPRESSION).lower())")
+JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or COMPRESS_NETWORK_FILES).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
 PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
-USE_COMPRESSION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(USE_COMPRESSION and not NODE).lower())")
+COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not NODE).lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\nPyCFunction_Call'
@@ -70,9 +70,12 @@ ifdef SHOULD_ASYNCIFY
 $(eval ASYNCFLAGS = -s ASYNCIFY=1 -s ASYNCIFY_WHITELIST='$(ASYNC_WHITELIST)')
 endif
 ifneq ($(EMCC_DEBUG),0)
+$(eval _JSCC = cat)
+$(eval JSCC = cat)
 $(eval UGLIFY = cat)
 else
-$(eval UGLIFY = uglifyjs --compress)
+$(eval JSCC = google-closure-compiler -W QUIET )
+$(eval UGLIFY = uglifyjs --compress )
 endif
 
 SRCS := $(wildcard *.c)
@@ -81,14 +84,14 @@ BCS := $(SRCS:.c=.bc)
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 
-all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).asm.js.make index.html
+all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).js.make index.html
 
 python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 
-index.html: index.html.pre.html $(MODULE_NAME_LOWER).asm.js Makefile
+index.html: index.html.pre.html $(MODULE_NAME_LOWER).js Makefile
 	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
-../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).asm.js.make Makefile index.html ../README.md ../package.json
+../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).js.make Makefile index.html ../README.md ../package.json
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	mkdir -p ../$(COLDBREW_DIST_DIR) || true
@@ -110,119 +113,124 @@ ifeq ($(NODE),true)
 		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
 endif
 
-$(MODULE_NAME_LOWER).asm.js.make: $(MODULE_NAME_LOWER).asm.js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js
+$(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js
 	# Start global closure
-	echo "(function () {" > $(MODULE_NAME_LOWER).asm.js
-	echo "const SCRIPT_SOURCE = (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).asm.js
+	echo "(function () {" > $(MODULE_NAME_LOWER).js
+	echo "const SCRIPT_SOURCE = (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).js
 	# Start a named closure, this is so that we can unload() and reload() everything the library does easily
-	echo "(function COLDBREW_TOP_SCOPE_FUNC(shouldExportColdbrew = true, coldbrewObjectReference={}) {" >> $(MODULE_NAME_LOWER).asm.js
-	echo "const COLDBREW_TOP_SCOPE = {};" >> $(MODULE_NAME_LOWER).asm.js
-	echo "const $(MODULE_NAME) = coldbrewObjectReference;" >> $(MODULE_NAME_LOWER).asm.js
+	echo "(function COLDBREW_TOP_SCOPE_FUNC(shouldExportColdbrew = true, coldbrewObjectReference={}) {" >> $(MODULE_NAME_LOWER).js
+	echo "const COLDBREW_TOP_SCOPE = {};" >> $(MODULE_NAME_LOWER).js
+	echo "const $(MODULE_NAME) = coldbrewObjectReference;" >> $(MODULE_NAME_LOWER).js
 	# Define some helper indicator variables
-	echo "const IS_NODE_JS = typeof process !== 'undefined'" >> $(MODULE_NAME_LOWER).asm.js
-	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof window !== 'undefined') var COLDBREW_GLOBAL_SCOPE = window;" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof self !== 'undefined' && !IS_NODE_JS) var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (typeof global !== 'undefined') var COLDBREW_GLOBAL_SCOPE = global;" >> $(MODULE_NAME_LOWER).asm.js
+	echo "const IS_NODE_JS = typeof process !== 'undefined'" >> $(MODULE_NAME_LOWER).js
+	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).js
+	echo "if (typeof window !== 'undefined') var COLDBREW_GLOBAL_SCOPE = window;" >> $(MODULE_NAME_LOWER).js
+	echo "if (typeof self !== 'undefined' && !IS_NODE_JS) var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).js
+	echo "if (typeof global !== 'undefined') var COLDBREW_GLOBAL_SCOPE = global;" >> $(MODULE_NAME_LOWER).js
 	# Append the file created by Emscripten
-	echo "" >> $(MODULE_NAME_LOWER).asm.js;
-	cat $(MODULE_NAME_LOWER).asm.js.bak >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).js;
+	cat $(MODULE_NAME_LOWER).js.bak >> $(MODULE_NAME_LOWER).js
 
 	# Build JS Files
 	sed -f inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js.intermediate.js | $(UGLIFY) > module.js
+	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js.intermediate.js | $(JSCC) > module.js
 ifeq ($(EMCC_DEBUG),0)
 	rm module.js.pre.js.intermediate.js
 endif
 
-	# Add extra modifications to the .asm.js file for the final build
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	cat module.js >> $(MODULE_NAME_LOWER).asm.js
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module1 = module };" >> $(MODULE_NAME_LOWER).asm.js	
+	# Add extra modifications to the .js file for the final build
+	echo "" >> $(MODULE_NAME_LOWER).js
+	cat module.js >> $(MODULE_NAME_LOWER).js
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module1 = module };" >> $(MODULE_NAME_LOWER).js	
 ifeq ($(BROWSERFS),true)
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module = module2 };" >> $(MODULE_NAME_LOWER).asm.js	
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module = module2 };" >> $(MODULE_NAME_LOWER).js	
+	echo "" >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).js
 endif
 ifeq ($(JSZIP),true)
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module = module3 };" >> $(MODULE_NAME_LOWER).asm.js	
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).asm.js
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module = module3 };" >> $(MODULE_NAME_LOWER).js	
+	echo "" >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).js
+	echo "" >> $(MODULE_NAME_LOWER).js
 endif
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module = module4 };" >> $(MODULE_NAME_LOWER).asm.js	
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).asm.js
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module = module5 };" >> $(MODULE_NAME_LOWER).asm.js	
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	cat ../third_party/comlink/comlink.js | $(UGLIFY) >> $(MODULE_NAME_LOWER).asm.js
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
-	echo "if (IS_NODE_JS) { module = module1 };" >> $(MODULE_NAME_LOWER).asm.js	
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module = module4 };" >> $(MODULE_NAME_LOWER).js	
+	echo "" >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).js
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module = module5 };" >> $(MODULE_NAME_LOWER).js	
+	echo "" >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/comlink/comlink.js | $(JSCC) >> $(MODULE_NAME_LOWER).js
+	echo "" >> $(MODULE_NAME_LOWER).js
+	echo "if (IS_NODE_JS) { module = module1 };" >> $(MODULE_NAME_LOWER).js	
 
-	echo "" >> $(MODULE_NAME_LOWER).asm.js
+	echo "" >> $(MODULE_NAME_LOWER).js
 	# End named closure
-	echo "return $(MODULE_NAME);" >> $(MODULE_NAME_LOWER).asm.js
-	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
+	echo "return $(MODULE_NAME);" >> $(MODULE_NAME_LOWER).js
+	echo "})();" >> $(MODULE_NAME_LOWER).js
 	# End global closure
-	echo "})();" >> $(MODULE_NAME_LOWER).asm.js
+	echo "})();" >> $(MODULE_NAME_LOWER).js
 
 ifeq ($(NODE),false)
 	# Final compression
-	cat $(MODULE_NAME_LOWER).asm.js | $(UGLIFY) > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	cat $(MODULE_NAME_LOWER).js | $(JSCC) | $(UGLIFY) > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 
-	touch $(MODULE_NAME_LOWER).asm.js.make
+	touch $(MODULE_NAME_LOWER).js.make
 
-$(MODULE_NAME_LOWER).asm.js: root root.make sources+python+strings.o prejs.js.pre.js
+$(MODULE_NAME_LOWER).js: root root.make sources+python+strings.o prejs.js.pre.js
+	# Add .gitignore
+	echo "$(MODULE_NAME_LOWER).js" > .gitignore
 	# Build JS files
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(UGLIFY) > prejs.js
-	# Build .asm.js + .wasm + .data
+	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(JSCC) > prejs.js
+	# Build .js + .wasm + .data
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
 ifeq ($(NODE),false)
-	sed -e 's/$(MODULE_NAME_LOWER).asm.data/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.data"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/$(MODULE_NAME_LOWER).asm.wasm/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).asm.wasm"+"/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/$(MODULE_NAME_LOWER).data/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).data"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/$(MODULE_NAME_LOWER).wasm/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).wasm"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 else
-	sed -e 's/if (typeof crypto !== "undefined")/if (typeof crypto !== "undefined" \&\& !ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/if(typeof crypto!=="undefined")/if(typeof crypto!=="undefined"\&\&!ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+	sed -e 's/if (typeof crypto !== "undefined")/if (typeof crypto !== "undefined" \&\& !ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/if(typeof crypto!=="undefined")/if(typeof crypto!=="undefined"\&\&!ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 	# Compress the output files
-ifeq ($(USE_COMPRESSION),true)
-	zip -9 -j $(MODULE_NAME_LOWER).asm.wasm.tmp $(MODULE_NAME_LOWER).asm.wasm;
-	mv $(MODULE_NAME_LOWER).asm.wasm.tmp $(MODULE_NAME_LOWER).asm.wasm;
-	zip -9 -j $(MODULE_NAME_LOWER).asm.data.tmp $(MODULE_NAME_LOWER).asm.data;
-	mv $(MODULE_NAME_LOWER).asm.data.tmp $(MODULE_NAME_LOWER).asm.data;
-	sed -e 's/typeof WebAssembly.instantiateStreaming/undefined/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
-	sed -e 's/callback(packageData)/Promise.resolve(packageData).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") }).then(callback)/g;' $(MODULE_NAME_LOWER).asm.js > $(MODULE_NAME_LOWER).asm.js.tmp
-	mv $(MODULE_NAME_LOWER).asm.js.tmp $(MODULE_NAME_LOWER).asm.js
+ifeq ($(COMPRESS_NETWORK_FILES),true)
+	zip -9 -j $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
+	mv $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
+	zip -9 -j $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
+	mv $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
+	sed -e 's/typeof WebAssembly.instantiateStreaming/undefined/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/callback(packageData)/Promise.resolve(packageData).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") }).then(callback)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
+	# Compress
+	$(JSCC) $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	# Save a backup copy of the file
-	cp $(MODULE_NAME_LOWER).asm.js $(MODULE_NAME_LOWER).asm.js.bak
+	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
 
 sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../customize/coldbrew_settings.py
 	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
@@ -246,6 +254,7 @@ cleanlocal:
 	rm *.bc 2>/dev/null || true
 	rm *.mem 2>/dev/null || true
 	rm *.asm.js 2>/dev/null || true
+	rm $(MODULE_NAME_LOWER).js 2>/dev/null || true
 	rm *.orig.js 2>/dev/null || true
 	rm *.intermediate.js 2>/dev/null || true
 	rm *.wasm 2>/dev/null || true

@@ -6,7 +6,7 @@
   "repository": "plasticityai/coldbrew",
   "homepage": "https://github.com/plasticityai/coldbrew/",
   "author": "Plasticity Inc. <opensource@plasticity.ai> (https://www.plasticity.ai/)",
-  "main": "MODULE_NAME_LOWER.asm.js",
+  "main": "MODULE_NAME_LOWER.js",
   "bugs:": "https://github.com/plasticityai/coldbrew/issues",
   "engines": {
     "node": ">=8.0.0"

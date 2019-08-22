@@ -2,7 +2,7 @@
 
 ## <div align="center">Coldbrew: Run Python in JavaScript<br /><br />[![pipeline status](https://gitlab.com/Plasticity/coldbrew/badges/master/pipeline.svg)](https://gitlab.com/Plasticity/coldbrew/commits/master)&nbsp;&nbsp;&nbsp;[![npm (scoped)](https://img.shields.io/npm/v/@plasticity/coldbrew.svg)](https://www.npmjs.com/package/@plasticity/coldbrew)&nbsp;&nbsp;&nbsp;[![version](https://img.shields.io/github/release/plasticityai/coldbrew.svg)](https://github.com/plasticityai/coldbrew/releases)</div>
 
-Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly)/`asm.js`. It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
+Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly). It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
 
 Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`).
 
@@ -83,9 +83,9 @@ You can find a demo with some examples of Coldbrew at [http://coldbrew.plasticit
 We also have a demo project that ports the [Star Wars API](https://swapi.co/)'s Python Library, [swapi-python](https://github.com/phalt/swapi-python), to JavaScript using Coldbrew at [plasticityai/coldbrew-star-wars-api-demo](https://github.com/plasticityai/coldbrew-star-wars-api-demo). It is a good example of a [custom build](#building-a-custom-coldbrew-python-environment) of Coldbrew.
 
 ## Installation
-You can use the library in a browser by embedding `coldbrew.asm.js` via our CDN:
+You can use the library in a browser by embedding `coldbrew.js` via our CDN:
 ```html
-<script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.asm.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/plasticityai/coldbrew@latest/dist/coldbrew.js"></script>
 ```
 
 You can use the library in Node.js by installing it using `npm`:
@@ -579,7 +579,7 @@ You may want to change what value will be exported by the library. By default, t
 Whatever you set the `EXPORT` variable to, is what the global variable named `MODULE_NAME` (the same `MODULE_NAME` from `coldbrew_settings.py`) will be set to in browsers or what will be exported in Node.js when `require()`-ing your library.
 
 ## Example Use Cases
-This [isn't the most efficient way](#benchmarks) to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted `asm.js`/WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly or `asm.js` to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
+This [isn't the most efficient way](#benchmarks) to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
 
 1. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser / Node.js.
 

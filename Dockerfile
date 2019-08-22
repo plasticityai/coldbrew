@@ -31,7 +31,7 @@ RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-nm"
 RUN /bin/bash -c "source $HOME/.cargo/env; cargo install wasm-gc"
 
 # Install uglify-js
-RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es"
+RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm install -g uglify-es google-closure-compiler"
 
 # Increase node memory size
 RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; mv \$EMSDK_NODE \$EMSDK_NODE.bak"

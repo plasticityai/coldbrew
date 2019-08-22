@@ -31,7 +31,7 @@ DEBUG_MODE = False
 NO_ASSERTIONS = False
 
 # Optional Optimizations
-USE_COMPRESSION = True # Compresses the the distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web
+COMPRESS_NETWORK_FILES = True # Compresses the supporting distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web. It's recommended you load Coldbrew with {worker: true} mode when using this, to offload the decompression into its own web worker.
 FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes faster, but removes asynchronous execution functionality
 
 ######################################################################
