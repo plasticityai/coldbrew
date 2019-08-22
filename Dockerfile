@@ -23,7 +23,7 @@ RUN cd openssl-1.0.1g && make install_sw
 RUN rm -rf openssl-1.0.1g.tar.gz openssl-1.0.1g
 
 # Install Java for Closure Compiler
-RUN cd opt && curl -L https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u222-b10/OpenJDK8U-jre_x64_linux_hotspot_8u222b10.tar.gz -o jre.tar.gz && tar zxvf jre.tar.gz --one-top-level=jre
+RUN cd /opt && curl -L https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u222-b10/OpenJDK8U-jre_x64_linux_hotspot_8u222b10.tar.gz -o jre.tar.gz && tar zxvf jre.tar.gz --one-top-level=jre
 RUN rm /opt/jre.tar.gz
 RUN echo "\n\nPATH=/opt/jre/jdk8u222-b10-jre/bin:\$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh
 
