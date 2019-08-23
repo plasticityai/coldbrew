@@ -1,6 +1,6 @@
 {
   "name": "@plasticity/coldbrew",
-  "version": "VERSION",
+  "version": "0.0.0",
   "description": "Coldbrew is Python compiled into JavaScript using Emscripten. It is the easiest way to run Python code in JavaScript and is developed by Plasticity.",
   "license": "MIT",
   "repository": "plasticityai/coldbrew",

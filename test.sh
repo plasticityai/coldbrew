@@ -7,4 +7,4 @@ $(./serve.sh || true)&
 sleep 5;
 
 echo "Running mocha tests..."
-mocha --exit --timeout 120000 tests/**/*;
+node_modules/mocha/bin/mocha --exit --timeout 120000 tests/**/*;

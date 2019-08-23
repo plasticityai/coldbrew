@@ -105,8 +105,8 @@ index.html: index.html.pre.html $(MODULE_NAME_LOWER).js Makefile
 	rm ../$(COLDBREW_DIST_DIR)/*.make 2>/dev/null || true
 	rm ../$(COLDBREW_DIST_DIR)/*.tmp 2>/dev/null || true
 ifeq ($(NODE),true)
-		sed -e 's/VERSION/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
-		sed -e 's/VERSION/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package-lock.json > ../$(COLDBREW_DIST_DIR)/package-lock.json
+		sed -e 's/0.0.0/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
+		sed -e 's/0.0.0/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package-lock.json > ../$(COLDBREW_DIST_DIR)/package-lock.json
 		( \
 			cd ../$(COLDBREW_DIST_DIR); \
 		)

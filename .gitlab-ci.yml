@@ -47,7 +47,6 @@ before_script:
   - rm /opt/jre.tar.gz
   - echo "" >> /usr/local/coldbrew/emsdk/emsdk_env.sh
   - echo "PATH=/opt/jre/jdk8u222-b10-jre/bin:\$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh
-  - cat /usr/local/coldbrew/emsdk/emsdk_env.sh
   # Install Makefile dependencies
   - apt-get install zip unzip rsync -y
   # Install wasm-nm and wasm-gc
@@ -66,6 +65,13 @@ before_script:
   - cd $CI_PROJECT_DIR
   - cp src/library_async.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/library_async.js
   - cp src/preamble.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/preamble.js
+  # Install Chrome pre-requisites
+  - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+      && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
+      && apt-get update \
+      && apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst \
+        --no-install-recommends \
+      && rm -rf /var/lib/apt/lists/*
 
 Test and Deploy:
   stage: Test and Deploy
