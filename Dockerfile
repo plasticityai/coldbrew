@@ -49,7 +49,7 @@ RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMS
 RUN rm -rf /usr/share/locale/*
 RUN rm -rf /var/lib/apt/lists/*
 RUN rm -rf /root/.rustup
-RUN rm -rf /usr/share/*
+# RUN rm -rf /usr/share/*
 RUN rm -rf /usr/lib/x86_64-linux-gnu/dri
 RUN rm -rf /usr/lib/x86_64-linux-gnu/libicudata.a
 RUN rm -rf /usr/lib/x86_64-linux-gnu/libicudata.so.57.1
