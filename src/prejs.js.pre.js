@@ -45,12 +45,6 @@ Module.printErr = function(text) {
 
 Module.preInit = [function() {
   MODULE_NAME.preInit(Module);
-
-  if (MODULE_NAME._emterpreterFileResponse && typeof MODULE_NAME._emterpreterFileResponse.responseText !== 'undefined') {
-    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse.responseText;
-  } else if (MODULE_NAME._emterpreterFileResponse) {
-    Module.emterpreterFile = MODULE_NAME._emterpreterFileResponse;
-  }
 }];
 
 Module.preRun.push(function() {
