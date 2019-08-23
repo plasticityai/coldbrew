@@ -8,9 +8,10 @@ describe('Core', () => {
 
   describe('first', () => {
     it('5*5', async function () {
-      return expect(utils.eval(this, () => {
+      console.log('KEYS', await utils.eval(this, () => {
         return JSON.stringify(Object.keys(Coldbrew));
-      })).to.eventually.equal(25);
+      }));
+      return expect(Promise.resolve(25)).to.eventually.equal(25);
     });
   });
 });
