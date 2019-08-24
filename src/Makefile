@@ -237,7 +237,7 @@ endif
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
 
 stub_removed_modules.bc: ../customize/coldbrew_settings.py
-	echo '#include "Python.h"' >> /tmp/stub_removed_modules.c
+	echo '#include "Python.h"' > /tmp/stub_removed_modules.c
 	echo 'static PyMethodDef stub_methods[] = {};' >> /tmp/stub_removed_modules.c
 	echo '$(UNUSED_BUILTIN_MODULES_STUB_CODE)' >> /tmp/stub_removed_modules.c
 	cat /tmp/stub_removed_modules.c
@@ -245,7 +245,7 @@ stub_removed_modules.bc: ../customize/coldbrew_settings.py
 	rm /tmp/stub_removed_modules.c
 
 sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o stub_removed_modules.bc
-	echo '#include "Python.h"' >> /tmp/stub_manual_compile_modules.c
+	echo '#include "Python.h"' > /tmp/stub_manual_compile_modules.c
 	echo "PyObject* PyInit__sqlite3(void); void __coldbrew_pyinit_stub__sqlite3() { PyInit__sqlite3(); }" >> /tmp/stub_manual_compile_modules.c
 	$(CC) -o stub_manual_compile_modules.bc /tmp/stub_manual_compile_modules.c $(CFLAGS)
 	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
