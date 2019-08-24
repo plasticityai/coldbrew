@@ -30,6 +30,10 @@ DEBUG_MODE = False
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False
 
+# You can mark built-in modules as unused, so that we can delete them
+# when building to save space.
+UNUSED_BUILTIN_MODULES = []
+
 # Optional Optimizations
 COMPRESS_NETWORK_FILES = True # Compresses the supporting distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web. It's recommended you load Coldbrew with {worker: true} mode when using this, to offload the decompression into its own web worker.
 FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes faster, but removes asynchronous execution functionality
@@ -40,9 +44,6 @@ FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes
 ### The settings below are settings only the Coldbrew maintainers
 ### should ever really edit.
 ######################################################################
-
-# By deleting some of the built-in modules, we can save some space
-UNUSED_MODULES = "test distutils ensurepip idlelib __pycache__ tkinter"
 
 # Uncomment to enable threading support
 PTHREAD_CFLAGS = ""

@@ -1655,6 +1655,15 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME.getUsedFiles = function() {
       return Array.from(MODULE_NAME._usedFiles).join('\n');
     };
+    MODULE_NAME.getUnusedModules = function() {
+      // Python doesn't boot without required modules
+      var requiredModules = ["gc", "imp", "faulthandler", "_tracemalloc",  "_signal"];
+      var usedModules = MODULE_NAME.runFunction('Coldbrew._get_imported_modules').concat(requiredModules);
+      var allModules = "BUILTIN_MODULES".split(" ");
+      return JSON.stringify(allModules.filter(function(module) {
+        return !usedModules.includes(module);
+      }));
+    };
     if (!MODULE_NAME.loaded) {
       MODULE_NAME.onReady(function() {
         MODULE_NAME._initializer();

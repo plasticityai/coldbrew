@@ -4,7 +4,7 @@
 
 Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly). It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
 
-Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`).
+Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`). There are a ton of neat features like [HTTP support](#accessing-http-in-python) in Python and [bridge variables](#bridge-variables) to share native objects between the two languages using ES6 Proxies in JavaScript and operator overloads in Python.
 
 Coldbrew also allows you to bundle your own Python application, script, library along with its required modules and dependencies to the environment. See the section on [building a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment). The build is [Docker](https://www.docker.com/get-started)-ized so it is very easy to build! 🐳 
 
@@ -69,11 +69,12 @@ Coldbrew also allows you to bundle your own Python application, script, library 
   * [5. Running](#5-running)
   * [6. Deploying](#6-deploying)
   * [7. Saving space (Optional, but recommended)](#7-saving-space-optional-but-recommended)
-  * [8. Customizing the Export (Optional)](#8-customizing-the-export-optional)
+  * [8. Saving even more space (Optional, but recommended)](#8-saving-even-more-space-optional-but-recommended)
+  * [9. Customizing the Export (Optional)](#9-customizing-the-export-optional)
 - [Example Use Cases](#example-use-cases)
 - [Known Limitations](#known-limitations)
 - [Security](#security)
-- [Benchmarks](#benchmarks)
+- [Performance and Size Benchmarks](#performance-and-size-benchmarks)
 - [Contributing](#contributing)
 - [LICENSE and Attribution](#license-and-attribution)
 
@@ -412,7 +413,7 @@ Coldbrew.loadFiles();
 ### Extra Performance by using Workers
 You can run the Coldbrew library in a separate worker thread (Web Workers in the browser and Worker threads in Node.js) by passing `worker: true` to the Coldbrew `load` method. 
 
-This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. When running in asynchronous mode, the yield rate is automatically set very high, since you never need to yield back as it is running on a separate thread. [A high yield rate increases performance as well](#benchmarks).
+This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. When running in asynchronous mode, the yield rate is automatically set very high, since you never need to yield back as it is running on a separate thread. [A high yield rate increases performance as well](#performance-and-size-benchmarks).
 
 Note that when running in workers, every method on the `Coldbrew` object returns a `Promise` since the main thread has to asynchronously communicate back and forth with the worker thread. For example, you would get return values like so:
 ```javascript
@@ -562,7 +563,7 @@ Add any requirements of your project in the standard Python [`requirements.txt` 
 To bundle additional files or scripts into the virtual file system, simply add them to the `/customize/files` folder. They will be available at runtime under `/files` in the virtual file system.
 
 ### 4. Building
-To build, simply navigate to the project root in terminal and run `./build.sh`. This will kick off a build process within a Docker container. The first build will take quite some time as it will have to compile Python from source. Subsequent builds will be much faster with caches. If you need to clean all caches for some reason, run `./clean.sh`.
+To build, simply navigate to the project root in terminal and run `./build.sh`. This will kick off a build process within a Docker container. The first build will take quite some time as it will have to compile Python from source. Subsequent builds will be much faster with caches. If you need to clean all build caches for some reason, run `./clean.sh`.
 
 ### 5. Running
 To test, simply navigate to the project root in terminal and run `./serve.sh`. This will run a web server at [http://localhost:8000](http://localhost:8000) that will embed your custom Coldbrew Python environment for use.
@@ -571,15 +572,22 @@ To test, simply navigate to the project root in terminal and run `./serve.sh`. T
 Deployment files can be found under the `dist` folder. An example `index.html` in the `dist` folder shows how to import and use the library on a page. A `package.json` file will be added to the `dist` folder when building for Node.js, which you can modify as needed.
 
 ### 7. Saving space (Optional, but recommended)
-The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library. Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. You can easily generate this list of files by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
+The version of Coldbrew distributed by CDN can be quite large since it makes an AJAX request to download the entire Python standard library (`coldbrew.data` file). Your particular Python program / application / script, however, may not need all of these files. We have included an easy way to slim down the data bundle. Modify `customize/keeplist.txt` to include paths to all files of the standard library that your application uses to keep them (sort of like a reverse `.gitignore`), any other files will not be bundled at runtime. 
 
-### 8. Customizing the Export (Optional)
+You can easily generate this list of files to keep by passing `monitorFileUsage: true` to the Coldbrew `load` method and then calling `Coldbrew.getUsedFiles()` in the JavaScript console *after* running your Python program / application / script (to make sure that all files imported by your code were monitored). This saves a **significant** amount of space, so it is recommended!
+
+### 8. Saving even more space (Optional, but recommended)
+The WebAssembly binary (`coldbrew.wasm`) contains code for all of Python's compiled built-in modules. However, you may not need all of them. There is a very simple way to remove them during the build process to make the `coldbrew.wasm` file smaller. Modify the `UNUSED_BUILTIN_MODULES` setting in `customize/coldbrew_settings.py` to be a list of unused module names to not include and compile during the build process.
+
+You can easily generate this list of unused modules by calling `Coldbrew.getUnusedModules()` in the JavaScript console *after* running your Python program / application / script (to make sure that all modules your code uses are accounted for).
+
+### 9. Customizing the Export (Optional)
 You may want to change what value will be exported by the library. By default, the Coldbrew Python Environment is exported. You can modify what value is exported by setting the `EXPORT` variable in `customize/export.js`.
 
 Whatever you set the `EXPORT` variable to, is what the global variable named `MODULE_NAME` (the same `MODULE_NAME` from `coldbrew_settings.py`) will be set to in browsers or what will be exported in Node.js when `require()`-ing your library.
 
 ## Example Use Cases
-This [isn't the most efficient way](#benchmarks) to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
+This [isn't the most efficient way](#performance-and-size-benchmarks) to run code in a JavaScript. It is an interpreted language (Python), within another interpreted language (JavaScript). However, with the emitted WebAssembly code from Emscripten, it actually runs fairly quickly. Emscripten can get fairly close to native machine code speeds, because browsers will compile WebAssembly to machine code. It would, of course, be better if you hand re-wrote your Python code for the browser. However, there are be a few legitimate cases where this library would be useful:
 
 1. An online demo for a Python library that makes it easy for people to quickly experiment with it in the browser / Node.js.
 
@@ -612,7 +620,7 @@ When using Coldbrew in the browser, all Python code does execute in the browser,
 
 When using Coldbrew in Node.js, you similarly want to protect against executing arbitrary Python code server-side as there is now an additional risk of code executing on your backend server performing Denial-of-Service attacks or accessing your backend system resources.
 
-## Benchmarks
+## Performance and Size Benchmarks
 To give a quick sense of how much of a performance hit running Python in JavaScript takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:
 
 
@@ -629,7 +637,7 @@ Synchronous execution performs fairly well, with only a minor slowdown. Asynchro
 ## Contributing
 The main repository for this project can be found on [GitLab](https://gitlab.com/Plasticity/coldbrew). The [GitHub repository](https://github.com/plasticityai/coldbrew) is only a mirror. Pull requests for more tests, better error-checking, bug fixes, performance improvements, or documentation or adding additional utilties / functionalities are welcome on [GitLab](https://gitlab.com/Plasticity/coldbrew).
 
-**Please note**: This library is being actively maintained as we use it. However, due to the nature of compiling a whole other language's interpreter into JavaScript using a tool like Emscripten, certain things might not work or be accessible due to Emscripten's limitations. If you want to contribute a PR to fix something, please feel free to, but if we have no need for whatever happens to be broken we will likely not fix or provide support for those issues ourselves. If it is simply a matter of exposing a library / function that wasn't exposed or another simple change, open an issue or PR and we'll see if we can add support.
+**Please note**: This library is being actively maintained as we use it. However, due to the nature of compiling a whole other language's interpreter into JavaScript using a tool like Emscripten, certain things might not work or be accessible due to Emscripten's limitations. If you want to contribute a PR to fix something, please feel free to, but if we have no need for whatever happens to be broken we will likely not fix or provide support for those issues ourselves. If it is simply a matter of exposing a library / function that wasn't exposed or another simple change, open an issue or PR and we'll see if we can do our best to add support.
 
 You can contact us at [opensource@plasticity.ai](mailto:opensource@plasticity.ai).
 

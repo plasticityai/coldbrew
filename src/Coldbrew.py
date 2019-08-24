@@ -1,11 +1,9 @@
 import _Coldbrew
 import json
 import os
-import re
 import sys
 import time
 
-from collections import deque
 from _Coldbrew import *
 
 ############################################################
@@ -18,7 +16,7 @@ _var_id = 0
 _get_var_id = 0
 _vars = {}
 _vars_map_search = {}
-_vars_list_search = deque()
+_vars_list_search = []
 _get_vars = {}
 _exception = None
 _builtins = None
@@ -75,9 +73,14 @@ def _append_argv(arg):
 
 def _transform_prop(prop, reverse=None):
     if not(isinstance(reverse, list)) and _finalized_options['transformVariableCasing']:
-        if re.match('^[A-Za-z0-9]', prop) is not None:
-            s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', prop)
-            return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        if prop.isalnum():
+            result = ""
+            for i, c in enumerate(prop):
+                if i < (len(prop)-1) and c.islower() and prop[i+1].isupper():
+                    result += c.lower()+"_"
+                else:
+                    result += c.lower()
+            return result
         else:
             return prop
     elif _finalized_options['transformVariableCasing']:
@@ -135,6 +138,14 @@ def _call_func(func, *args):
 core functionality like sleep, standard input, 
 exception handling, and import loading. '''
 ############################################################
+
+# Shim sys.version
+try:
+    _sys_version_repo_index = sys.version.index(" (/b/s/w/ir/cache/git/chr")
+except:
+    _sys_version_repo_index = None
+if _sys_version_repo_index:
+    sys.version = sys.version[:_sys_version_repo_index]+"]"
 
 # Shim sleep()
 def sleep(t):
@@ -551,6 +562,10 @@ def run_function(functionExpression, *args):
 
 def reset():
     return _run_function(module_name_var+'.reset')
+
+def _get_imported_modules():
+    return list(sys.modules.keys())
+
 ############################################################
 #####################END PUBLIC FUNCTIONS###################
 ############################################################

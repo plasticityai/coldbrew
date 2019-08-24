@@ -5,7 +5,9 @@ MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'
 NODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
 DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
-UNUSED_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(UNUSED_MODULES)")
+UNUSED_MODULES=test distutils ensurepip idlelib __pycache__ tkinter
+UNUSED_BUILTIN_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('|'.join(['T PyInit_'+m for m in UNUSED_BUILTIN_MODULES]) if len(UNUSED_BUILTIN_MODULES) > 0 else '****no unused builtin modules****')")
+UNUSED_BUILTIN_MODULES_STUB_CODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; [print(open('removed_module_stub.c.template').read().replace('STUBMODULE', m)) for m in UNUSED_BUILTIN_MODULES]")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or COMPRESS_NETWORK_FILES).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
@@ -114,6 +116,8 @@ ifeq ($(NODE),true)
 endif
 
 $(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js
+	# This has to be defined in here and not at the beginning of the file
+	$(eval BUILTIN_MODULES := $(shell for d in $$(find ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) -type f); do (llvm-nm $$d 2>/dev/null | grep "T PyInit_" | sed -e 's/-------- T PyInit_/,/g' | sed -e 's/^,//g'); done))
 	# Start global closure
 	echo "(function () {" > $(MODULE_NAME_LOWER).js
 	echo "const SCRIPT_SOURCE = (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).js
@@ -133,7 +137,7 @@ $(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js mod
 
 	# Build JS Files
 	sed -f inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' module.js.pre.js.intermediate.js | $(JSCC) > module.js
+	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js | $(JSCC) > module.js
 ifeq ($(EMCC_DEBUG),0)
 	rm module.js.pre.js.intermediate.js
 endif
@@ -232,9 +236,20 @@ endif
 	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
 
-sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o ../customize/coldbrew_settings.py
+stub_removed_modules.bc: ../customize/coldbrew_settings.py
+	echo '#include "Python.h"' >> /tmp/stub_removed_modules.c
+	echo 'static PyMethodDef stub_methods[] = {};' >> /tmp/stub_removed_modules.c
+	echo '$(UNUSED_BUILTIN_MODULES_STUB_CODE)' >> /tmp/stub_removed_modules.c
+	cat /tmp/stub_removed_modules.c
+	$(CC) -o stub_removed_modules.bc /tmp/stub_removed_modules.c $(CFLAGS)
+	rm /tmp/stub_removed_modules.c
+
+sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o stub_removed_modules.bc
+	echo '#include "Python.h"' >> /tmp/stub_manual_compile_modules.c
+	echo "PyObject* PyInit__sqlite3(void); void __coldbrew_pyinit_stub__sqlite3() { PyInit__sqlite3(); }" >> /tmp/stub_manual_compile_modules.c
+	$(CC) -o stub_manual_compile_modules.bc /tmp/stub_manual_compile_modules.c $(CFLAGS)
 	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
-	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) ../installs/python-$(PYVERSION)/lib/_sqlite.o $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
+	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) stub_manual_compile_modules.bc --override=stub_removed_modules.bc $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
 	llvm-extract -rglob="\.str*" python.o > python-strings.o
 	llvm-link --only-needed sources.o python.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) --override=python.o > sources+python.o
 	llvm-link sources+python.o python-strings.o --override=python.o > sources+python+strings.o
@@ -288,8 +303,8 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true
-	mkdir -p root/files || true
-	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root/files
+
+	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root
 	rm root/files/.gitkeep 2>/dev/null || true
 	mkdir -p root/usr/local/lib
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(dir $(PYLIB))/python$(PYMINOR) root/usr/local/lib
@@ -337,15 +352,22 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: $(PYLIB)
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) ../customize/coldbrew_settings.py
+	rm -rf ../installs/python-$(PYVERSION)/lib/workspace || true
+	cp -r ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) ../installs/python-$(PYVERSION)/lib/workspace
+	( \
+		for d in $$(find ../installs/python-$(PYVERSION)/lib/workspace -type f); do (llvm-nm $$d 2>/dev/null | grep -E "$(UNUSED_BUILTIN_MODULES)" 1>/dev/null) && echo "Ignoring: $$d" && mv $$d $$d.ignore; done \
+	) || true
+	llvm-link ../installs/python-$(PYVERSION)/lib/workspace/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
+	rm -rf ../installs/python-$(PYVERSION)/lib/workspace
+
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR): $(PYLIB)
 	( \
 		rm -rf ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) 2>/dev/null || true; \
 		mkdir -p ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
 		cd ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
 		emar -x ../libpython$(PYMINOR).a; \
 	)
-	# echo for d in $(find installs/python-3.5.2/lib/libpython3.5 -type f); do (llvm-nm $d 2>/dev/null | grep "T PyInit__" 1>/dev/null) && echo "$d"; done ###### TODO unused modules
-	llvm-link ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
-	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
+	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/_sqlite.o; fi
 	rm -rf $(BUILD)
 	rm -rf $(DOWNLOADS)

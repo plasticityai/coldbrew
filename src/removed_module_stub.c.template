@@ -1,0 +1,11 @@
+static struct PyModuleDef STUBMODULE_module = {
+  PyModuleDef_HEAD_INIT,
+  "STUBMODULE",
+  NULL,
+  -1,
+  stub_methods
+}; 
+
+PyMODINIT_FUNC PyInit_STUBMODULE(void) {
+  return PyModule_Create(&STUBMODULE_module);
+}
