@@ -11,12 +11,7 @@ mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git 
 mv /usr/bin/ld /usr/bin/ld.bak
 echo -e '#!/bin/sh\n\nflock /tmp/llvm-build.lock /usr/bin/ld.bak "$@"' > /usr/bin/ld
 chmod +x /usr/bin/ld
-if [[ ! -z "$CI" ]]; then
-  echo "Detected CI...using 30 jobs to build...."
-  mkdir -p /usr/local/coldbrew/emsdk/clang/fastcomp/ && cd /usr/local/coldbrew/emsdk/clang/fastcomp/ && git clone --recurse-submodules https://github.com/llvm-mirror/llvm.git && mkdir -p build_master_64 && cd build_master_64 && cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" ../llvm && ninja
-else
-  mkdir -p /usr/local/coldbrew/emsdk/clang/fastcomp/ && cd /usr/local/coldbrew/emsdk/clang/fastcomp/ && git clone --recurse-submodules https://github.com/llvm-mirror/llvm.git && mkdir -p build_master_64 && cd build_master_64 && cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" ../llvm && ninja -j30
-fi
+mkdir -p /usr/local/coldbrew/emsdk/clang/fastcomp/ && cd /usr/local/coldbrew/emsdk/clang/fastcomp/ && git clone --recurse-submodules https://github.com/llvm-mirror/llvm.git && mkdir -p build_master_64 && cd build_master_64 && cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="X86" -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD="WebAssembly" ../llvm && ninja
 # Restore old version of ld
 mv /usr/bin/ld.bak /usr/bin/ld
 
