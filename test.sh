@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-./build.sh
+if [[ ! -z "$CI" ]]; then
+  ./build.sh
+fi
 
 echo "Launching server..."
 $(./serve.sh || true)&
