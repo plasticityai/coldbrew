@@ -45,6 +45,12 @@ RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; echo -e \
 RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; chmod +x \$EMSDK_NODE"
 RUN /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
 
+# Install Chrome pre-requisites for Puppeteer
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - 
+RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' 
+RUN apt-get update
+RUN apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst --no-install-recommends 
+
 # Clean up the Docker image, for smaller image sizes
 RUN rm -rf /usr/share/locale/*
 RUN rm -rf /var/lib/apt/lists/*
@@ -60,12 +66,6 @@ RUN rm -rf /usr/lib/jvm/*
 RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/llvm -mindepth 1 -maxdepth 1 ! -name 'include' -type d,f,l -exec rm -rf {} +
 RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64 -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'include' ! -name 'bin' -type d,f,l -exec rm -rf {} +
 RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin -mindepth 1 -maxdepth 1  ! -name 'llvm-config' ! -name 'llvm-extract' ! -name 'opt' -type d,f,l -exec rm -rf {} +
-
-# Install Chrome pre-requisites for Puppeteer
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - 
-RUN sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' 
-RUN apt-get update
-RUN apt-get install -y google-chrome-unstable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst --no-install-recommends 
 
 RUN mkdir -p /BUILD
 

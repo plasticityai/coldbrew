@@ -2,6 +2,8 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 if [[ ! -z "$CI" ]]; then
+  echo "Detected CI...not building...."
+else
   ./build.sh
 fi
 
