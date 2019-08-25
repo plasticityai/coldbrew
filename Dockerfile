@@ -6,7 +6,7 @@ RUN apt-get update
 RUN apt-get install default-jre cmake ninja-build -y
 
 # Install Emscripten
-ADD install_emscripten.sh /tmp/install_emscripten.sh
+ADD src/tools/install_emscripten.sh /tmp/install_emscripten.sh
 RUN /tmp/install_emscripten.sh
 
 # Install Python dependencies

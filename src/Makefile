@@ -7,7 +7,7 @@ DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); 
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=test distutils ensurepip idlelib __pycache__ tkinter
 UNUSED_BUILTIN_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('|'.join(['T PyInit_'+m for m in UNUSED_BUILTIN_MODULES]) if len(UNUSED_BUILTIN_MODULES) > 0 else '****no unused builtin modules****')")
-UNUSED_BUILTIN_MODULES_STUB_CODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; [print(open('removed_module_stub.c.template').read().replace('STUBMODULE', m)) for m in UNUSED_BUILTIN_MODULES]")
+UNUSED_BUILTIN_MODULES_STUB_CODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; [print(open('tools/removed_module_stub.c.template').read().replace('STUBMODULE', m)) for m in UNUSED_BUILTIN_MODULES]")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or COMPRESS_NETWORK_FILES).lower())")
 PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
@@ -72,11 +72,14 @@ ifdef SHOULD_ASYNCIFY
 $(eval ASYNCFLAGS = -s ASYNCIFY=1 -s ASYNCIFY_WHITELIST='$(ASYNC_WHITELIST)')
 endif
 ifneq ($(EMCC_DEBUG),0)
-$(eval _JSCC = cat)
 $(eval JSCC = cat)
 $(eval UGLIFY = cat)
 else
-$(eval JSCC = google-closure-compiler -W QUIET )
+ifeq ($(NODE),true)
+$(eval JSCC = cat)
+else
+$(eval JSCC = google-closure-compiler -W QUIET -O ADVANCED --externs ../third_party/externs.js --externs $(EMSCRIPTEN_PATH)/src/closure-externs.js  --isolation_mode "IIFE" )
+endif
 $(eval UGLIFY = uglifyjs --compress )
 endif
 
@@ -115,7 +118,7 @@ ifeq ($(NODE),true)
 		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
 endif
 
-$(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js
+$(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
 	# This has to be defined in here and not at the beginning of the file
 	$(eval BUILTIN_MODULES := $(shell for d in $$(find ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) -type f); do (llvm-nm $$d 2>/dev/null | grep "T PyInit_" | sed -e 's/-------- T PyInit_/,/g' | sed -e 's/^,//g'); done))
 	# Start global closure
@@ -136,8 +139,8 @@ $(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js mod
 	cat $(MODULE_NAME_LOWER).js.bak >> $(MODULE_NAME_LOWER).js
 
 	# Build JS Files
-	sed -f inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js | $(JSCC) > module.js
+	sed -f tools/inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
+	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js > module.js
 ifeq ($(EMCC_DEBUG),0)
 	rm module.js.pre.js.intermediate.js
 endif
@@ -151,23 +154,23 @@ ifeq ($(BROWSERFS),true)
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module2 };" >> $(MODULE_NAME_LOWER).js	
 	echo "" >> $(MODULE_NAME_LOWER).js
-	cat ../third_party/browserfs/browserfs.min.js >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/browserfs/browserfs.min.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 endif
 ifeq ($(JSZIP),true)
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module3 };" >> $(MODULE_NAME_LOWER).js	
 	echo "" >> $(MODULE_NAME_LOWER).js
-	cat ../third_party/jszip/jszip.min.js >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/jszip/jszip.min.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 	echo "" >> $(MODULE_NAME_LOWER).js
 endif
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module4 };" >> $(MODULE_NAME_LOWER).js	
 	echo "" >> $(MODULE_NAME_LOWER).js
-	cat ../third_party/fast-text-encoding/text.min.js >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/fast-text-encoding/text.min.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module5 };" >> $(MODULE_NAME_LOWER).js	
 	echo "" >> $(MODULE_NAME_LOWER).js
-	cat ../third_party/comlink/comlink.js | $(JSCC) >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/comlink/comlink.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module1 };" >> $(MODULE_NAME_LOWER).js	
 
@@ -180,17 +183,20 @@ endif
 
 ifeq ($(NODE),false)
 	# Final compression
-	cat $(MODULE_NAME_LOWER).js | $(JSCC) | $(UGLIFY) > $(MODULE_NAME_LOWER).js.tmp
+	cat $(MODULE_NAME_LOWER).js | $(UGLIFY) > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 
 	touch $(MODULE_NAME_LOWER).js.make
 
-$(MODULE_NAME_LOWER).js: root root.make sources+python+strings.o prejs.js.pre.js
+$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js
+	# Patch externs for closure compiler
+	cp $(EMSCRIPTEN_PATH)/src/closure-externs.js $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak
+	cat tools/externs.js | sed -e 's/MODULE_NAME/$(MODULE_NAME)/g;' >> $(EMSCRIPTEN_PATH)/src/closure-externs.js 
 	# Add .gitignore
 	echo "$(MODULE_NAME_LOWER).js" > .gitignore
 	# Build JS files
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js | $(JSCC) > prejs.js
+	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	# Build .js + .wasm + .data
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
@@ -227,14 +233,18 @@ ifeq ($(COMPRESS_NETWORK_FILES),true)
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	sed -e 's/callback(packageData)/Promise.resolve(packageData).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") }).then(callback)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 	# Compress
-	$(JSCC) $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	$(JSCC) --isolation_mode NONE $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
+	# Restore externs for closure compiler
+	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js
 
 stub_removed_modules.bc: ../customize/coldbrew_settings.py
 	echo '#include "Python.h"' > /tmp/stub_removed_modules.c
@@ -289,8 +299,8 @@ cleanlocal:
 	rm prejs.js 2>/dev/null || true
 	rm main.c 2>/dev/null || true
 
-main.c: $(PYLIB) add_requirements.py main.c.pre.c requirements.make
-	python add_requirements.py main.c.pre.c main.c
+main.c: $(PYLIB) tools/add_requirements.py main.c.pre.c requirements.make
+	python tools/add_requirements.py main.c.pre.c main.c
 
 
 %.bc: %.c $(PYLIB) Makefile
@@ -299,7 +309,7 @@ main.c: $(PYLIB) add_requirements.py main.c.pre.c requirements.make
 main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true
@@ -320,7 +330,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rm -rf root/usr/local/lib/python$(PYMINOR)/pydoc_data || true # Remove these unneeded files taking up space
 	rm -rf root/usr/local/lib/python$(PYMINOR)/unittest/test || true # Remove these unneeded files taking up space
 	rm -rf root/usr/local/lib/python$(PYMINOR)/lib2to3/tests || true # Remove these unneeded files taking up space
-	python slim_data_bundle.py
+	python tools/slim_data_bundle.py
 
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
@@ -352,7 +362,7 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) ../customize/coldbrew_settings.py
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make ../customize/coldbrew_settings.py
 	rm -rf ../installs/python-$(PYVERSION)/lib/workspace || true
 	cp -r ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) ../installs/python-$(PYVERSION)/lib/workspace
 	( \
@@ -361,13 +371,15 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	llvm-link ../installs/python-$(PYVERSION)/lib/workspace/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 	rm -rf ../installs/python-$(PYVERSION)/lib/workspace
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR): $(PYLIB)
+../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make: $(PYLIB)
 	( \
 		rm -rf ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) 2>/dev/null || true; \
 		mkdir -p ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
 		cd ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR); \
 		emar -x ../libpython$(PYMINOR).a; \
 	)
-	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/_sqlite.o; fi
+	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
+	cp ../installs/python-$(PYVERSION)/lib/_sqlite.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/_sqlite.o
 	rm -rf $(BUILD)
 	rm -rf $(DOWNLOADS)
+	touch ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make

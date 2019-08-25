@@ -327,7 +327,7 @@ Coldbrew.getExceptionInfo(); // Returns a dictionary with information from the l
 #### Catching JavaScript Errors in Python
 If you are running a JavaScript function in Python that encounters an error, a `Coldbrew.JavaScriptError` will be raised in Python. You can then use `e.error_data` on the error object `e` to get more information about the JavaScript context where the error occurred. You can also access the last JavaScript error in Python like so:
 ```javascript
-Coldbrew.run('print(Coldbrew.js_error)');
+Coldbrew.run('print(Coldbrew.get_exception_info())');
 ```
 
 ### Accessing HTTP in Python
@@ -425,7 +425,7 @@ Coldbrew.load({worker: true}).then(function() { // Load Coldbrew using workers
   Coldbrew.run("x = 5**2");
   
   // This will fetch the variable 'x' from the separate worker thread
-  Coldbrew.getVariableAsync("x").then(function(result) { 
+  Coldbrew.getVariable("x").then(function(result) { 
     console.log(result); // Prints 25
   });
 });

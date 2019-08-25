@@ -38,7 +38,7 @@ version = os.environ['COLDBREW_VERSION']
 module_name = os.environ['COLDBREW_MODULE_NAME']
 module_name_lower = os.environ['COLDBREW_MODULE_NAME_LOWER']
 module_name_var = module_name
-js_error = None
+_js_error = None
 ############################################################
 ###################END PUBLIC VARIABLES#####################
 ############################################################
@@ -478,7 +478,7 @@ def _get_variable(expression):
         _vars = _vars
 
     def __get_variable(expression):
-        global js_error
+        global _js_error
         val = eval(_Coldbrew._run_string(module_name_var+"._serializeToPython("+expression+", true) || null"), {'Coldbrew': Coldbrew})
         if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
             error = JavaScriptError(val['type']+": "+val['message'])
@@ -489,7 +489,7 @@ def _get_variable(expression):
                 'stack': val['stack'],
                 'data': val['data'],
             }
-            js_error = error
+            _js_error = error.error_data
             raise error
         else:
             return _unserialize_from_js(val)
@@ -531,7 +531,7 @@ def destroy_all_variables():
 
 
 def _handle_run_error(val):
-    global js_error
+    global _js_error
     if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
         error = JavaScriptError(val['type']+": "+val['message'])
         error.error_data = {
@@ -541,7 +541,7 @@ def _handle_run_error(val):
             'stack': val['stack'],
             'data': val['data'],
         }
-        js_error = error
+        _js_error = error.error_data
         raise error
 
 def _run(expression):
@@ -559,6 +559,9 @@ def _run_function(functionExpression, *args):
 
 def run_function(functionExpression, *args):
     return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
+
+def get_exception_info():
+    return _js_error
 
 def reset():
     return _run_function(module_name_var+'.reset')

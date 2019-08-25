@@ -7,7 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
       echo "Using remote pre-built Coldbrew Docker image...";
       docker tag "registry.gitlab.com/plasticity/coldbrew/builder:$(python3 -c "import version; print(version.__version__)")" "coldbrew:latest";
       docker rmi "registry.gitlab.com/plasticity/coldbrew/builder:$(python3 -c "import version; print(version.__version__)")";
-      docker run --rm -t -v $(pwd)/customize:/BUILD/customize -v $(pwd)/dist:/BUILD/dist -v $(pwd)/src:/BUILD/src -v $(pwd)/third_party:/BUILD/third_party coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make";
+      docker run --rm -t -v $(pwd)/customize:/BUILD/customize -v $(pwd)/dist:/BUILD/dist -v $(pwd)/installs/python-3.5.2/lib/libpython3.5:/BUILD/installs/python-3.5.2/lib/libpython3.5 -v $(pwd)/src:/BUILD/src -v $(pwd)/third_party:/BUILD/third_party coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make";
   else
       echo "Using locally built Coldbrew Docker image...";
       docker build . -t coldbrew:latest;

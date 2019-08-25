@@ -1,6 +1,6 @@
 Upgrading to a new version of Python requires a few steps:
 
-1. Replace all references to `3.5.2` in the project (the directory name `3.5.2`, references inside `3.5.2/Makefile`, references inside `src/Makefile`, and references in the `README.md` file).
+1. Replace all references to `3.5.2` in the project (the directory name `3.5.2`, references inside `3.5.2/Makefile`, references inside `src/Makefile`, references inside `build.sh` and `shell.sh`, and references in the `README.md` file).
 
 2. Update the `3.5.2/checksums` file to match the checksum of the new version of Python you wish to upgrade to.
 

@@ -1460,7 +1460,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         JSZip = COLDBREW_GLOBAL_SCOPE.JSZip;
       }
       MODULE_NAME.addFilesFromZip = function(path, urlToZip) {
-        return new JSZip.external.Promise(function (resolve, reject) {
+        return new Promise(function (resolve, reject) {
           MODULE_NAME._sendRequest('GET', urlToZip, null, {}, null, true)
           .then(function(data) {
             resolve(data.responseText);

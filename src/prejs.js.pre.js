@@ -1,33 +1,26 @@
-if (typeof window !== 'undefined') {
-  var _coldbrew_oldSetTimeout = window.setTimeout;
-} else if (typeof global !== 'undefined') {
-  var _coldbrew_oldSetTimeout = global.setTimeout;
-} else if (typeof self !== 'undefined') {
-  var _coldbrew_oldSetTimeout = self.setTimeout;
-} else {
-  var _coldbrew_oldSetTimeout = setTimeout;
-}
-
-var setTimeout = function() {
-  var args = arguments;
-  if (args[1] < 0) {
-    if (MODULE_NAME._resume_ie) {
-      // Immediately execute
-      MODULE_NAME._resume_ie = false;
-      MODULE_NAME.resume = MODULE_NAME._resumeWarn;
-      args[0]();
-    } else {
-      // Save resume execution for later
-      MODULE_NAME.resume = function() {
+setTimeout(function() {
+  var _coldbrew_oldSetTimeout = Browser.safeSetTimeout;
+  Browser.safeSetTimeout = function() {
+    var args = arguments;
+    if (args[1] < 0) {
+      if (MODULE_NAME._resume_ie) {
+        // Immediately execute
         MODULE_NAME._resume_ie = false;
         MODULE_NAME.resume = MODULE_NAME._resumeWarn;
         args[0]();
-      };
+      } else {
+        // Save resume execution for later
+        MODULE_NAME.resume = function() {
+          MODULE_NAME._resume_ie = false;
+          MODULE_NAME.resume = MODULE_NAME._resumeWarn;
+          args[0]();
+        };
+      }
+      return -1;
     }
-    return -1;
-  }
-  return _coldbrew_oldSetTimeout.apply(null, args);
-};
+    return _coldbrew_oldSetTimeout.apply(null, args);
+  };
+}, 0);
 
 Module.noInitialRun = true;
 

@@ -30,7 +30,7 @@ before_script:
   # Install Java
   - apt-get install default-jre cmake ninja-build -y
   # Install Emscripten
-  - ./install_emscripten.sh
+  - ./src/tools/install_emscripten.sh
   # Install Python dependencies
   - apt-get install build-essential -y
   - apt-get install libffi-dev libssl-dev zlib1g-dev libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev  -y
