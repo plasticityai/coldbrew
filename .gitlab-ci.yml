@@ -5,6 +5,7 @@ services:
 
 stages:
   - Test and Deploy
+  - Build Docker Image
 
 before_script:
   # Setup package manager
@@ -140,44 +141,36 @@ Test and Deploy:
     - sleep 60 # Wait for GitLab to mirror to GitHub
     # Create a release on GitHub
     - curl -u plasticity-admin:$GITHUB_TOKEN -d "{\"tag_name\":\"$(python -c "import version; print(version.__version__)")\", \"name\":\"Release $(python -c "import version; print(version.__version__)")\"}" -H "Content-Type:"" application/json" -X POST https://api.github.com/repos/plasticityai/$CI_PROJECT_NAME/releases
+    # Push to Docker registry
+    - docker tag coldbrew:latest "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker tag coldbrew:latest "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
   environment:
     name: Coldbrew Demo
     url: http://coldbrew.plasticity.ai/
   only:
     - master
 
-# Build Docker Image:
-#   stage: Test and Deploy
-#   image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
-#   script:
-#     - compressed=$(mktemp ~/compressed.XXXXXX)
-#     - cd $CI_PROJECT_DIR
-#     - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
-#     - docker pull "$CI_REGISTRY_IMAGE:latest" || true
-#     - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
-#     - docker run "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" sleep 1
-#     - docker export $(docker ps -aq | head -n1) > $compressed
-#     - docker import $compressed "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#     - docker history "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#     - rm $compressed
-#     - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-#     - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
-#     - docker push "$CI_REGISTRY_IMAGE:$(python3 -c "import version; print(version.__version__)")"
-#     - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE:latest"
-#     - docker push "$CI_REGISTRY_IMAGE:latest"
-#     - echo -e "\nCOPY . /BUILD/\n\nRUN /bin/bash -c \"cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make python;\"" >> Dockerfile
-#     - rm .dockerignore
-#     - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" .
-#     - docker run "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" sleep 1
-#     - docker export $(docker ps -aq | head -n1) > $compressed
-#     - docker import $compressed "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
-#     - docker history "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
-#     - rm $compressed
-#     - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
-#     - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
-#     - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
-#     - docker push "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
-#     - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:latest"
-#     - docker push "$CI_REGISTRY_IMAGE/builder:latest"
-#   only:
-#     - master
+Build Docker Image:
+  stage: Build Docker Image
+  script:
+    - compressed=$(mktemp ~/compressed.XXXXXX)
+    - cd $CI_PROJECT_DIR
+    - docker login -u "gitlab-ci-token" -p "$CI_BUILD_TOKEN" $CI_REGISTRY
+    - echo -e "\nCOPY . /BUILD/\n\nRUN /bin/bash -c \"cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make python;\"" >> Dockerfile
+    - rm .dockerignore
+    - docker build --pull --cache-from "$CI_REGISTRY_IMAGE:latest" -t "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" .
+    - docker run "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" sleep 1
+    - docker export $(docker ps -aq | head -n1) > $compressed
+    - docker import $compressed "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - docker history "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - rm $compressed
+    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA"
+    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
+    - docker push "$CI_REGISTRY_IMAGE/builder:$(python3 -c "import version; print(version.__version__)")"
+    - docker tag "$CI_REGISTRY_IMAGE/builder:$CI_COMMIT_SHA" "$CI_REGISTRY_IMAGE/builder:latest"
+    - docker push "$CI_REGISTRY_IMAGE/builder:latest"
+  only:
+    - master
