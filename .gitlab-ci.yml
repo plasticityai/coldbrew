@@ -1,4 +1,4 @@
-image: python:latest
+image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
 
 services:
   - docker:dind
