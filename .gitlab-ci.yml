@@ -87,22 +87,18 @@ Test and Deploy:
     - docker build . -t coldbrew:latest;
     - mkdir -p $(pwd)/cache;
     # Build
-    - export COLDBREW_TAGGER_DIR=$(pwd)
-    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
-    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
-    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
-    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make;";
+    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make;";
     # Test
     - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; ./test.sh;";
     # Build Debug and Build Node
     - echo "" >> src/customize/coldbrew_settings.py;
     - echo "DEBUG_MODE = True" >> src/customize/coldbrew_settings.py;    
-    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; COLDBREW_DIST_DIR=dist-debug make;";
-    - git checkout ./customize/coldbrew_settings.py
+    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; COLDBREW_DIST_DIR=dist-debug make;";
+    - git checkout src/customize/coldbrew_settings.py
     - echo "" >> src/customize/coldbrew_settings.py;
     - echo "NODE = True" >> src/customize/coldbrew_settings.py;    
-    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; COLDBREW_DIST_DIR=dist-node make;";
-    - git checkout ./customize/coldbrew_settings.py
+    - docker run --rm -t -v $(pwd):/BUILD -v $(pwd)/cache:/root/.emscripten_cache/ coldbrew:latest /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; COLDBREW_DIST_DIR=dist-node make;";
+    - git checkout src/customize/coldbrew_settings.py
     - cat .gitignore | grep 'dist' -v > .gitignore.tmp
     - mv .gitignore.tmp .gitignore
     # End Build
