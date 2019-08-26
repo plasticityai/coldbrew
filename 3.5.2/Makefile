@@ -63,7 +63,7 @@ $(BUILD)/Makefile: $(BUILD)/.patched
 		CONFIG_SITE=./config.site READELF=true emconfigure ./configure --without-pymalloc --disable-shared --disable-ipv6 --without-gcc --host=asmjs-unknown-emscripten --build=$(shell $(BUILD)/config.guess) --prefix=$(INSTALL) CFLAGS='$(CFLAGS)' ; \
 	)
 
-$(BUILD)/Modules/_sqlite/_sqlite.o:
+$(BUILD)/Modules/_sqlite/_sqlite.o: $(BUILD)/.patched
 	( \
 		cd $(BUILD); \
 		wget https://www.sqlite.org/2018/sqlite-amalgamation-$(SQLITE_VERSION).zip -O Modules/_sqlite/sqlite.zip; \
@@ -80,14 +80,14 @@ $(BUILD)/$(LIB): $(BUILD)/Makefile $(HOSTPYTHON) $(HOSTPGEN) Setup.local $(BUILD
 	)
 	( \
 		cd $(BUILD); \
-		emmake make HOSTPYTHON=$(HOSTPYTHON) HOSTPGEN=$(HOSTPGEN) CROSS_COMPILE=yes $(LIB) \
+		emmake make HOSTPYTHON=$(HOSTPYTHON) HOSTPGEN=$(HOSTPGEN) CROSS_COMPILE=yes $(LIB) -j8 \
 	)
 
 install: $(BUILD)/$(LIB)
 	( \
 		cd $(BUILD); \
 		sed -i -e 's/libinstall:.*/libinstall:/' Makefile; \
-		emmake make HOSTPYTHON=$(HOSTPYTHON) PYTHON_FOR_BUILD=$(HOSTPYTHON) CROSS_COMPILE=yes inclinstall libinstall $(LIB) && \
+		emmake make HOSTPYTHON=$(HOSTPYTHON) PYTHON_FOR_BUILD=$(HOSTPYTHON) CROSS_COMPILE=yes inclinstall libinstall $(LIB) -j8 && \
 		cp $(LIB) $(INSTALL)/lib/ && \
 		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata.py $(INSTALL)/lib/python$(PYMINOR)/ \
 	)

@@ -339,7 +339,7 @@ root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Co
 	touch root.make
 
 $(PYLIB): ../$(PYVERSION)/Setup.local
-	make -C ../$(PYVERSION) -j8
+	make -C ../$(PYVERSION)
 
 requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 	$(eval GPP := $(shell which g++))
