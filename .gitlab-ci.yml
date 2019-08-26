@@ -5,7 +5,6 @@ services:
 
 stages:
   - Test and Deploy
-  - Build Docker Image
 
 before_script:
   # Setup package manager
@@ -149,7 +148,7 @@ Test and Deploy:
     - master
 
 Build Docker Image:
-  stage: Build Docker Image
+  stage: Test and Deploy
   image: registry.gitlab.com/plasticity/ubuntu-dind:16.04
   script:
     - compressed=$(mktemp ~/compressed.XXXXXX)
