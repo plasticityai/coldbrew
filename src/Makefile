@@ -73,12 +73,15 @@ $(eval ASYNCFLAGS = -s ASYNCIFY=1 -s ASYNCIFY_WHITELIST='$(ASYNC_WHITELIST)')
 endif
 ifneq ($(EMCC_DEBUG),0)
 $(eval JSCC = cat)
+$(eval JSCCFLAGS = )
 $(eval UGLIFY = cat)
 else
 ifeq ($(NODE),true)
 $(eval JSCC = cat)
+$(eval JSCCFLAGS = )
 else
 $(eval JSCC = google-closure-compiler -W QUIET -O ADVANCED --externs ../third_party/externs.js --externs $(EMSCRIPTEN_PATH)/src/closure-externs.js  --isolation_mode "IIFE" )
+$(eval JSCCFLAGS = --isolation_mode NONE )
 endif
 $(eval UGLIFY = uglifyjs --compress )
 endif
@@ -239,7 +242,7 @@ ifeq ($(COMPRESS_NETWORK_FILES),true)
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 	# Compress
-	$(JSCC) --isolation_mode NONE $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
@@ -336,7 +339,7 @@ root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Co
 	touch root.make
 
 $(PYLIB): ../$(PYVERSION)/Setup.local
-	make -C ../$(PYVERSION)
+	make -C ../$(PYVERSION) -j8
 
 requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 	$(eval GPP := $(shell which g++))
