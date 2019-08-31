@@ -1309,6 +1309,14 @@ function finalizeMainOptions(options) {
     worker: false,
     transformVariableCasing: true,
   };
+  if (ENABLE_THREADING) {
+    defaultOptions.threadWorkers = 1;
+    if (options.threadWorkers <= 0) {
+      throw new Error("The 'threadWorkers' option must be greater than 0.");
+    }
+  } else if (options.threadWorkers) {
+    throw new Error("You are trying to load with the 'threadWorkers' option when threading is disabled. Please enable threading in the settings file.");
+  }
   return Object.assign(options, Object.assign({}, defaultOptions, options));
 }
 MODULE_NAME._load = function(arg1, arg2) {
@@ -1344,6 +1352,7 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME._usedFiles = new Set();
     MODULE_NAME._textDecoder = (typeof TextDecoder !== 'undefined') ? new TextDecoder("utf-8") : new module4.exports.TextDecoder("utf-8");
     MODULE_NAME.mountPoints = mountPoints;
+    COLDBREW_TOP_SCOPE.PTHREAD_POOL_SIZE = finalizedOptions.threadWorkers;
     MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
     MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
     MODULE_NAME._setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
@@ -1675,13 +1684,7 @@ MODULE_NAME._load = function(arg1, arg2) {
 MODULE_NAME.unload = function(arg1, arg2) {
   if (MODULE_NAME.loaded) {
     MODULE_NAME.run('pass');
-    if (MODULE_NAME.worker) {
-      if (IS_NODE_JS) {
-        MODULE_NAME.worker.underlyingWorker.kill();
-      } else {
-        MODULE_NAME.worker.terminate();
-      }
-    }
+    COLDBREW_TOP_SCOPE.Worker.terminateAllWorkers();
     Object.getOwnPropertyNames(MODULE_NAME).forEach(function (prop) {
       delete MODULE_NAME[prop];
     });
@@ -1692,19 +1695,7 @@ MODULE_NAME.load = function(options = {}) {
   var finalizedOptions = finalizeMainOptions(options);
   if (options.worker && !IS_WORKER_SCRIPT && !MODULE_NAME.loaded) {
     MODULE_NAME._finalizedOptions = finalizedOptions;
-    var underlyingWorker;
-    var worker;
-    if (typeof Worker === 'undefined' && IS_NODE_JS) {
-      const fork = require('child_process').fork;
-      require('node-comlink').patchMessageChannel();
-      const NodeMessageAdapter = require('node-comlink').NodeMessageAdapter;
-      underlyingWorker = fork(SCRIPT_SOURCE, { env : { _COLDBREW_WORKER_FORK_ : 1 } });
-      worker = new NodeMessageAdapter(underlyingWorker);
-    } else {
-      worker = new Worker(SCRIPT_SOURCE);
-      underlyingWorker = worker;
-    }
-    worker.underlyingWorker = underlyingWorker;
+    var worker = new COLDBREW_TOP_SCOPE.Worker(SCRIPT_SOURCE);
     var MODULE_NAME_proxy = getComlink().proxy(worker);
     MODULE_NAME.worker = worker;
     MODULE_NAME._workerProxy = MODULE_NAME_proxy;
@@ -2069,6 +2060,11 @@ if (shouldExportColdbrew) {
   if (typeof module !== 'undefined') module.exports = EXPORT;
   if (typeof window !== 'undefined') window.MODULE_NAME = EXPORT;
   if (typeof self !== 'undefined') self.MODULE_NAME = EXPORT;
+
+  // Inside a pthread, provide _MODULE_NAME_coldbrew_internal_
+  if (ENABLE_THREADING && IS_THREAD_SCRIPT) {
+    COLDBREW_GLOBAL_SCOPE._MODULE_NAME_coldbrew_internal_ = _MODULE_NAME_coldbrew_internal_; 
+  }
 }
 /**********************************************************/
 /******************END EXPORT OF COLDBREW******************/

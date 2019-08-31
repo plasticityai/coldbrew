@@ -34,6 +34,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Catching Python Errors in JavaScript](#catching-python-errors-in-javascript)
     + [Catching JavaScript Errors in Python](#catching-javascript-errors-in-python)
   * [Accessing HTTP in Python](#accessing-http-in-python)
+  * [Using Multiple Threads in Python](#using-multiple-threads-in-python)
   * [Accessing the Virtual Filesystem](#accessing-the-virtual-filesystem)
     + [Listing files under a directory](#listing-files-under-a-directory)
     + [Create a Folder](#create-a-folder)
@@ -125,6 +126,7 @@ var options = {
   asyncYieldRate: null, /* Allows you to override the default asynchronous yield rate (see setAsyncYieldRate()) */
   worker: false, /* Runs the Coldbrew Python interpreter in a separate Web Worker or Worker thread */
   transformVariableCasing: true, /* Transforms bridge variable properties and methods to camel case or snake case automatically */
+  threadWorkers: 1, /* The amount of workers in a pool that will execute Python spawned threads */
 };
 ```
 
@@ -337,6 +339,14 @@ Coldbrew.runAsync(
 `import urllib.request
 print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())
 `);
+```
+
+### Using Multiple Threads in Python
+The Python `threading` library is supported and each individual Python thread will run inside a Web Worker for true parallelism. To make threads efficient, a pool of Web Workers are spawned when first loading Coldbrew. You can control the number of workers in the pool using the `threadWorkers` setting on `Coldbrew.load`. Ideally, `threadWorkers` should be set to the maximum number of concurrently running threads your Python application will ever run.
+
+To see an example of multi-threaded Python code running, you can run the [threads.py](https://github.com/plasticityai/coldbrew/blob/master/src/examples/threads.py) file:
+```javascript
+Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples' });
 ```
 
 ### Accessing the Virtual Filesystem
@@ -604,8 +614,6 @@ This [isn't the most efficient way](#performance-and-size-benchmarks) to run cod
 Any limitations imposed by the browser will be imposed by Python running in the browser (of course). Here are some known limitations:
 
 * Python can access the system's file system. JavaScript cannot. However, a virtual file system is created and Python is run at the files directory of that virtual file system (`/files`).
-
-* Python's `threading` library is currently not supported. However, this is due to an [upstream bug](https://github.com/kripken/emscripten/issues/7382) in the V8 engine that Chrome uses. Soon, that bug will be fixed and Coldbrew will support `threading`.
 
 * Python can access low-level networking like sockets. JavaScript cannot. We have, however, [shimmed HTTP support](#accessing-http-in-python) into Python.
 

@@ -48,6 +48,25 @@ _js_error = None
 ############################################################
 ''' Various private functions used by Coldbrew.'''
 ############################################################
+def _run_guard(*args):
+    if 'threadWorkers' in _finalized_options:
+        import threading
+        if threading.current_thread() is not threading.main_thread():
+            _error("You can only access JavaScript from the main Python thread.")
+    return _Coldbrew._run(*args)
+
+def _run_string_guard(*args):
+    if 'threadWorkers' in _finalized_options:
+        import threading
+        if threading.current_thread() is not threading.main_thread():
+            _error("You can only access JavaScript from the main Python thread.")
+    return _Coldbrew._run_string(*args)
+
+_Coldbrew._run_guard = _run_guard
+_Coldbrew._run_string_guard = _run_string_guard
+del _run_guard
+del _run_string_guard
+
 def _warn(message):
     if not(_finalized_options['hideWarnings']):
         _Coldbrew._run("console.warn('Coldbrew Warning: '+"+json.dumps(message)+");")
@@ -180,6 +199,13 @@ sys.excepthook = _exception_handler
 import importlib.abc
 import importlib.machinery
 import sys
+class _ImportWatcher(object):
+    @classmethod
+    def find_module(cls, name, path, target=None):
+        if 'threadWorkers' not in _finalized_options and name.split('.')[0] == 'threading':
+            _error("You attempted to use import 'threading' in Coldbrew without threading enabled. Please enable threading in the settings file.")
+        return None
+
 class _ImportFinder(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path, target=None):
         if fullname in sys.builtin_module_names:
@@ -188,6 +214,7 @@ class _ImportFinder(importlib.abc.MetaPathFinder):
                 importlib.machinery.BuiltinImporter,
             )
 sys.meta_path.append(_ImportFinder())
+sys.meta_path.insert(0, _ImportWatcher)
 
 # Shim standard input
 class _StandardInput():
@@ -437,7 +464,7 @@ def _unserialize_from_js(arg):
     arg = _create_variable_proxy(arg)
     if isinstance(arg, dict) and '_internal_coldbrew_get_var' in arg and arg['_internal_coldbrew_get_var']:
         jsarg = _get_variable(module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Grab the JavaScript native variable argument
-        _Coldbrew._run('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
+        _Coldbrew._run_guard('''delete '''+module_name_var+'''._get_vars["'''+arg['uid']+'''"]''') # Clean up the temporary reference
         return jsarg
     elif isinstance(arg, dict) and '_internal_coldbrew_var' in arg and arg['_internal_coldbrew_var']:
         return _vars[arg['uid']]
@@ -479,7 +506,7 @@ def _get_variable(expression):
 
     def __get_variable(expression):
         global _js_error
-        val = eval(_Coldbrew._run_string(module_name_var+"._serializeToPython("+expression+", true) || null"), {'Coldbrew': Coldbrew})
+        val = eval(_Coldbrew._run_string_guard(module_name_var+"._serializeToPython("+expression+", true) || null"), {'Coldbrew': Coldbrew})
         if isinstance(val, dict) and '_internal_coldbrew_error' in val and val['_internal_coldbrew_error']:
             error = JavaScriptError(val['type']+": "+val['message'])
             error.error_data = {
@@ -499,7 +526,7 @@ def _get_variable(expression):
         _slot_id += 1
         uid = '_internal_pyslot_'+str(_slot_id)
         if is_async():
-            _Coldbrew._run('''Promise.resolve('''+expression+''').then(function(val) {
+            _Coldbrew._run_guard('''Promise.resolve('''+expression+''').then(function(val) {
                     '''+module_name_var+'''._slots["'''+uid+'''"] = val;
                     '''+module_name_var+'''._resume_ie = true;
                     '''+module_name_var+'''.resume(false);
@@ -545,7 +572,7 @@ def _handle_run_error(val):
         raise error
 
 def _run(expression):
-    val = json.loads(_Coldbrew._run_string("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
+    val = json.loads(_Coldbrew._run_string_guard("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
     _handle_run_error(val)
     return 0
 

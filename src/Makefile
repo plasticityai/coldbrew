@@ -4,14 +4,14 @@ MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); fro
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
 NODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
 DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
+ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING).lower())")
+MAX_MEMORY=2032MB
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=test distutils ensurepip idlelib __pycache__ tkinter
 UNUSED_BUILTIN_MODULES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('|'.join(['T PyInit_'+m for m in UNUSED_BUILTIN_MODULES]) if len(UNUSED_BUILTIN_MODULES) > 0 else '****no unused builtin modules****')")
 UNUSED_BUILTIN_MODULES_STUB_CODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; [print(open('tools/removed_module_stub.c.template').read().replace('STUBMODULE', m)) for m in UNUSED_BUILTIN_MODULES]")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or COMPRESS_NETWORK_FILES).lower())")
-PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
-PTHREAD_LDFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_LDFLAGS)")
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
@@ -35,9 +35,17 @@ COLDBREW_DIST_DIR ?= dist
 PYLIB=../installs/python-$(PYVERSION)/lib/python$(PYMINOR)
 CC=emcc
 OPTFLAGS=-O3
+ifeq ($(ENABLE_THREADING),true)
+PTHREAD_CFLAGS=-s USE_PTHREADS=1
+PTHREAD_LDFLAGS=-s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4
+else
+PTHREAD_CFLAGS=
+PTHREAD_LDFLAGS=
+endif
 CFLAGS=-std=gnu99 $(OPTFLAGS) -g -I ../installs/python-$(PYVERSION)/include/python$(PYMINOR)/ -Wno-warn-absolute-paths $(PTHREAD_CFLAGS) -s WASM_OBJECT_FILES=0
 LDFLAGS=$(OPTFLAGS) $(SYMBOLS_DEBUG_MODE) \
   -s TOTAL_MEMORY=$(DEFAULT_MEMORY) \
+  -s WASM_MEM_MAX="$(MAX_MEMORY)" \
   -s EMULATE_FUNCTION_POINTER_CASTS=1 \
   -s EXTRA_EXPORTED_RUNTIME_METHODS='["callMain", "ccall", "cwrap", "FS", "ENV"]' \
   $(PTHREAD_LDFLAGS) \
@@ -97,7 +105,7 @@ all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).js.make index.html
 python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
 
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).js Makefile
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
+	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
 ../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).js.make Makefile index.html ../README.md ../package.json
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
@@ -120,8 +128,18 @@ ifeq ($(NODE),true)
 		)
 		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
 endif
+	@echo "\n\n\n"
+	@echo "========================================"
+	@echo "❄️  ☕ ❄️   Brewed Successfully!   ❄️  ☕ ❄️ "
+	@echo "========================================"
+	@echo "* See the 'dist' folder for outputs."
+	@echo "* Run the './serve.sh' script for a test"
+	@echo "  page."
+	@echo "* Vist https://git.io/fjANP for more"
+	@echo "  documentation / support."
+	@echo "========================================"
 
-$(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
+$(MODULE_NAME_LOWER).js.make: Worker.js $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
 	# This has to be defined in here and not at the beginning of the file
 	$(eval BUILTIN_MODULES := $(shell for d in $$(find ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) -type f); do (llvm-nm $$d 2>/dev/null | grep "T PyInit_" | sed -e 's/-------- T PyInit_/,/g' | sed -e 's/^,//g'); done))
 	# Start global closure
@@ -133,17 +151,19 @@ $(MODULE_NAME_LOWER).js.make: $(MODULE_NAME_LOWER).js ../customize/export.js mod
 	echo "const $(MODULE_NAME) = coldbrewObjectReference;" >> $(MODULE_NAME_LOWER).js
 	# Define some helper indicator variables
 	echo "const IS_NODE_JS = typeof process !== 'undefined'" >> $(MODULE_NAME_LOWER).js
-	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).js
+	echo "const IS_WORKER_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && typeof self.Module === 'undefined' && !IS_NODE_JS) || ((typeof process !== 'undefined') && process.env._COLDBREW_WORKER_FORK_);" >> $(MODULE_NAME_LOWER).js
+	echo "const IS_THREAD_SCRIPT = (typeof window === 'undefined' && typeof self !== 'undefined' && typeof self.Module !== 'undefined' && self.Module.ENVIRONMENT_IS_PTHREAD);" >> $(MODULE_NAME_LOWER).js
 	echo "if (typeof window !== 'undefined') var COLDBREW_GLOBAL_SCOPE = window;" >> $(MODULE_NAME_LOWER).js
 	echo "if (typeof self !== 'undefined' && !IS_NODE_JS) var COLDBREW_GLOBAL_SCOPE = self;" >> $(MODULE_NAME_LOWER).js
 	echo "if (typeof global !== 'undefined') var COLDBREW_GLOBAL_SCOPE = global;" >> $(MODULE_NAME_LOWER).js
+	# Append Worker.js
+	cat Worker.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 	# Append the file created by Emscripten
 	echo "" >> $(MODULE_NAME_LOWER).js;
 	cat $(MODULE_NAME_LOWER).js.bak >> $(MODULE_NAME_LOWER).js
-
 	# Build JS Files
 	sed -f tools/inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js > module.js
+	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js > module.js
 ifeq ($(EMCC_DEBUG),0)
 	rm module.js.pre.js.intermediate.js
 endif
@@ -193,16 +213,25 @@ endif
 	touch $(MODULE_NAME_LOWER).js.make
 
 $(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js
+	rm -rf *.worker.js 2>/dev/null || true
+	rm -rf *.thread.js 2>/dev/null || true
+	# Restore externs for closure compiler
+	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js || true
 	# Patch externs for closure compiler
 	cp $(EMSCRIPTEN_PATH)/src/closure-externs.js $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak
 	cat tools/externs.js | sed -e 's/MODULE_NAME/$(MODULE_NAME)/g;' >> $(EMSCRIPTEN_PATH)/src/closure-externs.js 
 	# Add .gitignore
 	echo "$(MODULE_NAME_LOWER).js" > .gitignore
 	# Build JS files
-	sed -e 's/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
+	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	# Build .js + .wasm + .data
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
+	# Rename *.worker.js to *.thread.js
+ifeq ($(ENABLE_THREADING),true)
+	mv $(MODULE_NAME_LOWER).worker.js $(MODULE_NAME_LOWER).thread.js
+endif
+	# Patch output files
 ifeq ($(NODE),false)
 	sed -e 's/$(MODULE_NAME_LOWER).data/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).data"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
@@ -210,20 +239,20 @@ ifeq ($(NODE),false)
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 else
 	sed -e 's/if (typeof crypto !== "undefined")/if (typeof crypto !== "undefined" \&\& !ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	sed -e 's/if(typeof crypto!=="undefined")/if(typeof crypto!=="undefined"\&\&!ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+endif
 	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-endif
+	sed -e 's/$(MODULE_NAME_LOWER).worker.js/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).thread.js"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	sed -e 's/locateFile(pthreadMainJs)/pthreadMainJs/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	# Compress the output files
 ifeq ($(COMPRESS_NETWORK_FILES),true)
 	zip -9 -j $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
@@ -244,10 +273,12 @@ endif
 	# Compress
 	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+ifeq ($(ENABLE_THREADING),true)
+	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).thread.js | $(UGLIFY) > $(MODULE_NAME_LOWER).thread.js.tmp
+	mv $(MODULE_NAME_LOWER).thread.js.tmp $(MODULE_NAME_LOWER).thread.js
+endif
 	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
-	# Restore externs for closure compiler
-	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js
 
 stub_removed_modules.bc: ../customize/coldbrew_settings.py
 	echo '#include "Python.h"' > /tmp/stub_removed_modules.c
@@ -285,6 +316,8 @@ cleanlocal:
 	rm $(MODULE_NAME_LOWER).js 2>/dev/null || true
 	rm *.orig.js 2>/dev/null || true
 	rm *.intermediate.js 2>/dev/null || true
+	rm *.worker.js 2>/dev/null || true
+	rm *.thread.js 2>/dev/null || true
 	rm *.wasm 2>/dev/null || true
 	rm *.embin 2>/dev/null || true
 	rm *.so 2>/dev/null || true

@@ -14,6 +14,9 @@ NODE = False
 # Controls the default amount of memory (must be a multiple of 64KB or 524288) to allocate for the program (it can grow beyond this)
 DEFAULT_MEMORY = 524288 * 30
 
+# Enable threading support
+ENABLE_THREADING = True
+
 # Controls whether to enable the JSZip attachment
 JSZIP = True
 
@@ -41,12 +44,6 @@ FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes
 ### The settings below are settings only the Coldbrew maintainers
 ### should ever really edit.
 ######################################################################
-
-# Uncomment to enable threading support
-PTHREAD_CFLAGS = ""
-PTHREAD_LDFLAGS = ""
-# PTHREAD_CFLAGS = "-s USE_PTHREADS=1"
-# PTHREAD_LDFLAGS = "-s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4"
 
 # Controls whether to enable the BrowserFS attachment
 BROWSERFS = False

@@ -129,7 +129,8 @@ function ccall(ident, returnType, argTypes, args, opts) {
       });
     });
   }
-#else // EMTERPRETIFY_ASYNC
+#endif
+#if ASYNCIFY && WASM_BACKEND
   if (typeof Asyncify === 'object' && Asyncify.currData !== null) {
 #if ASSERTIONS
     assert(opts && opts.async, 'The call to ' + ident + ' is running asynchronously. If this was intended, add the async option to the ccall/cwrap call.');
@@ -146,7 +147,7 @@ function ccall(ident, returnType, argTypes, args, opts) {
 
   ret = convertReturnValue(ret);
   if (stack !== 0) stackRestore(stack);
-#if EMTERPRETIFY_ASYNC || ASYNCIFY
+#if EMTERPRETIFY_ASYNC || (ASYNCIFY && WASM_BACKEND)
   // If this is an async ccall, ensure we return a promise
   if (opts && opts.async) return Promise.resolve(ret);
 #endif

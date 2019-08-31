@@ -296,8 +296,26 @@ describe('Core Coldbrew Functionality', () => {
     // Standard Input, Standard Output
   });
 
+  // Don't allow unload when in async calls are inflight
+
   // Bridge
   // Make sure bridge variables work
   // Make sure PythonError, PythonVariable classes work with worker mode
 
+
+  // Threading
+  // test sync
+  // test async (sleep, http, yielding)
+  // test running multiple times
+  // test bridge interaction
+  // test worker mode with threading
+  // test what happens when # of workers < # of threads
+
+
+  // Node
+  // test HTTP shim
+  // test readFile
+  // test worker mode works
+  // test add files from zip file 
+  // test threading
 });
