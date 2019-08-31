@@ -20,4 +20,4 @@ fi
 # Restore old version of ld
 mv /usr/bin/ld.bak /usr/bin/ld
 
-echo -e "\n\nPATH=/usr/local/coldbrew/emsdk/upstream/emscripten:/usr/local/coldbrew/emsdk/node/8.9.1_64bit/bin:/usr/local/coldbrew/emsdk/upstream/bin:/usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin:$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh
+echo -e "\n\nPATH=/usr/local/coldbrew/emsdk/upstream/emscripten:/usr/local/coldbrew/emsdk/node/10.16.3_64bit/bin:/usr/local/coldbrew/emsdk/upstream/bin:/usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin:$PATH" >> /usr/local/coldbrew/emsdk/emsdk_env.sh

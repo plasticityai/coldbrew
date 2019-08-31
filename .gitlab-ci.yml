@@ -66,8 +66,6 @@ Test and Deploy:
     - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cat \$EMSDK_NODE"
     # Patch some emscripten files
     - cd $CI_PROJECT_DIR
-    - cp src/library_async.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/library_async.js
-    - cp src/preamble.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/preamble.js
     # Install Chrome pre-requisites
     - wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - 
     - sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' 

@@ -63,7 +63,4 @@ RUN find /usr/local/coldbrew/emsdk/clang/fastcomp/build_master_64/bin -mindepth 
 
 RUN mkdir -p /BUILD
 
-ADD src/library_async.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/library_async.js
-ADD src/preamble.js /usr/local/coldbrew/emsdk/upstream/emscripten/src/preamble.js
-
 CMD /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /BUILD/src; make"
