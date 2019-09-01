@@ -271,7 +271,7 @@ ifeq ($(COMPRESS_NETWORK_FILES),true)
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 	# Compress
-	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	cat $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 ifeq ($(ENABLE_THREADING),true)
 	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).thread.js | $(UGLIFY) > $(MODULE_NAME_LOWER).thread.js.tmp
