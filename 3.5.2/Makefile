@@ -32,6 +32,9 @@ clean:
 
 
 $(TARBALL):
+ifeq ($(ENABLE_THREADING),true)
+	./patch-wasm-ld.sh
+endif
 	[ -d ../downloads ] || mkdir ../downloads
 	wget -q -O $@ $(URL)
 	md5sum --quiet --check checksums || (rm $@; false)
@@ -96,3 +99,6 @@ install: $(BUILD)/$(LIB)
 		cp $(LIB) $(INSTALL)/lib/ && \
 		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata.py $(INSTALL)/lib/python$(PYMINOR)/ \
 	)
+ifeq ($(ENABLE_THREADING),true)
+	./unpatch-wasm-ld.sh
+endif
