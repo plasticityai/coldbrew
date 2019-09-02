@@ -16,7 +16,12 @@ TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tgz
 URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION).tgz
 LIB=libpython$(PYMINOR).a
 
-PTHREAD_CFLAGS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(PTHREAD_CFLAGS)")
+ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING).lower())")
+ifeq ($(ENABLE_THREADING),true)
+PTHREAD_CFLAGS=-s USE_PTHREADS=1
+else
+PTHREAD_CFLAGS=
+endif
 CFLAGS=$(PTHREAD_CFLAGS) -s WASM_OBJECT_FILES=0
 
 all: install
