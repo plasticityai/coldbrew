@@ -20,6 +20,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should display warnings', async function () {
       var warns = await utils.eval(this, () => {
+        window.clearConsole();
         Coldbrew.unload();
         return Coldbrew.load().then(() => window.consoleWarns);
       });
@@ -28,6 +29,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should be able to hide warnings', async function () {
       var warns = await utils.eval(this, () => {
+        window.clearConsole();
         Coldbrew.unload();
         return Coldbrew.load({hideWarnings: true}).then(() => window.consoleWarns);
       });
@@ -46,6 +48,7 @@ describe('Core Coldbrew Functionality', () => {
   describe('Basic Cross Language Interaction', () => {
     it('should allow running Python in JavaScript', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         Coldbrew.run("import sys");
         Coldbrew.run("print('The current Python version is:', sys.version)");
         return window.consoleLogs;
@@ -56,6 +59,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should allow running Python asynchronously in JavaScript', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         for(var i=0; i<2; i++) {
           setTimeout(function() { 
             console.log("Every 1 second for 2 seconds from JavaScript.") 
@@ -79,6 +83,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should allow running Python files in JavaScript', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         Coldbrew.runFile('add.py', {
           cwd: '/coldbrew/examples',
           env: {},
@@ -91,6 +96,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should allow running Python files asynchronously in JavaScript', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         return Coldbrew.runFileAsync('add.py', {
           cwd: '/coldbrew/examples',
           env: {},
@@ -110,6 +116,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should allow getting JavaScript variables in Python', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         window.x = Math.pow(5, 2);
         Coldbrew.run("print(Coldbrew.get_variable('x'))");
         return window.consoleLogs;
@@ -169,6 +176,7 @@ describe('Core Coldbrew Functionality', () => {
 
     it('should allow running JavaScript functions in Python', async function () {
       var logs = await utils.eval(this, () => {
+        window.clearConsole();
         function foo(x, y) {
           return Math.pow(x, y);
         }

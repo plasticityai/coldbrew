@@ -75,6 +75,7 @@ utils.eval = async (that, expression) => {
 };
 
 beforeEach(async function() {
+  this.retries(5);
   this.currentTest.browser = await utils.getNewBrowser();
   this.currentTest.page = await utils.getNewPage(this, 'http://localhost:8000');
   await utils.eval({test: this.currentTest}, () => {
@@ -90,14 +91,20 @@ beforeEach(async function() {
       window.consoleLogs.push(args);
       return oldConsoleLog.apply(console, args);
     };
+    window.clearConsole = function() {
+      window.consoleWarns = [];
+      window.consoleLogs = [];
+    };
   });
   this.currentTest.load = utils.eval({test: this.currentTest}, () => {
     return Coldbrew.load();
   });
+  return this.currentTest.load;
 });
 
 afterEach(async function() {
-  await this.currentTest.browser.close();
+  this.retries(5);
+  return this.currentTest.browser.close();
 });
 
 module.exports = utils;
