@@ -307,19 +307,127 @@ describe('Core Coldbrew Functionality', () => {
   });
 
   describe('Asynchronosity', () => {
-    // load yield rate
-    // set yield rate
-    // get yield rate
-    // worker yield rate
-    // verify yield rate faster
-    // warn if two async calls in flight at same time
+    
+    it('should have a default async yield rate', async function () {
+      var rate = utils.eval(this, () => {
+        return Coldbrew.getAsyncYieldRate();
+      });
+      return expect(rate).to.eventually.equal(100);
+    });
 
+    it('should allow you to set the async yield rate at load', async function () {
+      var rate = utils.eval(this, () => {
+        Coldbrew.unload();
+        return Coldbrew.load({asyncYieldRate:1337}).then(() => Coldbrew.getAsyncYieldRate());
+      });
+      return expect(rate).to.eventually.equal(1337);
+    });
+
+    it('should allow you to set the async yield rate', async function () {
+      var rate = utils.eval(this, () => {
+        Coldbrew.setAsyncYieldRate(1337);
+        return Coldbrew.getAsyncYieldRate();
+      });
+      return expect(rate).to.eventually.equal(1337);
+    });
+
+    it('should not allow you to set the async yield rate for workers', async function () {
+      var rate = utils.eval(this, () => {
+        Coldbrew.unload();
+        return Coldbrew.load({asyncYieldRate:1337, worker: true}).then(() => Coldbrew.getAsyncYieldRate());
+      });
+      return expect(rate).to.eventually.equal(2147483647);
+    });
+
+    it('should not allow you to set the async yield rate at load in worker mode', async function () {
+      var rate = utils.eval(this, () => {
+        Coldbrew.unload();
+        return Coldbrew.load({asyncYieldRate:1337, worker: true}).then(() => Coldbrew.getAsyncYieldRate());
+      });
+      return expect(rate).to.eventually.equal(2147483647);
+    });
+
+    it('should not allow you to set the async yield rate in worker mode', async function () {
+      var rate = utils.eval(this, () => {
+        Coldbrew.unload();
+        return Coldbrew.load({worker: true}).then(function() {
+          Coldbrew.setAsyncYieldRate(1337);
+          return Coldbrew.getAsyncYieldRate()
+        });
+      });
+      return expect(rate).to.eventually.equal(2147483647);
+    });
+
+    it.only('should be significantly faster with a higher yield rate', async function () {
+      var timeDifference = utils.eval(this, async () => {
+        var before;
+        before = Date.now(); 
+        Coldbrew.setAsyncYieldRate(10);
+        await Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        var total = Date.now() - before;
+        Coldbrew.setAsyncYieldRate(100);
+        before = Date.now(); 
+        await Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        var total2 = Date.now() - before;
+        return total2/total;
+      });
+      return expect(timeDifference).to.eventually.be.below(.5);
+    });
+
+    it.only('should error if starting new asynchronous execution with one already in flight', async function () {
+      var errors = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        return new Promise(function(resolve, reject) {
+          setTimeout(function() {
+            resolve(window.consoleErrors);
+          }, 1000);
+        });
+      });
+      return expect(errors[0][0]).to.include('already running asynchronously');
+    });
+
+    it.only('should warn if sleeping without running asynchronously', async function () {
+      var warns = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.run('from time import sleep; sleep(.1)');
+        return window.consoleWarns;
+      });
+      return expect(warns[0][0]).to.include('busy wait');
+    });
+
+    it.only('should error if getting JavaScript asynchronous variable without running asynchronously', async function () {
+      var errors = await utils.eval(this, () => {
+        window.clearConsole();
+        window.x = Promise.resolve(Math.pow(5, 2));
+        try {
+          Coldbrew.run("print(Coldbrew.get_variable('x'))");
+        } catch (e) {
+          return window.consoleErrors;
+        }
+      });
+      return expect(errors[0][0]).to.include('Python tried to access a JavaScript Promise.');
+    });
+
+    it.only('should error if making HTTP request without running asynchronously', async function () {
+      var errors = await utils.eval(this, () => {
+        window.clearConsole();
+        try {
+          Coldbrew.run('import urllib.request; print(urllib.request.urlopen("http://localhost:8000/remote/example.txt").read())');
+        } catch (e) {
+          return window.consoleErrors;
+        }
+      });
+      return expect(errors[0][0]).to.include('Python tried to make an HTTP request.');
+    });
   });
   
   describe('Environment', () => {
     // Env variables
     // File System
     // File System persistence
+    // download file system as zip
     // Monitor file Usage
     // Resetting the environment
   });
@@ -469,8 +577,6 @@ describe('Core Coldbrew Functionality', () => {
     });
   });
 
-  // Don't allow unload when in async calls are inflight
-
   // Bridge
   // Make sure bridge variables work
   // Make sure PythonError, PythonVariable classes work with worker mode
@@ -497,8 +603,10 @@ describe('Core Coldbrew Functionality', () => {
 
   // Node
   // test HTTP shim
-  // test readFile
+  // test readFile() (because of TextEncoder)
   // test worker mode works
   // test add files from zip file 
+  // test file system persistence
+  // test download file system as zip works
   // test threading
 });

@@ -1631,6 +1631,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       });
     };
     MODULE_NAME._initializer = function() {
+      MODULE_NAME.run('Coldbrew._finalized_options = '+serializeToPython(finalizedOptions));
       if (finalizedOptions.worker) {
         MODULE_NAME._setAsyncYieldRate(2147483647);
       }
@@ -1639,7 +1640,6 @@ MODULE_NAME._load = function(arg1, arg2) {
       }
       MODULE_NAME.run('Coldbrew._clear_argv()');
       MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
-      MODULE_NAME.run('Coldbrew._finalized_options = '+serializeToPython(finalizedOptions));
       if (!finalizedOptions.hideWarnings) {
         console.warn('Initialized MODULE_NAME Python Environment.');
       }

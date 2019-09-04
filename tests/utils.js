@@ -91,9 +91,16 @@ beforeEach(async function() {
       window.consoleLogs.push(args);
       return oldConsoleLog.apply(console, args);
     };
+    window.consoleErrors = [];
+    var oldConsoleError = console.error;
+    console.error = function(...args) {
+      window.consoleErrors.push(args);
+      return oldConsoleError.apply(console, args);
+    };
     window.clearConsole = function() {
       window.consoleWarns = [];
       window.consoleLogs = [];
+      window.consoleErrors = [];
     };
   });
   this.currentTest.load = utils.eval({test: this.currentTest}, () => {
