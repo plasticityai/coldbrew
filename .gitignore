@@ -17,7 +17,6 @@ src/*.asm.js
 src/*.orig.js
 src/*.intermediate.js
 src/*.worker.js
-src/*.thread.js
 src/*.wasm
 src/*.embin
 src/*.so

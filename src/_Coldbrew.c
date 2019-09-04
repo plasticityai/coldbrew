@@ -79,6 +79,14 @@ _Coldbrew_set_async_yield_rate(PyObject* self, PyObject* args)
     Py_RETURN_NONE;
 }
 
+static PyObject*
+_Coldbrew__emscripten_version(PyObject* self, PyObject* args)
+{
+    static char _emscripten_version[11];
+    snprintf(_emscripten_version, 11, "%d.%d.%d", __EMSCRIPTEN_major__, __EMSCRIPTEN_minor__, __EMSCRIPTEN_tiny__);
+    return PyUnicode_FromString(_emscripten_version);
+}
+
 
 static PyMethodDef _ColdbrewMethods[] =
 {
@@ -89,6 +97,7 @@ static PyMethodDef _ColdbrewMethods[] =
      {"_sleep", _Coldbrew__sleep, METH_VARARGS, NULL},
      {"get_async_yield_rate", _Coldbrew_get_async_yield_rate, METH_VARARGS, NULL},
      {"set_async_yield_rate", _Coldbrew_set_async_yield_rate, METH_VARARGS, NULL},
+     {"_emscripten_version", _Coldbrew__emscripten_version, METH_VARARGS, NULL},
      {NULL, NULL, 0, NULL}
 };
 

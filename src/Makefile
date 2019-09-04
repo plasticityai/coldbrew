@@ -18,8 +18,8 @@ export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customiz
 COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not NODE).lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
-ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\nPyCFunction_Call'
-ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module'
+ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript'
+ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
 
 PYVERSION=3.5.2
@@ -139,12 +139,17 @@ endif
 	@echo "  documentation / support."
 	@echo "========================================"
 
-$(MODULE_NAME_LOWER).js.make: Worker.js $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
+$(MODULE_NAME_LOWER).js.make: tools/externs.js Worker.js $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
+	# Restore externs for closure compiler
+	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js || true
+	# Patch externs for closure compiler
+	cp $(EMSCRIPTEN_PATH)/src/closure-externs.js $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak
+	cat tools/externs.js | sed -e 's/MODULE_NAME/$(MODULE_NAME)/g;' >> $(EMSCRIPTEN_PATH)/src/closure-externs.js 
 	# This has to be defined in here and not at the beginning of the file
 	$(eval BUILTIN_MODULES := $(shell for d in $$(find ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) -type f); do (llvm-nm $$d 2>/dev/null | grep "T PyInit_" | sed -e 's/-------- T PyInit_/,/g' | sed -e 's/^,//g'); done))
 	# Start global closure
 	echo "(function () {" > $(MODULE_NAME_LOWER).js
-	echo "const SCRIPT_SOURCE = (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).js
+	echo "const SCRIPT_SOURCE = (typeof BLOB_SCRIPT_SOURCE !== 'undefined' && BLOB_SCRIPT_SOURCE) || (typeof document !== 'undefined' && document.currentScript.src) || (typeof self !== 'undefined' && self.location && self.location.href) || (this.thread && this.thread.__filename) || __filename;" >> $(MODULE_NAME_LOWER).js
 	# Start a named closure, this is so that we can unload() and reload() everything the library does easily
 	echo "(function COLDBREW_TOP_SCOPE_FUNC(shouldExportColdbrew = true, coldbrewObjectReference={}) {" >> $(MODULE_NAME_LOWER).js
 	echo "const COLDBREW_TOP_SCOPE = {};" >> $(MODULE_NAME_LOWER).js
@@ -212,9 +217,8 @@ endif
 
 	touch $(MODULE_NAME_LOWER).js.make
 
-$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js
+$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js tools/embed_thread_script.py
 	rm -rf *.worker.js 2>/dev/null || true
-	rm -rf *.thread.js 2>/dev/null || true
 	# Restore externs for closure compiler
 	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js || true
 	# Patch externs for closure compiler
@@ -227,56 +231,52 @@ $(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.
 	# Build .js + .wasm + .data
 	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
-	# Rename *.worker.js to *.thread.js
-ifeq ($(ENABLE_THREADING),true)
-	mv $(MODULE_NAME_LOWER).worker.js $(MODULE_NAME_LOWER).thread.js
-endif
 	# Patch output files
 ifeq ($(NODE),false)
+	# Use absolute path for .data file
 	sed -e 's/$(MODULE_NAME_LOWER).data/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).data"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	# Use absolute path for .wasm file
 	sed -e 's/$(MODULE_NAME_LOWER).wasm/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).wasm"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	# Don't use locateFile() for .wasm file
 	sed -e 's/locateFile(wasmBinaryFile)/wasmBinaryFile/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-else
-	sed -e 's/if (typeof crypto !== "undefined")/if (typeof crypto !== "undefined" \&\& !ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/if(typeof crypto!=="undefined")/if(typeof crypto!=="undefined"\&\&!ENVIRONMENT_IS_NODE)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
-	sed -e 's/var crypto = require(/let crypto = require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+ifeq ($(ENABLE_THREADING),true)
+	# Embed the thread script into the main JS file as a Blob URL
+	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).worker.js | $(UGLIFY) > $(MODULE_NAME_LOWER).worker.js.tmp
+	mv $(MODULE_NAME_LOWER).worker.js.tmp $(MODULE_NAME_LOWER).worker.js
+	python tools/embed_thread_script.py $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).worker.js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/var crypto=require(/let crypto=require(/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/$(MODULE_NAME_LOWER).worker.js/"+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "origin")+COLDBREW_TOP_SCOPE.parseUrl(SCRIPT_SOURCE, "pathname").split("\/").slice(0, -1).join("\/")+"\/$(MODULE_NAME_LOWER).thread.js"+"/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/locateFile(pthreadMainJs)/pthreadMainJs/g; ' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	rm $(MODULE_NAME_LOWER).worker.js
+endif
 	# Compress the output files
 ifeq ($(COMPRESS_NETWORK_FILES),true)
 	zip -9 -j $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
 	mv $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
 	zip -9 -j $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
 	mv $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
+	# Disable WebAssembly.instantiateStreaming since we are using a zipped .wasm file
 	sed -e 's/typeof WebAssembly.instantiateStreaming/undefined/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	# Unzip the .wasm file
+	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g; s/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-	sed -e 's/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
-	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+	# Unzip the .data file
 	sed -e 's/callback(packageData)/Promise.resolve(packageData).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") }).then(callback)/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
+	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 endif
 	# Compress
 	cat $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
-ifeq ($(ENABLE_THREADING),true)
-	$(JSCC) $(JSCCFLAGS) $(MODULE_NAME_LOWER).thread.js | $(UGLIFY) > $(MODULE_NAME_LOWER).thread.js.tmp
-	mv $(MODULE_NAME_LOWER).thread.js.tmp $(MODULE_NAME_LOWER).thread.js
-endif
 	# Save a backup copy of the file
 	cp $(MODULE_NAME_LOWER).js $(MODULE_NAME_LOWER).js.bak
 
@@ -317,7 +317,6 @@ cleanlocal:
 	rm *.orig.js 2>/dev/null || true
 	rm *.intermediate.js 2>/dev/null || true
 	rm *.worker.js 2>/dev/null || true
-	rm *.thread.js 2>/dev/null || true
 	rm *.wasm 2>/dev/null || true
 	rm *.embin 2>/dev/null || true
 	rm *.so 2>/dev/null || true

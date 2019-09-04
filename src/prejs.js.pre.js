@@ -5,6 +5,20 @@
 setTimeout(function() {
   // Patch Browser.setSafeTimeout to support -1
   var _coldbrew_oldSetTimeout = Browser.safeSetTimeout;
+
+  var _coldbrew_resumeReportError = function(e) {
+    // There is a function pointer on the stack.
+
+    // Emscripten's Asyncify cannot unwind the stack with function pointers on the
+    // stack since we didn't mark them in ASYNC_FUNCS in src/Makefile.
+    // To fix this as a one off if this error is seen, add the function that was
+    // a function pointer on the stack to ASYNC_FUNCS.
+    // If this error keeps coming up over and over again, you can add all
+    // of the functions in CPython to ASYNC_FUNCS. This should prevent this error from
+    // coming up again. Unfortunately, this will increase the .wasm size significantly.
+    console.error("FATAL – Coldbrew tried to true sleep using Asyncify, with a function pointer on the stack before unwinding. Please report an issue at https://git.io/fjANP and share the *full stack trace with DEBUG mode on* of this error.");
+  };
+
   Browser.safeSetTimeout = function() {
     var args = arguments;
     if (args[1] < 0) {
@@ -12,13 +26,21 @@ setTimeout(function() {
         // Immediately execute
         MODULE_NAME._resume_ie = false;
         MODULE_NAME.resume = MODULE_NAME._resumeWarn;
-        args[0]();
+        try {
+          args[0]();
+        } catch (e) {
+          _coldbrew_resumeReportError(e);
+        }
       } else {
         // Save resume execution for later
         MODULE_NAME.resume = function() {
           MODULE_NAME._resume_ie = false;
           MODULE_NAME.resume = MODULE_NAME._resumeWarn;
-          args[0]();
+          try {
+            args[0]();
+          } catch (e) {
+            _coldbrew_resumeReportError(e);
+          }
         };
       }
       return -1;

@@ -54,7 +54,8 @@ describe('Core Coldbrew Functionality', () => {
         return window.consoleLogs;
       });
       expect(logs[0][0]).to.include('The current Python version is');
-      return expect(logs[1][0]).to.include('[GCC Clang');
+      expect(logs[1][0]).to.include('[GCC Clang');
+      return expect(logs[1][0]).to.include('(Emscripten ');
     });
 
     it('should allow running Python asynchronously in JavaScript', async function () {
@@ -124,6 +125,17 @@ describe('Core Coldbrew Functionality', () => {
       return expect(logs[0][0]).to.equal("25");
     });
 
+    it('should allow getting JavaScript asynchronous variables in Python', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        window.x = Promise.resolve(Math.pow(5, 2));
+        return Coldbrew.runAsync("print(Coldbrew.get_variable('x'))").then(function() {
+          return window.consoleLogs;
+        });
+      });
+      return expect(logs[0][0]).to.equal("25");
+    });
+
     it('should allow running Python functions in JavaScript', async function () {
       var result = utils.eval(this, () => {
         Coldbrew.run(
@@ -183,6 +195,20 @@ describe('Core Coldbrew Functionality', () => {
         window.foo = foo;
         Coldbrew.run("print(Coldbrew.run_function('foo', 5, 2))");
         return window.consoleLogs;
+      });
+      return expect(logs[0][0]).to.equal("25");
+    });
+
+    it('should allow running JavaScript asynchronous functions in Python', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        function foo(x, y) {
+          return Promise.resolve(Math.pow(x, y));
+        }
+        window.foo = foo;
+        return Coldbrew.runAsync("print(Coldbrew.run_function('foo', 5, 2))").then(function() {
+          return window.consoleLogs;
+        });
       });
       return expect(logs[0][0]).to.equal("25");
     });
@@ -288,7 +314,7 @@ describe('Core Coldbrew Functionality', () => {
     // verify yield rate faster
     // warn if two async calls in flight at same time
 
-  })
+  });
   
   describe('Environment', () => {
     // Env variables
@@ -299,9 +325,148 @@ describe('Core Coldbrew Functionality', () => {
   });
 
   describe('Python Shims', () => {
-    // Sleep
-    // HTTP
-    // Standard Input, Standard Output
+    it('should allow time.sleep() synchronously in Python', async function () {
+      var time = utils.eval(this, () => {
+        var before = Date.now();
+        Coldbrew.run("from time import sleep; sleep(2)");
+        return Date.now()-before;
+      });
+      return expect(time).to.eventually.be.above(2000);
+    });
+
+    it('should allow time.sleep() asynchronously in Python', async function () {
+      var time = utils.eval(this, () => {
+        var before = Date.now();
+        return Coldbrew.runAsync("from time import sleep; sleep(2)").then(function() {
+          return Date.now()-before;
+        });
+      });
+      return expect(time).to.eventually.be.above(2000);
+    });
+
+
+    it('should allow HTTP requests in Python', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        return Coldbrew.runAsync('import urllib.request; print(urllib.request.urlopen("http://localhost:8000/remote/example.txt").read())').then(function() {
+          return window.consoleLogs;
+        });
+      });
+      return expect(logs[0][0]).to.include('downloaded from a remote server');
+    });
+
+    it('should by default redirect standard output to console.log', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.run('print("Hello World!")');
+        return window.consoleLogs;
+      });
+      return expect(logs[0][0]).to.include('Hello World!');
+    });
+
+    it('should by default redirect standard error to console.warn', async function () {
+      var warns = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.run('import sys; print("Hello World!", file=sys.stderr)');
+        return window.consoleWarns;
+      });
+      return expect(warns[0][0]).to.include('Hello World!');
+    });
+
+    it('should allow redirecting of standard output', async function () {
+      var output = utils.eval(this, () => {
+        var outputPromise = new Promise(function(resolve, reject) {
+          Coldbrew.onStandardOut = function(line) {
+            resolve(line);
+          };
+        });
+        Coldbrew.run('print("Hello World!")');
+        return outputPromise;
+      });
+      return expect(output).to.eventually.include('Hello World!');
+    });
+
+    it('should allow redirecting of standard error', async function () {
+      var output = utils.eval(this, () => {
+        var outputPromise = new Promise(function(resolve, reject) {
+          Coldbrew.onStandardErr = function(line) {
+            resolve(line);
+          };
+        });
+        Coldbrew.run('import sys; print("Hello World!", file=sys.stderr)');
+        return outputPromise;
+      });
+      return expect(output).to.eventually.include('Hello World!');
+    });
+
+    it('should by default use buffer when reading from standard input', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.run('print(input())');
+        return window.consoleLogs;
+      });
+      return expect(logs[0][0]).to.include('This is the first line of standard input.');
+    });
+
+    it('should by default use buffer when reading from standard input asynchronously', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        return Coldbrew.runAsync('print(input())').then(function() {
+          return window.consoleLogs;
+        });
+      });
+      return expect(logs[0][0]).to.include('This is the first line of standard input.');
+    });
+
+    it('should use standard input read function when reading from standard input', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        var readBuffer = 'Hello World!\n';
+        var tell = 0;
+        Coldbrew.onStandardInRead = function(size) {
+          var read = readBuffer.substring(tell, tell+size);
+          tell += size;
+          return read;
+        };
+        Coldbrew.run('print(input())');
+        return window.consoleLogs;
+      });
+      return expect(logs[0][0]).to.include('Hello World!');
+    });
+
+    it('should use standard input read function when reading from standard input asynchronously', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        var readBuffer = 'Hello World!\n';
+        var tell = 0;
+        Coldbrew.onStandardInRead = function(size) {
+          var read = readBuffer.substring(tell, tell+size);
+          tell += size;
+          return read;
+        };
+        return Coldbrew.runAsync('print(input())').then(function() {
+          return window.consoleLogs;
+        });
+      });
+      return expect(logs[0][0]).to.include('Hello World!');
+    });
+
+    it('should use standard input read async function when reading from standard input asynchronously', async function () {
+      var logs = await utils.eval(this, () => {
+        window.clearConsole();
+        var readBuffer = 'Hello World!\n';
+        var tell = 0;
+        Coldbrew.onStandardInReadAsync = function(size) {
+          var read = readBuffer.substring(tell, tell+size);
+          tell += size;
+          return Promise.resolve(read);
+        };
+        return Coldbrew.runAsync('print(input())').then(function() {
+          return window.consoleLogs;
+        });
+      });
+      return expect(logs[0][0]).to.include('Hello World!');
+    });
   });
 
   // Don't allow unload when in async calls are inflight
@@ -319,6 +484,16 @@ describe('Core Coldbrew Functionality', () => {
   // test worker mode with threading
   // test what happens when # of workers < # of threads
 
+  // Worker
+  // test run is window scoped
+  // test get variable is window scoped
+  // test run function is window scoped
+  // test file system works
+  // test file system persistence works
+  // test standard input, output, error works
+  // test network works
+  // test download file system as zip works
+  // make sure reset works
 
   // Node
   // test HTTP shim

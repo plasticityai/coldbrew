@@ -164,7 +164,7 @@ try:
 except:
     _sys_version_repo_index = None
 if _sys_version_repo_index:
-    sys.version = sys.version[:_sys_version_repo_index]+"]"
+    sys.version = sys.version[:_sys_version_repo_index]+" (Emscripten "+_Coldbrew._emscripten_version()+")]"
 
 # Shim sleep()
 def sleep(t):
@@ -174,7 +174,7 @@ def sleep(t):
         except SystemError:
             pass
     else:
-        _warn("Python tried to call sleep("+str(t)+"). Since you are not running in asynchronous mode, sleep() will busy wait (https://en.wikipedia.org/wiki/Busy_waiting) and lock the browser until the sleep is completed.")
+        _warn("Python called sleep("+str(t)+"). Since you are not running in asynchronous mode, sleep() will busy wait (https://en.wikipedia.org/wiki/Busy_waiting) and lock the browser until the sleep is completed.")
         stime = time.time()
         while time.time()-stime < t:
             pass
