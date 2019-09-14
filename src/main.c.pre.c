@@ -169,7 +169,6 @@ int main(int argc, char** argv) {
     setenv("COLDBREW_MODULE_NAME", STRINGIFY(MODULE_NAME), 1);
     setenv("COLDBREW_MODULE_NAME_LOWER", STRINGIFY(MODULE_NAME_LOWER), 1);
     setenv("COLDBREW_WARNINGS", "1", 1);
-    setenv("COLDBREW_ASYNC_FUNC", "", 1);
     rmdir("/home/web_user");
     Py_SetProgramName((wchar_t*) STRINGIFY(MODULE_NAME_LOWER));
     PyImport_AppendInittab("_Coldbrew", PyInit__Coldbrew);

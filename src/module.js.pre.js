@@ -79,10 +79,10 @@ class JavaScriptError extends Error {
   }
 }
 class PythonError extends Error {
-  constructor(...args) {
-    super(...args)
+  constructor(exceptionInfo) {
+    super(exceptionInfo.value)
     Error.captureStackTrace(this, PythonError);
-    this.errorData = MODULE_NAME.getExceptionInfo();
+    this.errorData = exceptionInfo;
   }
 }
 class HTTPResponseError extends Error {
@@ -353,7 +353,7 @@ function sendRequest(method, url, body, headers, timeout, binary = false, level=
       var httplib = (parsedUrl.protocol === 'http:') ? require('http') : require('https');
       var requestOptions = {
         method: method,
-        host: parsedUrl.host,
+        host: parsedUrl.hostname,
         port: parsedUrl.port,
         path: parsedUrl.path,
         headers: headers,
@@ -411,11 +411,11 @@ function sendRequest(method, url, body, headers, timeout, binary = false, level=
           }
         });
       });
-      request.on('error', function() {
+      request.on('error', function(error) {
         var e = new HTTPResponseError("The request has failed.");
         e.errorData = {
           status: 0,
-          statusText: "",
+          statusText: error.message,
           responseText: "",
           responseType: "",
           responseURL: url,
@@ -477,6 +477,7 @@ var _MODULE_NAME_coldbrew_internal_instance = (function() {
     return singleton;
   };
 })();
+
 var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
   var executed = false;
   var singleton = {};
@@ -501,15 +502,9 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
         singleton['/tmp'] |=  1;
       }
       if (persistHome) {
-        if (IS_NODE_JS) {
-          throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
-        }
         singleton['/home'] |=  2;
       }
       if (persistTmp) {
-        if (IS_NODE_JS) {
-          throw new Error("You cannot persist the file system on Node.js, there is no browser storage available. Maybe try bundling files using a custom Coldbrew Python environment (see README on GitHub) instead?");
-        }
         singleton['/tmp'] |= 2;
       }
       if (BROWSERFS) {
@@ -980,6 +975,12 @@ function unserializeFromPython(arg) {
     return MODULE_NAME._get_vars[arg['uid']];
   } else if (arg && arg._internal_coldbrew_var === true) {
     return MODULE_NAME._vars[arg.uid];
+  } else if (arg && arg._internal_coldbrew_error) {
+    return new Promise(function(resolve, reject) {
+      MODULE_NAME.getExceptionInfo().then(function(exceptionInfo) {
+        reject(new MODULE_NAME.PythonError(exceptionInfo));
+      });
+    });
   } else {
     return arg;
   }
@@ -1247,11 +1248,23 @@ MODULE_NAME._fsReady = function(cb) {
         var isShared = mountPoints[mountPoint] & 1;
         var isPersist = mountPoints[mountPoint] & 2;
         var filesystem = Module.FS.filesystems.MEMFS;
+        var filesystemOptions = {};
         if (!isShared) {
           fsNamespace += 'MODULE_NAME_';
         }
         if (isPersist) {
-          filesystem = Module.FS.filesystems.IDBFS;
+          if (IS_NODE_JS) {
+            filesystem = Module.FS.filesystems.NODEFS;
+            var fs = require('fs');
+            try {
+              fs.mkdirSync(__dirname+mountPoint);
+            } catch (e) {
+              // Already exists
+            }
+            filesystemOptions.root = __dirname+mountPoint;
+          } else {
+            filesystem = Module.FS.filesystems.IDBFS;
+          }
         }
         try {
           Module.FS.rmdir(mountPoint+'/web_user');
@@ -1272,7 +1285,7 @@ MODULE_NAME._fsReady = function(cb) {
               return COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint]; 
             };
           }
-          Module.FS.mount(filesystem, {}, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
+          Module.FS.mount(filesystem, filesystemOptions, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
         } else if (BROWSERFS) {
           // Handle BrowserFS here
         }
@@ -1367,7 +1380,11 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME.run = function(script) {
       var ret = MODULE_NAME._run(script);
       if (ret != 0) {
-        throw new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo().value);
+        if (!IS_WORKER_SCRIPT) {
+          throw new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo());
+        } else {
+          ret = {'_internal_coldbrew_error': true};
+        }
       }
       return ret;
     };
@@ -1379,7 +1396,11 @@ MODULE_NAME._load = function(arg1, arg2) {
         var retp = MODULE_NAME._runAsync(script);
         return retp.then(function(ret) {
           if (ret != 0) {
-            return Promise.reject(new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo().value));
+            if (!IS_WORKER_SCRIPT) {
+              return Promise.reject(new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo()));
+            } else {
+              return Promise.resolve({'_internal_coldbrew_error': true}); 
+            }
           } else {
             return Promise.resolve(ret);
           }
@@ -1486,9 +1507,67 @@ MODULE_NAME._load = function(arg1, arg2) {
                 MODULE_NAME.addFile(path+'/'+file, textData);
               });
             } else {
-              return Promise.resolve(undefined);
+              return MODULE_NAME.createFolder(path+'/'+file);
             }
           }));
+        });
+      };
+      MODULE_NAME.downloadPathToZip = function(path, downloadName='download.zip') {
+        var zip = new JSZip();
+        var zipHelper = function(path, basePath) {
+          if (MODULE_NAME.Module.FS.analyzePath(path).object 
+            && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
+            var fileList = MODULE_NAME.listFiles(path);
+            if (fileList.length > 0) {
+              fileList.forEach(function (file) {
+                if (path !== '/' || !['dev', 'proc', '.filesystem', '.slots'].includes(file.name)) {
+                  var newPath = path+'/'+file.name;
+                  var zippedPath = newPath;
+                  if (zippedPath.startsWith(basePath)) {
+                    zippedPath = zippedPath.replace(basePath, '');
+                  }
+                  if (file.isFolder) {
+                    zip.folder(zippedPath);
+                  }
+                  zipHelper(newPath, basePath);
+                }
+              });
+            }
+          } else {
+            var zippedPath = path;
+            if (zippedPath.startsWith(basePath)) {
+              zippedPath = zippedPath.replace(basePath, '');
+            }
+            zip.file(zippedPath, MODULE_NAME.readBinaryFile(path));
+          }
+        };
+        path = path.replace(/\/+/g, '/');
+        if (path.length > 1 && path.slice(-1) === '/') {
+          path = path.slice(0, -1);
+        }
+        var basePath = path + '/';
+        if (MODULE_NAME.pathExists(path) && MODULE_NAME.pathExists(path).isFile) {
+          basePath = path.split('/').slice(0, -1).join('/') + '/';
+        }
+        zipHelper(path, basePath);
+        return zip.generateAsync({type: IS_NODE_JS ? "arraybuffer" : "blob"}).then(function (blob) {
+          if (IS_NODE_JS) {
+            var fs = require('fs');
+            fs.writeFileSync(downloadName, Buffer.from(blob));
+          } else if (IS_WORKER_SCRIPT) {
+            var objectUrl = URL.createObjectURL(blob, {type: 'application/zip'});
+            postMessage({
+              '_internal_coldbrew_message': true,
+              'download_url': objectUrl,
+              'download_name': downloadName,
+            });
+          } else {
+            var objectUrl = URL.createObjectURL(blob, {type: 'application/zip'});
+            var aElement = document.createElement("a");
+            aElement.href = objectUrl;
+            aElement.download = downloadName;
+            aElement.click();
+          }
         });
       };
     }
@@ -1534,6 +1613,10 @@ MODULE_NAME._load = function(arg1, arg2) {
       return true;
     };
     MODULE_NAME.saveFiles = function() {
+      if (IS_NODE_JS) {
+        MODULE_NAME.run('Coldbrew._warn("No need to use saveFiles() when using Node.js, files are persisted automatically.")');
+        return Promise.resolve(true);
+      }
       var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
         var isPersist = mountPoints[mountPoint] & 2;
         return !!isPersist;
@@ -1553,6 +1636,10 @@ MODULE_NAME._load = function(arg1, arg2) {
       });
     };
     MODULE_NAME.loadFiles = function() {
+      if (IS_NODE_JS) {
+        MODULE_NAME.run('Coldbrew._warn("No need to use loadFiles() when using Node.js, persisted files are loaded automatically.")');
+        return Promise.resolve(true);
+      }
       var isPersistable = Object.keys(mountPoints).map(function(mountPoint) {
         var isPersist = mountPoints[mountPoint] & 2;
         return !!isPersist;
@@ -1688,7 +1775,15 @@ MODULE_NAME.unload = function(arg1, arg2) {
     Object.getOwnPropertyNames(MODULE_NAME).forEach(function (prop) {
       delete MODULE_NAME[prop];
     });
+    var oldModule = null;
+    if (IS_NODE_JS) {
+      oldModule = module;
+      module = {exports: {}};
+    }
     COLDBREW_TOP_SCOPE_FUNC(false, MODULE_NAME);
+    if (IS_NODE_JS) {
+      module = oldModule;
+    }
   }
 };
 MODULE_NAME.load = function(options = {}) {
@@ -1704,23 +1799,30 @@ MODULE_NAME.load = function(options = {}) {
         if (event.data._internal_coldbrew_message && event.data.ready) {
           // Worker is ready, load Coldbrew in the worker
           MODULE_NAME._workerProxy.load(options);
+        } else if (event.data._internal_coldbrew_message && event.data.download_url) {
+          var aElement = document.createElement("a");
+          aElement.href = event.data.download_url;
+          aElement.download = event.data.download_name;
+          aElement.click();
         } else if (event.data._internal_coldbrew_message && event.data.props) {
           // Assign the proxied properties of the worker module to the main module
           Object.keys(event.data.props).forEach(function (prop) {
-            if (!['unload', '_parseUrl', 'createNewInstance', 'PythonVariable', 'PythonKeywords', '_getMainVariable', '_callFunc', '_try', '_convertError'].includes(prop) && event.data.props[prop] === 'function') {
+            if (!['unload', '_parseUrl', 'createNewInstance', 'PythonVariable', 'PythonError', 'PythonKeywords', '_getMainVariable', '_callFunc', '_try', '_convertError', 'onStandardInRead', 'onStandardInReadAsync'].includes(prop) && event.data.props[prop] === 'function') {
               MODULE_NAME[prop] = function(...args) {
                 var serializedArgs = args.map(function(arg) {
                   return serializeToJS(arg);
                 });
-                return makePromiseChainable(Promise.all(serializedArgs).then(function(serializedArgs) {
-                  var retp = MODULE_NAME_proxy[prop](...serializedArgs);
-                  return retp.then(function(ret) {
-                    return unserializeFromPython(ret);
-                  });
-                }));
+                return makePromiseChainable(Promise.all(serializedArgs)
+                  .then(function(serializedArgs) {
+                    var retp = MODULE_NAME_proxy[prop](...serializedArgs);
+                    return retp.then(function(ret) {
+                      return unserializeFromPython(ret);
+                    });
+                  })
+                );
               };
             }
-            if (['standardInBuffer', '_standardInTell', 'forwardOut', 'forwardErr'].includes(prop) && 
+            if (['forwardOut', 'forwardErr'].includes(prop) && 
                   (
                     event.data.props[prop] === 'number' ||
                     event.data.props[prop] === 'string' ||
@@ -1737,6 +1839,10 @@ MODULE_NAME.load = function(options = {}) {
           });
           MODULE_NAME.Module = null;
           MODULE_NAME.loaded = true;
+          MODULE_NAME.run = MODULE_NAME.runAsync;
+          MODULE_NAME.runFunction = MODULE_NAME.runFunctionAsync;
+          MODULE_NAME.runFile = MODULE_NAME.runFileAsync;
+          MODULE_NAME.getVariable = MODULE_NAME.getVariableAsync;
           // Done loading Coldbrew with worker option
           resolve();
         } else if (event.data._internal_coldbrew_message && event.data._get_var_action) {
@@ -2055,7 +2161,6 @@ if (shouldExportColdbrew) {
     }
     return EXPORT;
   })(MODULE_NAME);
-
 
   if (typeof module !== 'undefined') module.exports = EXPORT;
   if (typeof window !== 'undefined') window.MODULE_NAME = EXPORT;

@@ -7,10 +7,13 @@ else
   ./build.sh
 fi
 
-echo "Launching server..."
-$(./serve.sh || true)&
+(
+  cd $DIR
+  echo "Launching server..."
+  $(./serve.sh || true)&
 
-sleep 5;
+  sleep 5;
 
-echo "Running mocha tests..."
-node_modules/mocha/bin/mocha --exit --timeout 20000 --retries 5 $@ tests/**/*;
+  echo "Running mocha tests..."
+  node_modules/mocha/bin/mocha --exit --timeout 20000 --retries 5 $@ tests/**/*;
+)

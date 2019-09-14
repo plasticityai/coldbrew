@@ -5,6 +5,8 @@ const puppeteer = require('puppeteer');
 const { Assertion, expect } = chai;
 const { promisify } = require('util');
 
+process.setMaxListeners(0);
+
 chai.use(chaiAsPromised);
 
 const utils = {};
@@ -16,6 +18,7 @@ utils.getNewBrowser = async () => {
   return puppeteer.launch({
     ignoreHTTPSErrors: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: true,
   });
 };
 
@@ -74,6 +77,22 @@ utils.eval = async (that, expression) => {
   return await that.test.page.evaluate(expression);
 };
 
+// Unrequire a model
+function unrequire(moduleName, seen = new Set()) {
+  var solvedName = require.resolve(moduleName),
+    nodeModule = require.cache[solvedName];
+  if (nodeModule) {
+    for (var i = 0; i < nodeModule.children.length; i++) {
+      var child = nodeModule.children[i];
+      if (!seen.has(child.filename)) {
+        seen.add(child.filename);
+        unrequire(child.filename, seen);
+      }
+    }
+    delete require.cache[solvedName];
+  }
+}
+
 beforeEach(async function() {
   this.retries(5);
   this.currentTest.browser = await utils.getNewBrowser();
@@ -106,7 +125,14 @@ beforeEach(async function() {
   this.currentTest.load = utils.eval({test: this.currentTest}, () => {
     return Coldbrew.load();
   });
-  return this.currentTest.load;
+  var nodeLoad = Promise.resolve(undefined);
+  try {
+    this.currentTest.Coldbrew = require('../dist-node');
+    nodeLoad = this.currentTest.Coldbrew.load({hideWarnings: true});
+  } catch (e) {
+    // Ignore
+  }
+  return Promise.all([this.currentTest.load, nodeLoad]);
 });
 
 afterEach(async function() {

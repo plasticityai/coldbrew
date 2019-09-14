@@ -2,9 +2,9 @@ COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import v
 
 MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
-NODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
+NODE?=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
 DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
-ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING).lower())")
+ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING and not '$(NODE)' == 'true').lower())")
 MAX_MEMORY=2032MB
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
 UNUSED_MODULES=test distutils ensurepip idlelib __pycache__ tkinter
@@ -15,7 +15,7 @@ JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from cold
 SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
 ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
 export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
-COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not NODE).lower())")
+COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not '$(NODE)' == 'true').lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript'
@@ -100,14 +100,14 @@ BCS := $(SRCS:.c=.bc)
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
 
-all: ../$(COLDBREW_DIST_DIR) $(MODULE_NAME_LOWER).js.make index.html
+all: dist.make $(MODULE_NAME_LOWER).js.make index.html
 
-python: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
+python: ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o
 
 index.html: index.html.pre.html $(MODULE_NAME_LOWER).js Makefile
 	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g;' index.html.pre.html > index.html
 
-../$(COLDBREW_DIST_DIR): $(MODULE_NAME_LOWER).js.make Makefile index.html ../README.md ../package.json
+dist.make: $(MODULE_NAME_LOWER).js.make Makefile index.html ../README.md ../package.json
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	mkdir -p ../$(COLDBREW_DIST_DIR) || true
@@ -127,6 +127,7 @@ ifeq ($(NODE),true)
 			cd ../$(COLDBREW_DIST_DIR); \
 		)
 		cp ../README.md ../$(COLDBREW_DIST_DIR)/README.md
+		rm ../$(COLDBREW_DIST_DIR)/index.html
 endif
 	@echo "\n\n\n"
 	@echo "========================================"
@@ -138,6 +139,7 @@ endif
 	@echo "* Vist https://git.io/fjANP for more"
 	@echo "  documentation / support."
 	@echo "========================================"
+	@touch dist.make
 
 $(MODULE_NAME_LOWER).js.make: tools/externs.js Worker.js $(MODULE_NAME_LOWER).js ../customize/export.js module.js.pre.js ../third_party/fast-text-encoding/text.min.js ../third_party/comlink/comlink.js ../third_party/externs.js
 	# Restore externs for closure compiler
@@ -188,7 +190,7 @@ ifeq ($(JSZIP),true)
 	echo "" >> $(MODULE_NAME_LOWER).js
 	echo "if (IS_NODE_JS) { module = module3 };" >> $(MODULE_NAME_LOWER).js	
 	echo "" >> $(MODULE_NAME_LOWER).js
-	cat ../third_party/jszip/jszip.min.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
+	cat ../third_party/jszip/jszip.js | $(JSCC) | $(UGLIFY) >> $(MODULE_NAME_LOWER).js
 	echo "" >> $(MODULE_NAME_LOWER).js
 endif
 	echo "" >> $(MODULE_NAME_LOWER).js
@@ -218,6 +220,8 @@ endif
 	touch $(MODULE_NAME_LOWER).js.make
 
 $(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js tools/embed_thread_script.py
+	rm -rf *.wasm 2>/dev/null || true
+	rm -rf *.data 2>/dev/null || true
 	rm -rf *.worker.js 2>/dev/null || true
 	# Restore externs for closure compiler
 	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js || true
@@ -288,12 +292,16 @@ stub_removed_modules.bc: ../customize/coldbrew_settings.py
 	$(CC) -o stub_removed_modules.bc /tmp/stub_removed_modules.c $(CFLAGS)
 	rm /tmp/stub_removed_modules.c
 
-sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o stub_removed_modules.bc
+sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o stub_removed_modules.bc
 	echo '#include "Python.h"' > /tmp/stub_manual_compile_modules.c
 	echo "PyObject* PyInit__sqlite3(void); void __coldbrew_pyinit_stub__sqlite3() { PyInit__sqlite3(); }" >> /tmp/stub_manual_compile_modules.c
 	$(CC) -o stub_manual_compile_modules.bc /tmp/stub_manual_compile_modules.c $(CFLAGS)
-	cp ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o python.o
+	cp ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o python.o
+ifeq ($(ENABLE_THREADING),true)
+	llvm-link $(filter-out thread_stub.bc,$(filter-out %.c.pre.bc,$(filter %.bc,$^))) stub_manual_compile_modules.bc --override=stub_removed_modules.bc $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
+else
 	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) stub_manual_compile_modules.bc --override=stub_removed_modules.bc $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
+endif
 	llvm-extract -rglob="\.str*" python.o > python-strings.o
 	llvm-link --only-needed sources.o python.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) --override=python.o > sources+python.o
 	llvm-link sources+python.o python-strings.o --override=python.o > sources+python+strings.o
@@ -344,7 +352,7 @@ main.c: $(PYLIB) tools/add_requirements.py main.c.pre.c requirements.make
 main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
 
-root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
+root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true
@@ -367,13 +375,13 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbre
 	rm -rf root/usr/local/lib/python$(PYMINOR)/lib2to3/tests || true # Remove these unneeded files taking up space
 	python tools/slim_data_bundle.py
 
-root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o Coldbrew.py
+root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make
 
 $(PYLIB): ../$(PYVERSION)/Setup.local
 	make -C ../$(PYVERSION)
 
-requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
+requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o
 	$(eval GPP := $(shell which g++))
 	( \
 		rm -rf ../customize/requirements || true; \
@@ -397,13 +405,14 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 		/bin/bash -c "mv $(GPP).bak $(GPP)" \
 	)
 
-../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make ../customize/coldbrew_settings.py
+../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o: ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make ../customize/coldbrew_settings.py
+	mkdir -p ../installs/python-$(PYVERSION)/lib/linked/ || true
 	rm -rf ../installs/python-$(PYVERSION)/lib/workspace || true
 	cp -r ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR) ../installs/python-$(PYVERSION)/lib/workspace
 	( \
 		for d in $$(find ../installs/python-$(PYVERSION)/lib/workspace -type f); do (llvm-nm $$d 2>/dev/null | grep -E "$(UNUSED_BUILTIN_MODULES)" 1>/dev/null) && echo "Ignoring: $$d" && mv $$d $$d.ignore; done \
 	) || true
-	llvm-link ../installs/python-$(PYVERSION)/lib/workspace/*.o -o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR).o
+	llvm-link ../installs/python-$(PYVERSION)/lib/workspace/*.o -o ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o
 	rm -rf ../installs/python-$(PYVERSION)/lib/workspace
 
 ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make: $(PYLIB)

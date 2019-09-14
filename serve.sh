@@ -3,5 +3,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 (
   cd $DIR;
-  python -u src/tools/server.py;
+  python -u src/tools/server.py $@;
 )

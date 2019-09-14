@@ -73,7 +73,7 @@ def _warn(message):
 
 def _error(message):
     _Coldbrew._run("console.error('Coldbrew Error: '+"+json.dumps(message)+");")
-    raise RuntimeError()
+    raise RuntimeError('Coldbrew Error: '+message)
 
 def _barg(arg):
     if type(arg) == bytes:
@@ -203,7 +203,7 @@ class _ImportWatcher(object):
     @classmethod
     def find_module(cls, name, path, target=None):
         if 'threadWorkers' not in _finalized_options and name.split('.')[0] == 'threading':
-            _error("You attempted to use import 'threading' in Coldbrew without threading enabled. Please enable threading in the settings file.")
+            _warn("You attempted to use import 'threading' in Coldbrew without threading enabled. Please enable threading in the settings file.")
         return None
 
 class _ImportFinder(importlib.abc.MetaPathFinder):
@@ -229,9 +229,9 @@ class _StandardInput():
         
     def read(self, size):
         if is_async():
-            return _run_function(module_name_var+'''.onStandardInReadAsync''', size)
+            return run_function(module_name_var+'''.onStandardInReadAsync''', size)
         else:
-            return _run_function(module_name_var+'''.onStandardInRead''', size)
+            return run_function(module_name_var+'''.onStandardInRead''', size)
 sys.stdin = _StandardInput()
 ############################################################
 ##################END MISCELLANEOUS SHIMS###################
@@ -309,7 +309,7 @@ def _create_variable_proxy(obj):
                 if prop == '_internal_coldbrew_native_js_worker_proxy':
                     return ProxiedJavaScriptVariable._internal_coldbrew_native_js_worker_proxy(self)
                 elif prop == '__destroyed__':
-                    return _get_variable("typeof "+module_name_var+"._vars['"+obj['uid']+"'] === 'undefined'")
+                    return _get_variable("!("+module_name_var+"._vars.hasOwnProperty('"+obj['uid']+"'))")
                 elif prop == '__type__':
                     return obj['type']
                 elif prop == '__uid__':
@@ -497,6 +497,7 @@ class JavaScriptVariable(object):
 ''' Public functions that allow Python code to interact
 with the Coldbrew environment '''
 ############################################################
+# Runs in worker
 def _get_variable(expression):
     _internal_coldbrew_native_js_worker_proxy = _finalized_options['worker']
     
@@ -535,7 +536,7 @@ def _get_variable(expression):
                     '''+module_name_var+'''._resume_ie = true;
                     '''+module_name_var+'''.resume(false);
                 });''')
-            while _get_variable('''(typeof '''+module_name_var+'''._slots["'''+uid+'''"] === 'undefined')'''):
+            while _get_variable('''(!('''+module_name_var+'''._slots.hasOwnProperty("'''+uid+'''")))'''):
                 sleep(-1)
             return _get_variable(module_name_var+'''._slots["'''+uid+'''"]''')
         else:
@@ -547,6 +548,7 @@ def _get_variable(expression):
             return __get_variable_async(module_name_var+'._vars["'+jsvar.__uid__+'"]')
     return jsvar
 
+# Runs on main thread
 def get_variable(expression):
     if _finalized_options['worker']:
         return _run_function(module_name_var+'._getMainVariable', expression)
@@ -571,19 +573,23 @@ def _handle_run_error(val):
         _js_error = error.error_data
         raise error
 
+# Runs in worker
 def _run(expression):
     val = json.loads(_Coldbrew._run_string_guard("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
     _handle_run_error(val)
     return 0
 
+# Runs on main thread
 def run(expression):
     val = json.loads(get_variable("JSON.stringify("+module_name_var+'._try(function () {'+expression+"})) || \"null\""))
     _handle_run_error(val)
     return 0
 
+# Runs in worker
 def _run_function(functionExpression, *args):
     return _get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
 
+# Runs on main thread
 def run_function(functionExpression, *args):
     return get_variable(module_name_var+'._try(function () { return '+module_name_var+'._callFunc(false, '+functionExpression+','+','.join([_serialize_to_js(_barg(arg)) for arg in args])+')})')
 

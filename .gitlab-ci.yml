@@ -91,8 +91,6 @@ Test and Deploy:
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); print(flags&os.O_NONBLOCK);'
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; make; cd ../
-    # Test
-    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; npm install; echo 'Running tests...'; ./test.sh
     # Build Debug and Build Node
     - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/src; echo "" >> ../customize/coldbrew_settings.py; echo "DEBUG_MODE = True" >> ../customize/coldbrew_settings.py; COLDBREW_DIST_DIR=dist-debug make; cd ../
     - git checkout ./customize/coldbrew_settings.py
@@ -101,6 +99,8 @@ Test and Deploy:
     - cat .gitignore | grep 'dist' -v > .gitignore.tmp
     - mv .gitignore.tmp .gitignore
     # End Build
+    # Test
+    - cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; cd /$COLDBREW_TAGGER_DIR/; npm install; echo 'Running tests...'; ./test.sh
     # Push to NPM registry
     - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
     - /bin/bash -c "cd /usr/local/coldbrew/emsdk; source ./emsdk_env.sh; npm whoami"
@@ -133,6 +133,7 @@ Test and Deploy:
     - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-debug.html
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)").html
     - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)")-debug.html
+    - aws s3 cp src/remote s3://coldbrew.plasticity.ai/remote/ --recursive
     # End Push to Amazon S3
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger

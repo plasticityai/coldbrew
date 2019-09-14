@@ -35,7 +35,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Catching JavaScript Errors in Python](#catching-javascript-errors-in-python)
   * [Accessing HTTP in Python](#accessing-http-in-python)
   * [Using Multiple Threads in Python](#using-multiple-threads-in-python)
-  * [Accessing the Virtual Filesystem](#accessing-the-virtual-filesystem)
+  * [Accessing the Virtual File System](#accessing-the-virtual-file-system)
     + [Listing files under a directory](#listing-files-under-a-directory)
     + [Create a Folder](#create-a-folder)
     + [Adding a File](#adding-a-file)
@@ -43,6 +43,7 @@ Coldbrew also allows you to bundle your own Python application, script, library 
     + [Reading a File](#reading-a-file)
     + [Deleting a Path](#deleting-a-path)
     + [Adding a `.zip` File](#adding-a-zip-file)
+    + [Downloading files to a `.zip` File](#downloading-files-to-a-zip-file)
     + [Saving and Loading Files to Browser Storage](#saving-and-loading-files-to-browser-storage)
   * [Extra Performance by using Workers](#extra-performance-by-using-workers)
   * [Unloading the Environment](#unloading-the-environment)
@@ -337,7 +338,7 @@ Python is able to access HTTP connections in Coldbrew and the requests will be s
 ```javascript
 Coldbrew.runAsync(
 `import urllib.request
-print(urllib.request.urlopen("http://coldbrew.plasticity.ai/example.txt").read())
+print(urllib.request.urlopen("http://coldbrew.plasticity.ai/remote/example.txt").read())
 `);
 ```
 
@@ -349,7 +350,9 @@ To see an example of multi-threaded Python code running, you can run the [thread
 Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples' });
 ```
 
-### Accessing the Virtual Filesystem
+**Note:** Node.js and some browsers do not support threading as it relies on a JavaScript feature called `SharedArrayBuffer`s which were disabled across many JavaScript engines due to the [Spectre][https://v8.dev/blog/spectre] attacks. Chrome has re-enabled them after fixing the issue, fixes for other browsers and Node.js are pending.
+
+### Accessing the Virtual File System
 Python is not able to access the system's actual file system due to the limitations of the browser, but it can access a virtual file system.
 
 #### Listing files under a directory
@@ -400,13 +403,19 @@ Coldbrew.deletePath('/test.txt');
 #### Adding a `.zip` File
 You can bulk add files from a ZIP file like so:
 ```javascript
-Coldbrew.addFilesFromZip('/home', 'http://coldbrew.plasticity.ai/example_project.zip').then(function() {
+Coldbrew.addFilesFromZip('/home', 'http://coldbrew.plasticity.ai/remote/example_project.zip').then(function() {
   Coldbrew.runFile('multiply.py', {
     cwd: '/home/example_project',
     env: {},
     args: ['5', '15', '-v']
   });
 });
+```
+
+#### Downloading files to a `.zip` File
+You can download files and folders from the file system to a ZIP file like so:
+```javascript
+Coldbrew.downloadPathToZip('/', 'download.zip');
 ```
 
 #### Saving and Loading Files to Browser Storage

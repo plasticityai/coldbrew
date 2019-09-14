@@ -16,13 +16,8 @@ TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tgz
 URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION).tgz
 LIB=libpython$(PYMINOR).a
 
-ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING).lower())")
-ifeq ($(ENABLE_THREADING),true)
-PTHREAD_CFLAGS=-s USE_PTHREADS=1
-else
-PTHREAD_CFLAGS=
-endif
-CFLAGS=$(PTHREAD_CFLAGS) -s WASM_OBJECT_FILES=0
+
+CFLAGS=-s WASM_OBJECT_FILES=0
 
 all: install
 
@@ -32,9 +27,6 @@ clean:
 
 
 $(TARBALL):
-ifeq ($(ENABLE_THREADING),true)
-	./patch-wasm-ld.sh
-endif
 	[ -d ../downloads ] || mkdir ../downloads
 	wget -q -O $@ $(URL)
 	md5sum --quiet --check checksums || (rm $@; false)
@@ -99,6 +91,3 @@ install: $(BUILD)/$(LIB)
 		cp $(LIB) $(INSTALL)/lib/ && \
 		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata.py $(INSTALL)/lib/python$(PYMINOR)/ \
 	)
-ifeq ($(ENABLE_THREADING),true)
-	./unpatch-wasm-ld.sh
-endif
