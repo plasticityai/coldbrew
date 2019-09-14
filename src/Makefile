@@ -133,8 +133,8 @@ endif
 	@echo "========================================"
 	@echo "❄️  ☕ ❄️   Brewed Successfully!   ❄️  ☕ ❄️ "
 	@echo "========================================"
-	@echo "* See the 'dist' folder for outputs."
-	@echo "* Run the './serve.sh' script for a test"
+	@echo "* See the '$(COLDBREW_DIST_DIR)' folder for outputs."
+	@echo "* Run the './serve.sh $(COLDBREW_DIST_DIR)' script for a test"
 	@echo "  page."
 	@echo "* Vist https://git.io/fjANP for more"
 	@echo "  documentation / support."
@@ -313,11 +313,13 @@ clean:
 	make cleanlocal
 
 cleanlocal:
-	rm -rf ../cache || true
+	rm -rf ../cache/wasm-obj || true
+	rm -rf ../cache/wasm-bc || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
 	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	rm -rf root || true
-	rm -rf /root/.emscripten_cache/ || true
+	rm -rf /root/.emscripten_cache/wasm-obj || true
+	rm -rf /root/.emscripten_cache/wasm-bc || true
 	rm *.bc 2>/dev/null || true
 	rm *.mem 2>/dev/null || true
 	rm *.asm.js 2>/dev/null || true
