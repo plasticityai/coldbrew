@@ -28,7 +28,7 @@ class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         path = path.split('#',1)[0]
         path = posixpath.normpath(unquote(path))
         words = path.split('/')
-        words = filter(None, words)
+        words = list(filter(None, words))
         if len(words) >= 1 and words[0] == "remote":
             os.chdir(src_path)
         else:
