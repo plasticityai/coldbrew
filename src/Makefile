@@ -310,13 +310,16 @@ clean:
 	rm -rf ../build || true
 	rm -rf ../downloads || true
 	rm -rf ../installs || true
+	make cleandist
 	make cleanlocal
+
+cleandist:
+	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
+	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 
 cleanlocal:
 	rm -rf ../cache/wasm-obj || true
 	rm -rf ../cache/wasm-bc || true
-	rm -rf ../$(COLDBREW_DIST_DIR)/* || true
-	rm -rf ../$(COLDBREW_DIST_DIR)/**/* || true
 	rm -rf root || true
 	rm -rf /root/.emscripten_cache/wasm-obj || true
 	rm -rf /root/.emscripten_cache/wasm-bc || true
