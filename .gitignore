@@ -5,9 +5,6 @@ __pycache__
 
 node_modules
 build
-dist
-dist-debug
-dist-node
 cache
 downloads
 installs
