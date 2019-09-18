@@ -1007,32 +1007,26 @@ describe('Core Coldbrew Functionality', () => {
       });
       return expect(warns[warns.length-2][0]).to.include('You can only access JavaScript from the main Python thread.');
     });
-
-    // add test that run_function in thread should fail
     
     // add test async (sleep, http, yielding)
     // Yielding should be disabled if gettid() == getpid() (no need to yield in a thread)
     // sleep should work (if not remove ASYNCIFY_WHITELIST and if still not maybe thread lock)
     // http should work if the threading guards in Coldbrew.py are disabled for HTTP stuff only
     
-    // SKIPPED BECAUSE EXTREMELY FLAKY only works like 1/50 runs
-    it.skip('should support thread worker pool re-use', async function () {
+    it('should support thread worker pool re-use', async function () {
       utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples', args: ['1'] });
         return window.consoleLogs;
       });
-      console.log('HERE');
       for (var i = 0; i < 4; i++) {
-        console.log('LOOP');
         await utils.sleep(1);
         logs = await utils.eval(this, () => {
           Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples', args: ['1'] });
           return window.consoleLogs;
         });
       }
-      console.log(logs);
-      return expect(logs[15][0]).to.include('Shared variable `x` is now 3.');
+      return expect(logs[39][0]).to.include('Shared variable `x` is now 1.');
     });
 
     // SKIPPED because it the Module['dynCall_ii call freezes in worker.js
