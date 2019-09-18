@@ -1244,7 +1244,7 @@ MODULE_NAME._fsReady = function(cb) {
   _MODULE_NAME_coldbrew_internal_fs_configure(false, false, false, false, {}, function(err, mountPoints) {
     MODULE_NAME._mountFS = function(Module) {
       var prefix = '.filesystem';
-      Module.FS.createFolder(Module.FS.root, prefix, true, true);
+      Module.FS.$createFolder(Module.FS.root, prefix, true, true);
       Object.keys(mountPoints).forEach(function(mountPoint) {
         var fsNamespace = 'coldbrew_fs_';
         var isShared = mountPoints[mountPoint] & 1;
@@ -1269,12 +1269,12 @@ MODULE_NAME._fsReady = function(cb) {
           }
         }
         try {
-          Module.FS.rmdir(mountPoint+'/web_user');
+          Module.FS.$rmdir(mountPoint+'/web_user');
         } catch (e) {};
         try {
-          Module.FS.rmdir(mountPoint);
+          Module.FS.$rmdir(mountPoint);
         } catch (e) {};
-        Module.FS.createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
+        Module.FS.$createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
         var old = filesystem.mount;
         if (mountPoints[mountPoint]) {
           if (!COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes) {
@@ -1287,11 +1287,11 @@ MODULE_NAME._fsReady = function(cb) {
               return COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint]; 
             };
           }
-          Module.FS.mount(filesystem, filesystemOptions, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
+          Module.FS.$mount(filesystem, filesystemOptions, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
         } else if (BROWSERFS) {
           // Handle BrowserFS here
         }
-        Module.FS.symlink('/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), mountPoint);
+        Module.FS.$symlink('/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), mountPoint);
       });
     }
     cb(err, mountPoints);
@@ -1369,6 +1369,21 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME.mountPoints = mountPoints;
     COLDBREW_TOP_SCOPE.PTHREAD_POOL_SIZE = finalizedOptions.threadWorkers;
     MODULE_NAME.Module = _MODULE_NAME_coldbrew_internal_instance();
+    Object.getOwnPropertyNames(MODULE_NAME.Module.FS).forEach(function(propertyName) {
+      if (typeof MODULE_NAME.Module.FS[propertyName] === 'function') {
+        var oldFSFunction = MODULE_NAME.Module.FS[propertyName].bind(MODULE_NAME.Module.FS);
+        (function(oldFSFunction) {
+          MODULE_NAME.Module.FS['$'+propertyName] = function(...args) {
+            try {
+              return oldFSFunction.apply(null, args);
+            } catch (e) {
+              delete e.setErrno;
+              throw e;
+            }
+          };
+        })(oldFSFunction);
+      }
+    });
     MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
     MODULE_NAME._setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
     MODULE_NAME.setAsyncYieldRate = function(rate) {
@@ -1460,12 +1475,12 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME.getcwd = MODULE_NAME.runFunction.bind(MODULE_NAME, 'Coldbrew._getcwd');
     MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
     MODULE_NAME.listFiles = function(path='/') {
-      return MODULE_NAME.Module.FS.readdir(path)
+      return MODULE_NAME.Module.FS.$readdir(path)
         .filter(function(file) {
           return file !== '.' && file !== '..';
         })
         .map(function (file) {
-          var analyzed = MODULE_NAME.Module.FS.analyzePath(path+'/'+file);
+          var analyzed = MODULE_NAME.Module.FS.$analyzePath(path+'/'+file);
           return {
             name: file,
             isFolder: analyzed.object.isFolder,
@@ -1476,13 +1491,13 @@ MODULE_NAME._load = function(arg1, arg2) {
         });
     };
     MODULE_NAME.createFolder = function(path) {
-      return MODULE_NAME.Module.FS.mkdirTree(path);
+      return MODULE_NAME.Module.FS.$mkdirTree(path);
     };
     MODULE_NAME.addFile = function(path, data) {
       if (path.indexOf('/') >= 0) {
-        MODULE_NAME.Module.FS.mkdirTree(path.split('/').slice(0,-1).join("/"));
+        MODULE_NAME.Module.FS.$mkdirTree(path.split('/').slice(0,-1).join("/"));
       }
-      MODULE_NAME.Module.FS.writeFile(path, data);
+      MODULE_NAME.Module.FS.$writeFile(path, data);
     };
     if (JSZIP) {
       var JSZip;
@@ -1517,8 +1532,8 @@ MODULE_NAME._load = function(arg1, arg2) {
       MODULE_NAME.downloadPathToZip = function(path, downloadName='download.zip') {
         var zip = new JSZip();
         var zipHelper = function(path, basePath) {
-          if (MODULE_NAME.Module.FS.analyzePath(path).object 
-            && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
+          if (MODULE_NAME.Module.FS.$analyzePath(path).object 
+            && MODULE_NAME.Module.FS.$analyzePath(path).object.isFolder) {
             var fileList = MODULE_NAME.listFiles(path);
             if (fileList.length > 0) {
               fileList.forEach(function (file) {
@@ -1574,13 +1589,13 @@ MODULE_NAME._load = function(arg1, arg2) {
       };
     }
     MODULE_NAME.readFile = function(path) {
-      return MODULE_NAME._textDecoder.decode(MODULE_NAME.Module.FS.readFile(path));
+      return MODULE_NAME._textDecoder.decode(MODULE_NAME.Module.FS.$readFile(path));
     };
     MODULE_NAME.readBinaryFile = function(path) {
-      return MODULE_NAME.Module.FS.readFile(path);
+      return MODULE_NAME.Module.FS.$readFile(path);
     };
     MODULE_NAME.pathExists = function(path) {
-      var analyzed = MODULE_NAME.Module.FS.analyzePath(path);
+      var analyzed = MODULE_NAME.Module.FS.$analyzePath(path);
       var exists = analyzed.exists;
       if (!exists) {
         return null;
@@ -1595,17 +1610,17 @@ MODULE_NAME._load = function(arg1, arg2) {
     };
     MODULE_NAME.deletePath = function(path) {
       var deleteHelper = function(path) {
-        if (MODULE_NAME.Module.FS.analyzePath(path).object 
-          && MODULE_NAME.Module.FS.analyzePath(path).object.isFolder) {
+        if (MODULE_NAME.Module.FS.$analyzePath(path).object 
+          && MODULE_NAME.Module.FS.$analyzePath(path).object.isFolder) {
           var fileList = MODULE_NAME.listFiles(path);
           if (fileList.length > 0) {
             fileList.forEach(function (file) {
               deleteHelper(path+'/'+file.name);
             });
           }
-          MODULE_NAME.Module.FS.rmdir(path);
+          MODULE_NAME.Module.FS.$rmdir(path);
         } else {
-          MODULE_NAME.Module.FS.unlink(path);
+          MODULE_NAME.Module.FS.$unlink(path);
         }
       };
       if (path.length > 0 && path.slice(-1) === '/') {
@@ -1625,7 +1640,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       }).includes(true);
       return new Promise(function (resolve, reject) {
         if (isPersistable) {
-          return MODULE_NAME.Module.FS.syncfs(0, function(err) {
+          return MODULE_NAME.Module.FS.$syncfs(0, function(err) {
             if (err) {
                 reject(err);
             } else {
@@ -1648,7 +1663,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       }).includes(true);
       return new Promise(function (resolve, reject) {
         if (isPersistable) {
-          return MODULE_NAME.Module.FS.syncfs(1, function(err) {
+          return MODULE_NAME.Module.FS.$syncfs(1, function(err) {
             if (err) {
                 reject(err);
             } else {
@@ -1742,7 +1757,7 @@ MODULE_NAME._load = function(arg1, arg2) {
     };
     if (finalizedOptions.monitorFileUsage) {
       console.warn('Coldbrew is monitoring file usage...use `MODULE_NAME.getUsedFiles()` after running through all relevant code paths in your Python program.');
-      var _oldOpen = MODULE_NAME.Module.FS.open.bind(MODULE_NAME.Module.FS);
+      var _oldOpen = MODULE_NAME.Module.FS.$open.bind(MODULE_NAME.Module.FS);
       MODULE_NAME.Module.FS.open = function(...args) {
         if (args[0].startsWith && args[0].startsWith('/usr/local/lib/python')) {
           MODULE_NAME._usedFiles.add(args[0]);

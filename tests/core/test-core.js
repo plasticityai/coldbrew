@@ -1219,7 +1219,7 @@ describe('Core Coldbrew Functionality', () => {
       return expect(isPythonError).to.eventually.be.true;
     });
 
-    it.skip('should proxy errors in worker mode as a rejected promise', async function () {
+    it('should proxy errors in worker mode as a rejected promise', async function () {
       var files = utils.eval(this, async () => {
         Coldbrew.unload();
         await Coldbrew.load({worker: true});
