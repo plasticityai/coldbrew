@@ -1032,7 +1032,9 @@ function makePromiseChainable(p) {
   eval(`class ChainablePromise {} varObj = ChainablePromise;`);
   varObj.__real_type__ = 'Chainable Promise Value';
   varObj.__raw_promise__ = p;
-  Object.getOwnPropertyNames(Object.getPrototypeOf(p)).forEach(function(key) {
+  Object.getOwnPropertyNames(Object.getPrototypeOf(p)).filter(function(key) {
+    return !['arguments', 'caller', 'callee'].includes(key);
+  }).forEach(function(key) {
     varObj[key] = function(){};
   });
 
@@ -1998,7 +2000,7 @@ if (IS_WORKER_SCRIPT) {
               return new Promise(function (resolve, reject) {
                 responsePromises[actionId] = resolve;
               });              
-            })(...args);
+            }).apply(null, args);
           },
           apply: function(...args) {
             return (async function(target, thisArg, argumentsList) {
@@ -2010,7 +2012,7 @@ if (IS_WORKER_SCRIPT) {
               return new Promise(function (resolve, reject) {
                 responsePromises[actionId] = resolve;
               });
-            })(...args);
+            }).apply(null, args);
           },
           get: function(target, prop) {
             if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'then') {

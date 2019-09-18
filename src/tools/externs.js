@@ -1,6 +1,11 @@
 /**
  * @suppress {undefinedVars}
  */
+var IS_WORKER_SCRIPT;
+
+/**
+ * @suppress {undefinedVars}
+ */
 var IS_NODE_JS;
 
 /**
@@ -63,6 +68,7 @@ MODULE_NAME.preInit;
 MODULE_NAME.preRun;
 MODULE_NAME._mountFS;
 MODULE_NAME._onRuntimeInitialized;
+MODULE_NAME._getMainVariable;
 
 /**
  * @suppress {undefinedVars}
