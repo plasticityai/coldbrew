@@ -7,6 +7,18 @@ import time
 from _Coldbrew import *
 
 ############################################################
+######################PATCH JSON DUMPS######################
+############################################################
+''' Patch JSON Dumps to always produce proper JSON.'''
+
+############################################################
+_old_json_dumps = json.dumps
+def _new_json_dumps(*args, **kwargs):
+    kwargs['allow_nan'] = False
+    return _old_json_dumps(*args, **kwargs)
+json.dumps = _new_json_dumps
+
+############################################################
 #################START PRIVATE VARIABLES####################
 ############################################################
 ''' Various private variables that hold state.'''
