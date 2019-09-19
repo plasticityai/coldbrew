@@ -22,7 +22,7 @@ ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_co
 ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
 
-PYVERSION=3.5.2
+PYVERSION=3.8.0
 PYMINOR=$(basename $(PYVERSION))
 EMSCRIPTEN_PATH=/usr/local/coldbrew/emsdk/upstream/emscripten
 EMSCRIPTEN_VERSION=$(shell cd $(EMSCRIPTEN_PATH)/*; basename $$(pwd);)
@@ -429,6 +429,6 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	)
 	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
 	cp ../installs/python-$(PYVERSION)/lib/_sqlite.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/_sqlite.o
-	rm -rf $(BUILD)
-	rm -rf $(DOWNLOADS)
+	# rm -rf $(BUILD)
+	# rm -rf $(DOWNLOADS)
 	touch ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make

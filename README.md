@@ -4,7 +4,7 @@
 
 Coldbrew is Python compiled into JavaScript using [Emscripten](https://github.com/kripken/emscripten) and [WebAssembly](https://developer.mozilla.org/en-US/docs/WebAssembly). It is the easiest way to run Python code in JavaScript (a web browser or Node.js) and is developed by [Plasticity](https://www.plasticity.ai/).
 
-Coldbrew currently uses CPython 3.5.2 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`). There are a ton of neat features like [HTTP support](#accessing-http-in-python) in Python and [bridge variables](#bridge-variables) to share native objects between the two languages using ES6 Proxies in JavaScript and operator overloads in Python.
+Coldbrew currently uses CPython 3.8.0 and supports Python modules utilizing native C extensions (such as the built-in `sqlite3`). There are a ton of neat features like [HTTP support](#accessing-http-in-python) in Python and [bridge variables](#bridge-variables) to share native objects between the two languages using ES6 Proxies in JavaScript and operator overloads in Python.
 
 Coldbrew also allows you to bundle your own Python application, script, library along with its required modules and dependencies to the environment. See the section on [building a custom Coldbrew Python environment](#building-a-custom-coldbrew-python-environment). The build is [Docker](https://www.docker.com/get-started)-ized so it is very easy to build! 🐳 
 

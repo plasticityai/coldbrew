@@ -1,0 +1,202 @@
+diff --git a/Objects/call.c b/Objects/call.c
+index c663898..986acf9 100644
+--- a/Objects/call.c
++++ b/Objects/call.c
+@@ -4,6 +4,8 @@
+ #include "pycore_tupleobject.h"
+ #include "frameobject.h"
+ 
++void _coldbrew_pre_func_ptr_call(int id);
++void _coldbrew_post_func_ptr_call(int id);
+ 
+ static PyObject *
+ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs);
+@@ -93,7 +95,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
+ 
+     PyObject *res;
+     if (kwargs == NULL) {
+-        res = func(callable, args, nargsf, NULL);
++        _coldbrew_pre_func_ptr_call(0); res = func(callable, args, nargsf, NULL); _coldbrew_post_func_ptr_call(0);
+     }
+     else {
+         PyObject *kwnames;
+@@ -101,7 +103,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
+         if (_PyStack_UnpackDict(args, nargs, kwargs, &newargs, &kwnames) < 0) {
+             return NULL;
+         }
+-        res = func(callable, newargs, nargs, kwnames);
++        _coldbrew_pre_func_ptr_call(0); res = func(callable, newargs, nargs, kwnames); _coldbrew_post_func_ptr_call(0); 
+         if (kwnames != NULL) {
+             Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
+             for (i = 0; i < n; i++) {
+@@ -169,7 +171,6 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
+     return result;
+ }
+ 
+-
+ PyObject *
+ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
+ {
+@@ -196,7 +197,7 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
+         kwargs, &args, &kwnames) < 0) {
+         return NULL;
+     }
+-    PyObject *result = func(callable, args, nargs, kwnames);
++    _coldbrew_pre_func_ptr_call(0); PyObject *result = func(callable, args, nargs, kwnames); _coldbrew_post_func_ptr_call(0); 
+     if (kwnames != NULL) {
+         Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
+         for (i = 0; i < n; i++) {
+@@ -209,7 +210,6 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
+     return _Py_CheckFunctionResult(callable, result, NULL);
+ }
+ 
+-
+ PyObject *
+ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
+ {
+@@ -242,7 +242,7 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
+         if (Py_EnterRecursiveCall(" while calling a Python object"))
+             return NULL;
+ 
+-        result = (*call)(callable, args, kwargs);
++        _coldbrew_pre_func_ptr_call(1); result = (*call)(callable, args, kwargs); _coldbrew_post_func_ptr_call(1);
+ 
+         Py_LeaveRecursiveCall();
+ 
+diff --git a/Python/ceval.c b/Python/ceval.c
+index 546a426..11e419f 100644
+--- a/Python/ceval.c
++++ b/Python/ceval.c
+@@ -25,6 +25,7 @@
+ #include "pydtrace.h"
+ #include "setobject.h"
+ #include "structmember.h"
++#include <emscripten.h>
+ 
+ #include <ctype.h>
+ 
+@@ -726,6 +727,11 @@ PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)
+ 
+ /* Interpreter main loop */
+ 
++extern int _coldbrew_no_yield;
++extern int _coldbrew_async_yield_ops;
++void _coldbrew_yield_to_javascript(void);
++int _coldbrew_yield_to_javascript_ops = 0;
++
+ PyObject *
+ PyEval_EvalFrame(PyFrameObject *f) {
+     /* This is for backward compatibility with extension modules that
+@@ -1186,6 +1192,11 @@ _PyEval_EvalFrameDefault(PyFrameObject *f, int throwflag)
+ 
+ main_loop:
+     for (;;) {
++        /* Yield back to JavaScript every N Python bytecode instructions */
++        if (!_coldbrew_no_yield && ++_coldbrew_yield_to_javascript_ops % _coldbrew_async_yield_ops == 0) {
++        _coldbrew_yield_to_javascript();
++        }
++
+         assert(stack_pointer >= f->f_valuestack); /* else underflow */
+         assert(STACK_LEVEL() <= co->co_stacksize);  /* else overflow */
+         assert(!_PyErr_Occurred(tstate));
+diff --git a/Python/fileutils.c b/Python/fileutils.c
+index e79e732..864dc78 100644
+--- a/Python/fileutils.c
++++ b/Python/fileutils.c
+@@ -1091,6 +1091,9 @@ _Py_get_inheritable(int fd)
+ static int
+ set_inheritable(int fd, int inheritable, int raise, int *atomic_flag_works)
+ {
++#ifdef EMSCRIPTEN
++    return 0;
++#else
+ #ifdef MS_WINDOWS
+     HANDLE handle;
+     DWORD flags;
+@@ -1214,6 +1217,7 @@ set_inheritable(int fd, int inheritable, int raise, int *atomic_flag_works)
+     }
+     return 0;
+ #endif
++#endif
+ }
+ 
+ /* Make the file descriptor non-inheritable.
+diff --git a/config.sub b/config.sub
+index ba37cf9..eb0c2ab 100755
+--- a/config.sub
++++ b/config.sub
+@@ -118,7 +118,8 @@ case $maybe_os in
+   linux-musl* | linux-uclibc* | uclinux-uclibc* | uclinux-gnu* | kfreebsd*-gnu* | \
+   knetbsd*-gnu* | netbsd*-gnu* | netbsd*-eabi* | \
+   kopensolaris*-gnu* | cloudabi*-eabi* | \
+-  storm-chaos* | os2-emx* | rtmk-nova*)
++  storm-chaos* | os2-emx* | rtmk-nova* | \
++  emscripten)
+     os=-$maybe_os
+     basic_machine=`echo "$1" | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
+     ;;
+@@ -250,6 +251,7 @@ case $basic_machine in
+ 	| am33_2.0 \
+ 	| arc | arceb \
+ 	| arm | arm[bl]e | arme[lb] | armv[2-8] | armv[3-8][lb] | armv6m | armv[78][arm] \
++	| asmjs \
+ 	| avr | avr32 \
+ 	| ba \
+ 	| be32 | be64 \
+@@ -1509,6 +1511,8 @@ case $os in
+ 	-dicos*)
+ 		os=-dicos
+ 		;;
++	-emscripten)
++		;;
+ 	-pikeos*)
+ 		# Until real need of OS specific support for
+ 		# particular features comes up, bare metal
+diff --git a/configure b/configure
+index 3cd9b88..ef41095 100755
+--- a/configure
++++ b/configure
+@@ -3264,6 +3264,9 @@ then
+ 	*-*-cygwin*)
+ 		ac_sys_system=Cygwin
+ 		;;
++  asmjs-*-*)
++    ac_sys_system=Emscripten
++    ;;
+ 	*-*-vxworks*)
+ 	    ac_sys_system=VxWorks
+ 	    ;;
+@@ -3314,6 +3317,9 @@ if test "$cross_compiling" = yes; then
+ 	*-*-cygwin*)
+ 		_host_cpu=
+ 		;;
++  asmjs-*-*)
++    _host_cpu=
++    ;;
+ 	*-*-vxworks*)
+ 		_host_cpu=$host_cpu
+ 		;;
+diff --git a/configure.ac b/configure.ac
+index 033a93c..8d14baa 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -379,6 +379,9 @@ then
+ 	*-*-cygwin*)
+ 		ac_sys_system=Cygwin
+ 		;;
++  asmjs-*-*)
++    ac_sys_system=Emscripten
++    ;;
+ 	*-*-vxworks*)
+ 	    ac_sys_system=VxWorks
+ 	    ;;
+@@ -428,6 +431,9 @@ if test "$cross_compiling" = yes; then
+ 	*-*-cygwin*)
+ 		_host_cpu=
+ 		;;
++  asmjs-*-*)
++    _host_cpu=
++    ;;
+ 	*-*-vxworks*)
+ 		_host_cpu=$host_cpu
+ 		;;

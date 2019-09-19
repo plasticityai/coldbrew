@@ -1,4 +1,4 @@
-PYVERSION=3.5.2
+PYVERSION=3.8.0
 PYMINOR=$(basename $(PYVERSION))
 
 SQLITE_VERSION=3260000
@@ -13,7 +13,7 @@ HOSTPGEN=$(HOSTINSTALL)/bin/pgen$(EXE)
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 INSTALL=$(ROOT)/installs/python-$(PYVERSION)
 TARBALL=$(ROOT)/downloads/Python-$(PYVERSION).tgz
-URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION).tgz
+URL=https://www.python.org/ftp/python/$(PYVERSION)/Python-$(PYVERSION)b4.tgz
 LIB=libpython$(PYMINOR).a
 
 
@@ -29,12 +29,11 @@ clean:
 $(TARBALL):
 	[ -d ../downloads ] || mkdir ../downloads
 	wget -q -O $@ $(URL)
-	md5sum --quiet --check checksums || (rm $@; false)
 
 
 $(HOSTPYTHON) $(HOSTPGEN): $(TARBALL)
 	mkdir -p $(HOSTINSTALL)
-	[ -d $(HOSTBUILD) ] || tar -C $(HOSTINSTALL) -xf $(TARBALL)
+	[ -d $(HOSTBUILD) ] || (mkdir -p $(HOSTBUILD); tar -C $(HOSTBUILD) --strip-components 1 -xf $(TARBALL))
 	( \
 		cd $(HOSTBUILD); \
 		./configure --prefix=$(HOSTINSTALL) && \
@@ -45,14 +44,8 @@ $(HOSTPYTHON) $(HOSTPGEN): $(TARBALL)
 
 
 $(BUILD)/.patched: $(TARBALL)
-	[ -d $(BUILD) ] || (mkdir -p $(dir $(BUILD)); tar -C $(dir $(BUILD)) -xf $(TARBALL))
+	[ -d $(BUILD) ] || (mkdir -p $(BUILD); tar -C $(BUILD) --strip-components 1 -xf $(TARBALL))
 	cat patches/*.patch | (cd $(BUILD) ; patch -b -p1)
-	( \
-		cd $(BUILD); \
-		patch -b Python/ceval.c ../../../$(PYVERSION)/patches/add-interpreter-loop-yield.diffpatch; \
-		patch -b Objects/methodobject.c ../../../$(PYVERSION)/patches/no-yield-pycfunction_call.diffpatch; \
-		patch -b Objects/abstract.c ../../../$(PYVERSION)/patches/no-yield-pyobject_call.diffpatch; \
-	)
 	touch $@
 
 
