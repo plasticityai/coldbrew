@@ -46,7 +46,8 @@ _Coldbrew__run_string(PyObject* self, PyObject* args)
     return PyUnicode_FromString(emscripten_run_script_string(script));
 }
 
-
+void set_asyncify_stack_size(int size);
+size_t calculate_coldbrew_stack_size();
 static PyObject*
 _Coldbrew__sleep(PyObject* self, PyObject* args)
 {
@@ -54,7 +55,15 @@ _Coldbrew__sleep(PyObject* self, PyObject* args)
     if (!PyArg_ParseTuple(args, "f", &time))
         return NULL;
     if (_coldbrew_is_async) {
+      set_asyncify_stack_size(calculate_coldbrew_stack_size());
+      #if __COLDBREW_ASYNC_DEBUG__
+      printf("ASNYNCIFY STACK SIZE: %zu bytes\n", calculate_coldbrew_stack_size());
+      emscripten_run_script("console.error('ASYNCIFY BEFORE SLEEP (YIELD)')");
+      #endif
       emscripten_sleep((long) (time*1000));
+      #if __COLDBREW_ASYNC_DEBUG__
+      emscripten_run_script("console.error('ASYNCIFY AFTER SLEEP (YIELD)')");
+      #endif
     }
     Py_RETURN_NONE;
 }

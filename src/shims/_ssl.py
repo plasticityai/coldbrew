@@ -24,6 +24,7 @@ class _SSLContext(object):
     def load_verify_locations(self, *args, **kwargs):
         return None
 
+SSLSession = None
 MemoryBIO = None
 class SSLError(Exception):
     pass
@@ -36,6 +37,8 @@ class SSLWantWriteError(Exception):
 class SSLSyscallError(Exception):
     pass
 class SSLEOFError(Exception):
+    pass
+class SSLCertVerificationError(Exception):
     pass
 CERT_NONE = None
 CERT_OPTIONAL = None
@@ -52,8 +55,23 @@ HAS_SNI = None
 HAS_ECDH = None
 HAS_NPN = None
 HAS_ALPN = None
+HAS_SSLv2 = None
+HAS_SSLv3 = None
+HAS_TLSv1 = None
+HAS_TLSv1_1 = None
+HAS_TLSv1_2 = None
+HAS_TLSv1_3 = None
+_DEFAULT_CIPHERS = None
 _OPENSSL_API_VERSION = None
 HAS_TLS_UNIQUE = None
 
 PROTOCOL_SSLv23 = None
 CERT_CERT_REQUIRED = None
+
+PROTO_MINIMUM_SUPPORTED = None
+PROTO_SSLv3 = None
+PROTO_TLSv1 = None
+PROTO_TLSv1_1 = None
+PROTO_TLSv1_2 = None
+PROTO_TLSv1_3 = None
+PROTO_MAXIMUM_SUPPORTED = None

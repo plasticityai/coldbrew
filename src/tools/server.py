@@ -19,6 +19,9 @@ except:
 
 src_path =  os.path.abspath('src')
 dist_path =  os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else 'dist')
+if len(sys.argv) > 1 and sys.argv[1].strip() == 'dist-node':
+    raise RuntimeError("Cannot serve Node.js build on a web server.")
+root_path =  os.path.abspath('./')
 
 class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     def translate_path(self, path):
@@ -31,6 +34,8 @@ class Handler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         words = list(filter(None, words))
         if len(words) >= 1 and words[0] == "remote":
             os.chdir(src_path)
+        elif len(words) >= 1 and words[0] == "images":
+            os.chdir(root_path)
         else:
             os.chdir(dist_path)
         path = os.getcwd()

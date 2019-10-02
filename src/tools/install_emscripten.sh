@@ -3,7 +3,7 @@
 # List all of the installable things
 mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git clone https://github.com/juj/emsdk.git && cd ./emsdk && ./emsdk list --old
 
-# Install emsdk
+# Install  emsdk
 mkdir -p /usr/local/coldbrew/ && cd /usr/local/coldbrew/ && rm -rf emsdk && git clone https://github.com/juj/emsdk.git && cd ./emsdk && ./emsdk install latest-upstream && ./emsdk activate latest-upstream
 
 # Install latest clang

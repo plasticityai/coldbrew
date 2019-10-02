@@ -111,8 +111,8 @@ class PythonVariable {
         return false;
       }
       var vals = PythonVariable.internalKeyDefs
-        .filter(function(internalKeyDef) { return !['toString', 'toJSON'].includes(internalKeyDef); })
-        .map(function(internalKeyDef) { return obj[internalKeyDef] });
+        .filter(function(internalKeyDef) { return !['toString', 'toJSON', '__destroyed__'].includes(internalKeyDef); })
+        .map(function(internalKeyDef) { return obj[internalKeyDef]; });
       var plainPythonVariable = vals.every(function(val) { return typeof val !== 'undefined' && typeof val.then === 'undefined'; });
       var potentialWorkerPythonVariable = typeof obj.__raw_promise__ !== 'undefined' && vals.every(function(val) { return (typeof val !== 'undefined' && typeof val.then !== 'undefined') || typeof val === 'string' || typeof val === 'function'; });
       if (plainPythonVariable) {
@@ -150,6 +150,14 @@ class _PythonKeywords {
 /**********************************************************/
 // Defines various helper utility functions.
 /**********************************************************/
+function defer(val) {
+  return new Promise(function(resolve, reject) {
+    setTimeout(function() {
+      resolve(val);
+    }, 1);
+  });
+}
+
 function parseUrl(string, prop) {
   return (new URL(string))[prop];
 }
@@ -251,6 +259,13 @@ function toArrayBuffer(buf) {
 function isPromise(val) {
   return !(val && val._internal_coldbrew_native_js_worker_proxy === true) && !!(val && typeof val.then === 'function');
 }
+
+function getColdbrewConcurrencyError() {
+  var e = new Error('Coldbrew Error: The Coldbrew Python interpreter is already running asynchronously. You cannot run the Coldbrew Python interpreter concurrently. Please wait for all previous executions to finish.');
+  e.coldbrewConcurrencyError = true;
+  return e;
+}
+
 /**********************************************************/
 /******************END HELPER UTILITIES********************/
 /**********************************************************/
@@ -546,10 +561,10 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
 /**********************************************************/
 function createVariableProxy(obj) {
   if (obj && obj._internal_coldbrew_python_object) {
-    if (!/^[A-Za-z0-9_]+$/.test(obj.type)) {
+    if (!/^[A-Za-z0-9_\.]+$/.test(obj.type)) {
       throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
     }
-    if (!/^[A-Za-z0-9_]+$/.test(obj.name)) {
+    if (!/^[A-Za-z0-9_\.]+$/.test(obj.name)) {
       throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
     }
     var getVariable = MODULE_NAME.getVariable;
@@ -602,6 +617,9 @@ function createVariableProxy(obj) {
           if (prop === '_internal_coldbrew_repr') {
             return obj;
           } else if (typeof prop === 'string' && prop.startsWith('_internal_coldbrew')) {
+            return undefined;
+          } else if (prop === '__raw_promise__') {
+            // So it doesn't get confused with a ChainablePromise object
             return undefined;
           } else if (prop === Symbol.iterator) {
             var hasIter = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], '__iter__')");
@@ -680,12 +698,12 @@ function createVariableProxy(obj) {
               }
             };
           } else if (prop === '__inspect__') {
-            var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
             function inspect(res) {
               res = res.map(transformProp); 
               return MODULE_NAME.PythonVariable.internalKeyDefs.concat(res); 
             }
-            return function() { 
+            return function() {
+              var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
               if (!isPromise(res)) {
                 return inspect(res);
               } else {
@@ -707,10 +725,10 @@ function createVariableProxy(obj) {
           } else {
             var tprop = getTProp(prop);
             function get(tprop) {
-              var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+              var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._try(lambda: Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']))");
               function _get(hasAttrOrItem) {
                 if (hasAttrOrItem) {
-                  return MODULE_NAME.getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
+                  return getVariable("getattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") else Coldbrew._vars['"+obj.uid+"'][Coldbrew._unserialize_from_js("+serializeToPython(prop)+")]");
                 } else {
                   return undefined;
                 }
@@ -775,7 +793,7 @@ function createVariableProxy(obj) {
         deleteProperty: function(target, prop) {
           var tprop = getTProp(prop);
           function deleteProperty(tprop) {
-            var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"'])");
+            var hasAttrOrItem = MODULE_NAME.getVariable("hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or ((hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and (hasattr(Coldbrew._vars['"+obj.uid+"'], '__getitem__')) and type(Coldbrew._vars['"+obj.uid+"']) != type and Coldbrew._try(lambda: Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']))");
             function _deleteProperty(hasAttrOrItem) {
               if (hasAttrOrItem) {
                 MODULE_NAME.run("if hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+"):\n\tdelattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")\nelse:\n\tColdbrew._vars['"+obj.uid+"'].__delitem__(Coldbrew._unserialize_from_js("+serializeToPython(prop)+"))");
@@ -817,7 +835,16 @@ function createVariableProxy(obj) {
     } else {
       varObj = new MODULE_NAME.PythonVariable();
     }
-    var $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+
+    var $keyDefs = [];
+    try {
+      $keyDefs = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
+    } catch (e) {
+      // Ignore concurrency errors, attaching debugging information isn't that important
+      if (!e.coldbrewConcurrencyError) {
+        throw e;
+      }
+    }
     
     // This function adds introspection/debugging information that
     // displays when using the browser's console or the Node.js REPL
@@ -865,6 +892,12 @@ function createVariableProxy(obj) {
     if (typeof $keyDefs.then !== 'undefined') {
       return $keyDefs.then(function($keyDefs) {
         return attachDebuggingInformation(varObj, $handler, $keyDefs);
+      }).catch(function(e) {
+        // Ignore concurrency errors, attaching debugging information isn't that important
+        if (!e.coldbrewConcurrencyError) {
+          return Promise.reject(e);
+        }
+        return attachDebuggingInformation(varObj, $handler, []);
       });
     } else {
       return attachDebuggingInformation(varObj, $handler, $keyDefs);
@@ -1027,7 +1060,7 @@ function unserializeFromJS(arg) {
 //
 // This makes a big difference when you go many levels deep.
 /**********************************************************/
-function makePromiseChainable(p) {
+function makePromiseChainable(p, attachDebuggingInformation=true, executePromiseImmediately=true) {
   var varObj = null;
   eval(`class ChainablePromise {} varObj = ChainablePromise;`);
   varObj.__real_type__ = 'Chainable Promise Value';
@@ -1041,27 +1074,33 @@ function makePromiseChainable(p) {
   // This attaches introspection/debugging information that
   // displays when using the browser's console or the Node.js REPL
   // after the promise resolves.
-  p.then(async function(val) {
-    if (await PythonVariable.isPythonVariable(val)) {
-      varObj['__type__'] = await val.__type__;
-      var keyDefs = (await val.__inspect__()).filter(function(keyDef) {
-        return !PythonVariable.internalKeyDefs.includes(keyDef);
-      });
-      keyDefs.concat(PythonVariable.internalKeyDefs.filter(function(internalKeyDef) {
-        return internalKeyDef !== '__type__';
-      })).forEach(async function(keyDef) {
-        if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
-          varObj[keyDef] = await val[keyDef];
-        } else {
-          varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+  var debugAttached = p;
+  if (executePromiseImmediately) {
+    debugAttached = p.then(async function(val) {
+      if (await PythonVariable.isPythonVariable(val)) {
+        varObj['__type__'] = await val.__type__;
+        if (attachDebuggingInformation) {
+          var keyDefs = (await val.__inspect__()).filter(function(keyDef) {
+            return !PythonVariable.internalKeyDefs.includes(keyDef);
+          });
+          keyDefs.concat(PythonVariable.internalKeyDefs.filter(function(internalKeyDef) {
+            return internalKeyDef !== '__type__';
+          })).forEach(async function(keyDef) {
+            if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
+              varObj[keyDef] = await val[keyDef];
+            } else {
+              varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+            }
+          });
         }
-      });
-    }
-  });
+      }
+      return val;
+    });
+  }
 
   return new Proxy(varObj, {
     construct: function(target, args) {
-      return makePromiseChainable(p.then(async function(val) {
+      return makePromiseChainable(debugAttached.then(async function(val) {
         var serializedArgs = await Promise.all(args.map(function(arg) {
           return serializeToJS(arg);
         }));
@@ -1069,7 +1108,7 @@ function makePromiseChainable(p) {
       }));
     },
     apply: function(target, thisArg, argumentsList) {
-      return makePromiseChainable(p.then(async function(val) {
+      return makePromiseChainable(debugAttached.then(async function(val) {
         var serializedArgs = await Promise.all(argumentsList.map(function(arg) {
           return serializeToJS(arg);
         }));
@@ -1077,8 +1116,19 @@ function makePromiseChainable(p) {
       }));
     },
     get: function(target, prop) {
-      if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'toString') {
+      if (prop == Symbol.toPrimitive || prop === 'valueOf') {
+        // Chrome console accesses these, ugh...
         return undefined;
+      }
+      if (prop === 'toString') {
+        // Chrome console accesses this, ugh...
+        // Ugly hack to differentiate when Chrome is trying to access toString()
+        // vs an actual user.
+        var stackHeight = (((new Error()).stack || '').match(/\n/g) || []).length;
+        if (stackHeight == 1) {
+          // Detected Chrome access
+          return undefined;
+        }
       }
       if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop) && prop != 'toString') {
         return Reflect.get(p, prop).bind(p);
@@ -1088,7 +1138,7 @@ function makePromiseChainable(p) {
       }
       if (prop === Symbol.asyncIterator) {
         return async function*() {
-          var iter = (await p.then(function(val) {
+          var iter = (await debugAttached.then(function(val) {
             return val[Symbol.iterator];
           }))();
           var readNext = await iter.next();
@@ -1098,12 +1148,12 @@ function makePromiseChainable(p) {
           }
         };
       }
-      return makePromiseChainable(p.then(async function(val) {
+      return makePromiseChainable(debugAttached.then(async function(val) {
         return val[await serializeToJS(prop)];
       }));
     },
     set: function(target, prop, value) {
-      p.then(async function(val) {
+      debugAttached.then(async function(val) {
         val[await serializeToJS(prop)] = await serializeToJS(value);
       });
       return value;
@@ -1115,7 +1165,7 @@ function makePromiseChainable(p) {
       return Reflect.has(target, prop);
     },
     deleteProperty: function(target, prop) {
-      p.then(async function(val) {
+      debugAttached.then(async function(val) {
         delete val[await serializeToJS(prop)];
       });
       return true;
@@ -1193,17 +1243,37 @@ MODULE_NAME._try = function(func) {
     return MODULE_NAME._convertError(e);
   }
 };
-MODULE_NAME._callFunc = function(constructable, func, ...args) {
-  if (constructable) {
-    return new func(...args.map(unserializeFromPython));
+MODULE_NAME._callFunc = function(isAsync, constructable, func, ...args) {
+  function resultBuilder(isAsync, constructable, func, unserializedArgs) {
+    unserializedArgs = unserializedArgs.map(function(arg) {
+      if (isAsync && MODULE_NAME.PythonVariable.isPythonVariable(arg) && typeof arg.__raw_promise__ === 'undefined') {
+        return makePromiseChainable(Promise.resolve(arg), false);
+      } else {
+        return arg;
+      }
+    });
+    if (constructable) {
+      return new func(...unserializedArgs);
+    } else {
+      return func(...unserializedArgs);
+    }
+  }
+
+  var unserializedArgs = args.map(unserializeFromPython);
+  if (MODULE_NAME._finalizedOptions.worker && !IS_WORKER_SCRIPT) {
+    return (async function() {
+      unserializedArgs = await Promise.all(unserializedArgs);
+      return resultBuilder(true, constructable, func, unserializedArgs);
+    })();
   } else {
-    return func(...args.map(unserializeFromPython));
+    return resultBuilder(isAsync, constructable, func, unserializedArgs);
   }
 };
 MODULE_NAME._serializeToPython = serializeToPython;
 MODULE_NAME._unserializeFromPython = unserializeFromPython;
 MODULE_NAME._parseUrl = parseUrl;
 MODULE_NAME.loaded = false;
+MODULE_NAME.initialized = false;
 MODULE_NAME.exited = false;
 MODULE_NAME.forwardOut = true;
 MODULE_NAME.forwardErr = true;
@@ -1396,12 +1466,14 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME._run = MODULE_NAME.Module.cwrap('export_run', 'number', ['string']);
     MODULE_NAME.run = function(script) {
       var ret = MODULE_NAME._run(script);
-      if (ret != 0) {
+      if (ret === -1 && MODULE_NAME.initialized) {
         if (!IS_WORKER_SCRIPT) {
           throw new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo());
         } else {
           ret = {'_internal_coldbrew_error': true};
         }
+      } else if (ret === -2) {
+        throw getColdbrewConcurrencyError();
       }
       return ret;
     };
@@ -1412,16 +1484,18 @@ MODULE_NAME._load = function(arg1, arg2) {
       MODULE_NAME.runAsync = function(script) {
         var retp = MODULE_NAME._runAsync(script);
         return retp.then(function(ret) {
-          if (ret != 0) {
+          if (ret === -1 && MODULE_NAME.initialized) {
             if (!IS_WORKER_SCRIPT) {
               return Promise.reject(new MODULE_NAME.PythonError(MODULE_NAME.getExceptionInfo()));
             } else {
               return Promise.resolve({'_internal_coldbrew_error': true}); 
             }
+          } else if (ret === -2) {
+            return Promise.reject(getColdbrewConcurrencyError());
           } else {
             return Promise.resolve(ret);
           }
-        }); 
+        }).then(defer); 
       };
     }
     MODULE_NAME._runFile = MODULE_NAME.Module.cwrap('export__runFile', 'number', ['string']);
@@ -1452,7 +1526,7 @@ MODULE_NAME._load = function(arg1, arg2) {
           } else {
             return ret;
           }
-        }));
+        }), !IS_WORKER_SCRIPT, !IS_WORKER_SCRIPT);
       };
     }
     MODULE_NAME.destroyAllVariables = function() {
@@ -1722,7 +1796,7 @@ MODULE_NAME._load = function(arg1, arg2) {
         return retp.then(function(ret) {
           MODULE_NAME.chdir(oldcwd);
           return ret;
-        });
+        }).then(defer);
       };
     }
     MODULE_NAME.resetenv = function() {
@@ -1742,10 +1816,15 @@ MODULE_NAME._load = function(arg1, arg2) {
       if (finalizedOptions.asyncYieldRate !== null && typeof finalizedOptions.asyncYieldRate !== 'undefined') {
         MODULE_NAME.setAsyncYieldRate(finalizedOptions.asyncYieldRate);
       }
-      MODULE_NAME.run('Coldbrew._clear_argv()');
-      MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
-      if (!finalizedOptions.hideWarnings) {
-        console.warn('Initialized MODULE_NAME Python Environment.');
+      var res = MODULE_NAME.run('Coldbrew._clear_argv()');
+      res = res + MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
+      if (res === 0) {
+        MODULE_NAME.initialized = true;
+        if (!finalizedOptions.hideWarnings) {
+          console.warn('Initialized MODULE_NAME Python Environment.');
+        }
+      } else {
+        throw new Error('Failed to initialize MODULE_NAME Python Environment.');
       }
     };
     MODULE_NAME._reset = MODULE_NAME.Module.cwrap('export_reset', null, []);
@@ -1829,14 +1908,18 @@ MODULE_NAME.load = function(options = {}) {
                 var serializedArgs = args.map(function(arg) {
                   return serializeToJS(arg);
                 });
-                return makePromiseChainable(Promise.all(serializedArgs)
+                var result = Promise.all(serializedArgs)
                   .then(function(serializedArgs) {
                     var retp = MODULE_NAME_proxy[prop](...serializedArgs);
                     return retp.then(function(ret) {
                       return unserializeFromPython(ret);
                     });
-                  })
-                );
+                  });
+                if (['getVariable', 'getVariableAsync', 'runFunction', 'runFunctionAsync'].includes(prop)) {
+                  return makePromiseChainable(result, false, false);
+                } else {
+                  return result;
+                }
               };
             }
             if (['forwardOut', 'forwardErr'].includes(prop) && 
@@ -2031,6 +2114,7 @@ if (IS_WORKER_SCRIPT) {
           },
           get: function(target, prop) {
             if (prop == Symbol.toPrimitive || prop === 'valueOf' || prop === 'then') {
+              // Chrome console accesses these, ugh...
               return undefined;
             }
             if (prop === '_internal_coldbrew_native_js_worker_proxy') {

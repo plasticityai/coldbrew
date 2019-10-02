@@ -1,5 +1,5 @@
 diff --git a/Objects/call.c b/Objects/call.c
-index c663898..986acf9 100644
+index c663898..f3792c5 100644
 --- a/Objects/call.c
 +++ b/Objects/call.c
 @@ -4,6 +4,8 @@
@@ -11,25 +11,27 @@ index c663898..986acf9 100644
  
  static PyObject *
  cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs);
-@@ -93,7 +95,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
+@@ -93,7 +95,9 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
  
      PyObject *res;
      if (kwargs == NULL) {
--        res = func(callable, args, nargsf, NULL);
-+        _coldbrew_pre_func_ptr_call(0); res = func(callable, args, nargsf, NULL); _coldbrew_post_func_ptr_call(0);
++        _coldbrew_pre_func_ptr_call(0);
+         res = func(callable, args, nargsf, NULL);
++        _coldbrew_post_func_ptr_call(0);
      }
      else {
          PyObject *kwnames;
-@@ -101,7 +103,7 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
+@@ -101,7 +105,9 @@ _PyObject_FastCallDict(PyObject *callable, PyObject *const *args,
          if (_PyStack_UnpackDict(args, nargs, kwargs, &newargs, &kwnames) < 0) {
              return NULL;
          }
--        res = func(callable, newargs, nargs, kwnames);
-+        _coldbrew_pre_func_ptr_call(0); res = func(callable, newargs, nargs, kwnames); _coldbrew_post_func_ptr_call(0); 
++        _coldbrew_pre_func_ptr_call(1);
+         res = func(callable, newargs, nargs, kwnames);
++        _coldbrew_post_func_ptr_call(1);
          if (kwnames != NULL) {
              Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
              for (i = 0; i < n; i++) {
-@@ -169,7 +171,6 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
+@@ -169,7 +175,6 @@ _PyObject_MakeTpCall(PyObject *callable, PyObject *const *args, Py_ssize_t nargs
      return result;
  }
  
@@ -37,16 +39,17 @@ index c663898..986acf9 100644
  PyObject *
  PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
  {
-@@ -196,7 +197,7 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
+@@ -196,7 +201,9 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
          kwargs, &args, &kwnames) < 0) {
          return NULL;
      }
--    PyObject *result = func(callable, args, nargs, kwnames);
-+    _coldbrew_pre_func_ptr_call(0); PyObject *result = func(callable, args, nargs, kwnames); _coldbrew_post_func_ptr_call(0); 
++    _coldbrew_pre_func_ptr_call(2);
+     PyObject *result = func(callable, args, nargs, kwnames);
++    _coldbrew_post_func_ptr_call(2); 
      if (kwnames != NULL) {
          Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames) + nargs;
          for (i = 0; i < n; i++) {
-@@ -209,7 +210,6 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
+@@ -209,7 +216,6 @@ PyVectorcall_Call(PyObject *callable, PyObject *tuple, PyObject *kwargs)
      return _Py_CheckFunctionResult(callable, result, NULL);
  }
  
@@ -54,15 +57,151 @@ index c663898..986acf9 100644
  PyObject *
  PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
  {
-@@ -242,7 +242,7 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
+@@ -242,7 +248,9 @@ PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs)
          if (Py_EnterRecursiveCall(" while calling a Python object"))
              return NULL;
  
--        result = (*call)(callable, args, kwargs);
-+        _coldbrew_pre_func_ptr_call(1); result = (*call)(callable, args, kwargs); _coldbrew_post_func_ptr_call(1);
++        _coldbrew_pre_func_ptr_call(3);
+         result = (*call)(callable, args, kwargs);
++        _coldbrew_post_func_ptr_call(3);
  
          Py_LeaveRecursiveCall();
  
+@@ -481,7 +489,9 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
+             goto exit;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(4);
+         result = (*meth) (self, NULL);
++        _coldbrew_post_func_ptr_call(4);
+         break;
+ 
+     case METH_O:
+@@ -496,7 +506,9 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
+             goto exit;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(5);
+         result = (*meth) (self, args[0]);
++        _coldbrew_post_func_ptr_call(5);
+         break;
+ 
+     case METH_VARARGS:
+@@ -514,10 +526,14 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
+         }
+ 
+         if (flags & METH_KEYWORDS) {
++            _coldbrew_pre_func_ptr_call(6);
+             result = (*(PyCFunctionWithKeywords)(void(*)(void))meth) (self, argstuple, kwargs);
++            _coldbrew_post_func_ptr_call(6);
+         }
+         else {
++            _coldbrew_pre_func_ptr_call(7);
+             result = (*meth) (self, argstuple);
++            _coldbrew_post_func_ptr_call(7);
+         }
+         Py_DECREF(argstuple);
+         break;
+@@ -529,7 +545,9 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
+             goto no_keyword_error;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(8);
+         result = (*(_PyCFunctionFast)(void(*)(void))meth) (self, args, nargs);
++        _coldbrew_post_func_ptr_call(8);
+         break;
+     }
+ 
+@@ -537,13 +555,17 @@ _PyMethodDef_RawFastCallDict(PyMethodDef *method, PyObject *self,
+     {
+         PyObject *const *stack;
+         PyObject *kwnames;
++        _coldbrew_pre_func_ptr_call(9);
+         _PyCFunctionFastWithKeywords fastmeth = (_PyCFunctionFastWithKeywords)(void(*)(void))meth;
++        _coldbrew_post_func_ptr_call(9);
+ 
+         if (_PyStack_UnpackDict(args, nargs, kwargs, &stack, &kwnames) < 0) {
+             goto exit;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(10);
+         result = (*fastmeth) (self, stack, nargs, kwnames);
++        _coldbrew_post_func_ptr_call(10);
+         if (kwnames != NULL) {
+             Py_ssize_t i, n = nargs + PyTuple_GET_SIZE(kwnames);
+             for (i = 0; i < n; i++) {
+@@ -632,7 +654,9 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self,
+             goto exit;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(11);
+         result = (*meth) (self, NULL);
++        _coldbrew_post_func_ptr_call(11);
+         break;
+ 
+     case METH_O:
+@@ -647,19 +671,25 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self,
+             goto exit;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(12);
+         result = (*meth) (self, args[0]);
++        _coldbrew_post_func_ptr_call(12);
+         break;
+ 
+     case METH_FASTCALL:
+         if (nkwargs) {
+             goto no_keyword_error;
+         }
++        _coldbrew_pre_func_ptr_call(13);
+         result = ((_PyCFunctionFast)(void(*)(void))meth) (self, args, nargs);
++        _coldbrew_post_func_ptr_call(13);
+         break;
+ 
+     case METH_FASTCALL | METH_KEYWORDS:
+         /* Fast-path: avoid temporary dict to pass keyword arguments */
++        _coldbrew_pre_func_ptr_call(14);
+         result = ((_PyCFunctionFastWithKeywords)(void(*)(void))meth) (self, args, nargs, kwnames);
++        _coldbrew_post_func_ptr_call(14);
+         break;
+ 
+     case METH_VARARGS:
+@@ -693,11 +723,15 @@ _PyMethodDef_RawFastCallKeywords(PyMethodDef *method, PyObject *self,
+                 kwdict = NULL;
+             }
+ 
++            _coldbrew_pre_func_ptr_call(15);
+             result = (*(PyCFunctionWithKeywords)(void(*)(void))meth) (self, argtuple, kwdict);
++            _coldbrew_post_func_ptr_call(15);
+             Py_XDECREF(kwdict);
+         }
+         else {
++            _coldbrew_pre_func_ptr_call(16);
+             result = (*meth) (self, argtuple);
++            _coldbrew_post_func_ptr_call(16);
+         }
+         Py_DECREF(argtuple);
+         break;
+@@ -739,7 +773,9 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
+             return NULL;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(17);
+         result = (*(PyCFunctionWithKeywords)(void(*)(void))meth)(self, args, kwargs);
++        _coldbrew_post_func_ptr_call(17);
+ 
+         Py_LeaveRecursiveCall();
+     }
+@@ -754,7 +790,9 @@ cfunction_call_varargs(PyObject *func, PyObject *args, PyObject *kwargs)
+             return NULL;
+         }
+ 
++        _coldbrew_pre_func_ptr_call(18);
+         result = (*meth)(self, args);
++        _coldbrew_post_func_ptr_call(18);
+ 
+         Py_LeaveRecursiveCall();
+     }
 diff --git a/Python/ceval.c b/Python/ceval.c
 index 546a426..11e419f 100644
 --- a/Python/ceval.c

@@ -72,7 +72,7 @@ describe('Core Coldbrew Functionality', () => {
         return window.consoleLogs;
       });
       expect(logs[0][0]).to.include('The current Python version is');
-      expect(logs[1][0]).to.include('[GCC Clang');
+      expect(logs[1][0]).to.include('[Clang');
       return expect(logs[1][0]).to.include('(Emscripten ');
     });
 
@@ -129,6 +129,16 @@ describe('Core Coldbrew Functionality', () => {
       var x = utils.eval(this, () => {
         Coldbrew.run("x = 5**2");
         return Coldbrew.getVariable("x");
+      });
+      return expect(x).to.eventually.equal(25);
+    });
+
+    it('should allow getting Python variables asynchronously in JavaScript', async function () {
+      var x = utils.eval(this, () => {
+        Coldbrew.run("x = 5**2");
+        return Coldbrew.getVariableAsync("x").then(function(x) {
+          return x;
+        });
       });
       return expect(x).to.eventually.equal(25);
     });
@@ -404,18 +414,64 @@ describe('Core Coldbrew Functionality', () => {
       return expect(timeDifference).to.eventually.be.below(.5);
     });
 
-    it('should error if starting new asynchronous execution with one already in flight', async function () {
-      var errors = await utils.eval(this, () => {
+    it('should error if starting new synchronous execution with asynchronous execution already in flight', async function () {
+      var errorMessage = await utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
-        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
-        return new Promise(function(resolve, reject) {
-          setTimeout(function() {
-            resolve(window.consoleErrors);
-          }, 1000);
-        });
+        try {
+          Coldbrew.run('for i in range(100):\n\tprint(i)');
+        } catch (e) {
+          return e.message;
+        }
       });
-      return expect(errors[0][0]).to.include('already running asynchronously');
+      return expect(errorMessage).to.include('already running asynchronously');
+    });
+
+    it('should error if starting new synchronous execution of Python file with asynchronous execution already in flight', async function () {
+      var errorMessage = await utils.eval(this, () => {
+        window.clearConsole();
+        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        try {
+          Coldbrew.runFile('add.py', {
+            cwd: '/coldbrew/examples',
+            env: {},
+            args: ['5', '15', '-v']
+          });
+        } catch (e) {
+          return e.message;
+        }
+      });
+      return expect(errorMessage).to.include('already running asynchronously');
+    });
+
+    it('should error if starting new asynchronous execution with one already in flight', async function () {
+      var errorMessage = await utils.eval(this, async () => {
+        window.clearConsole();
+        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        try {
+          await Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        } catch (e) {
+          return e.message;
+        }
+      });
+      return expect(errorMessage).to.include('already running asynchronously');
+    });
+
+    it('should error if starting new asynchronous execution of Python file with one already in flight', async function () {
+      var errorMessage = await utils.eval(this, async () => {
+        window.clearConsole();
+        Coldbrew.runAsync('for i in range(100):\n\tprint(i)');
+        try {
+          await Coldbrew.runFileAsync('add.py', {
+            cwd: '/coldbrew/examples',
+            env: {},
+            args: ['5', '15', '-v']
+          });
+        } catch (e) {
+          return e.message;
+        }
+      });
+      return expect(errorMessage).to.include('already running asynchronously');
     });
 
     it('should warn if sleeping without running asynchronously', async function () {
@@ -836,7 +892,6 @@ describe('Core Coldbrew Functionality', () => {
       return expect(time).to.eventually.be.above(2000);
     });
 
-
     it('should allow HTTP requests in Python', async function () {
       var logs = await utils.eval(this, () => {
         window.clearConsole();
@@ -963,11 +1018,11 @@ describe('Core Coldbrew Functionality', () => {
 
   // Bridge
   // Make sure bridge variables work (get_variable, run_function, getVariable, runFunction, return values, arguments, keyword arguments, bridge variables, undefined, null, Promise, number, string, array, object, infinity, passbacks)
-  // Make sure PythonError, PythonVariable classes work with worker mode
+  // Make sure PythonVariable classes work with worker mode
 
 
   describe('POSIX Threads', () => {
-    it('should support synchronous execution in threads', async function () {
+    it.skip('should support synchronous execution in threads', async function () {
       var logs = await utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples' });
@@ -982,7 +1037,7 @@ describe('Core Coldbrew Functionality', () => {
         Coldbrew.run("import Coldbrew\nimport threading\ndef worker():\n\tColdbrew.run('x = 5')\nt = threading.Thread(target=worker, args=())\nt.start()\nt.join()");
         return window.consoleWarns;
       });
-      return expect(warns[warns.length-2][0]).to.include('You can only access JavaScript from the main Python thread.');
+      return expect(warns[warns.length-1][0]).to.include('You can only access JavaScript from the main Python thread.');
     });
 
     it('should not allow Coldbrew.get_variable in thread', async function () {
@@ -992,7 +1047,7 @@ describe('Core Coldbrew Functionality', () => {
         Coldbrew.run("import Coldbrew\nimport threading\ndef worker():\n\tColdbrew.get_variable('x')\nt = threading.Thread(target=worker, args=())\nt.start()\nt.join()");
         return window.consoleWarns;
       });
-      return expect(warns[warns.length-2][0]).to.include('You can only access JavaScript from the main Python thread.');
+      return expect(warns[warns.length-1][0]).to.include('You can only access JavaScript from the main Python thread.');
     });
 
     it('should not allow Coldbrew.run_function in thread', async function () {
@@ -1005,7 +1060,7 @@ describe('Core Coldbrew Functionality', () => {
         Coldbrew.run("import Coldbrew\nimport threading\ndef worker():\n\tColdbrew.run_function('foo', 5, 2)\nt = threading.Thread(target=worker, args=())\nt.start()\nt.join()");
         return window.consoleWarns;
       });
-      return expect(warns[warns.length-2][0]).to.include('You can only access JavaScript from the main Python thread.');
+      return expect(warns[warns.length-1][0]).to.include('You can only access JavaScript from the main Python thread.');
     });
     
     // add test async (sleep, http, yielding)
@@ -1013,7 +1068,7 @@ describe('Core Coldbrew Functionality', () => {
     // sleep should work (if not remove ASYNCIFY_WHITELIST and if still not maybe thread lock)
     // http should work if the threading guards in Coldbrew.py are disabled for HTTP stuff only
     
-    it('should support thread worker pool re-use', async function () {
+    it.skip('should support thread worker pool re-use', async function () {
       utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples', args: ['1'] });
@@ -1179,14 +1234,14 @@ describe('Core Coldbrew Functionality', () => {
       return expect(input).to.eventually.equal('Hello World!');
     });
 
-    it.skip('should allow HTTP requests in Python in worker mode', async function () {
+    it('should allow HTTP requests in Python in worker mode', async function () {
       var remoteFile = utils.eval(this, async () => {
         Coldbrew.unload();
         await Coldbrew.load({worker: true});
         await Coldbrew.run('import urllib.request');
-        return Coldbrew.getVariable('urllib.request.urlopen("http://localhost:8000/remote/example.txt").read()');
+        return Coldbrew.getVariable('str(urllib.request.urlopen("http://localhost:8000/remote/example.txt").read())');
       });
-      return expect(remoteFile).to.eventually.include('Python tried to make an HTTP request.');
+      return expect(remoteFile).to.eventually.include('downloaded from a remote server');
     });
 
     it('should let you download a file path to a ZIP file in worker mode', async function () {

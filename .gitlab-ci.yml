@@ -136,6 +136,7 @@ Test and Deploy:
     - aws s3 cp dist/index.remote.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)").html
     - aws s3 cp dist/index.remote-debug.html s3://coldbrew.plasticity.ai/index-$(python -c "import version; print(version.__version__)")-debug.html
     - aws s3 cp src/remote s3://coldbrew.plasticity.ai/remote/ --recursive
+    - aws s3 cp images s3://coldbrew.plasticity.ai/images/ --recursive
     # End Push to Amazon S3
     - cd $CI_PROJECT_DIR
     - rm -rf ../tagger

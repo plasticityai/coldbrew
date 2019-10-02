@@ -3,7 +3,8 @@ COLDBREW_VERSION=$(shell python -c "import sys; sys.path.append('../'); import v
 MODULE_NAME=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME)")
 MODULE_NAME_LOWER=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(MODULE_NAME.lower())")
 NODE?=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(NODE).lower())")
-DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(DEFAULT_MEMORY)")
+MIN_MEMORY=(64*1024)*320
+DEFAULT_MEMORY=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(max($(MIN_MEMORY), DEFAULT_MEMORY))")
 ENABLE_THREADING=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(ENABLE_THREADING and not '$(NODE)' == 'true').lower())")
 MAX_MEMORY=2032MB
 AGGRESSIVE_VARIABLE_ELIMINATION=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(AGGRESSIVE_VARIABLE_ELIMINATION)")
@@ -12,15 +13,18 @@ UNUSED_BUILTIN_MODULES=$(shell python -c "import sys; sys.path.append('../custom
 UNUSED_BUILTIN_MODULES_STUB_CODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; [print(open('tools/removed_module_stub.c.template').read().replace('STUBMODULE', m)) for m in UNUSED_BUILTIN_MODULES]")
 BROWSERFS=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(BROWSERFS).lower())")
 JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(JSZIP or COMPRESS_NETWORK_FILES).lower())")
-SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if DEBUG_MODE else '  ')")
-ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if DEBUG_MODE and not(NO_ASSERTIONS) else '  ')")
-export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if DEBUG_MODE and not(NO_ASSERTIONS) else '0')")
 COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not '$(NODE)' == 'true').lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
+ASYNC_DEBUG=0
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript'
-ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input'
+ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
+
+DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str((DEBUG_MODE or bool(int('$(ASYNC_DEBUG)')))).lower())")
+SYMBOLS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -g2 ' if (DEBUG_MODE or bool(int('$(ASYNC_DEBUG)'))) else '  ')")
+# ASSERTIONS_DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(' -s ASSERTIONS=1 ' if (DEBUG_MODE or bool(int('$(ASYNC_DEBUG)'))) and not(NO_ASSERTIONS) else '  ')")
+export EMCC_DEBUG := $(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print('2' if (DEBUG_MODE or bool(int('$(ASYNC_DEBUG)'))) and not(NO_ASSERTIONS) else '0')")
 
 PYVERSION=3.8.0
 PYMINOR=$(basename $(PYVERSION))
@@ -62,13 +66,6 @@ ifeq ($(FAST_AND_SMALL_BUT_NO_ASYNC),false)
     SHOULD_ASYNCIFY = yes
 endif
 
-# Might need to uncomment (if build is not working to try and debug?)
-# ifneq ($(EMCC_DEBUG),0)
-# 	export EM_BUILD_VERBOSE=3
-# 	export EMSCRIPT_MAX_CHUNK_SIZE=16777216
-# 	export EMCC_CORES=1
-# endif
-
 # Set variables from options and flags
 ifeq ($(NODE),true)
 $(eval EMCC_FILE_FLAG = --embed-file)
@@ -79,7 +76,7 @@ endif
 ifdef SHOULD_ASYNCIFY
 $(eval ASYNCFLAGS = -s ASYNCIFY=1 -s ASYNCIFY_WHITELIST='$(ASYNC_WHITELIST)')
 endif
-ifneq ($(EMCC_DEBUG),0)
+ifneq ($(DEBUG_MODE),false)
 $(eval JSCC = cat)
 $(eval JSCCFLAGS = )
 $(eval UGLIFY = cat)
@@ -171,7 +168,7 @@ $(MODULE_NAME_LOWER).js.make: tools/externs.js Worker.js $(MODULE_NAME_LOWER).js
 	# Build JS Files
 	sed -f tools/inject_exports.sed module.js.pre.js > module.js.pre.js.intermediate.js
 	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g; s/BUILTIN_MODULES/$(BUILTIN_MODULES)/g;' module.js.pre.js.intermediate.js > module.js
-ifeq ($(EMCC_DEBUG),0)
+ifeq ($(DEBUG_MODE),false)
 	rm module.js.pre.js.intermediate.js
 endif
 
@@ -219,7 +216,7 @@ endif
 
 	touch $(MODULE_NAME_LOWER).js.make
 
-$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.o prejs.js.pre.js tools/embed_thread_script.py
+$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python.o prejs.js.pre.js tools/embed_thread_script.py
 	rm -rf *.wasm 2>/dev/null || true
 	rm -rf *.data 2>/dev/null || true
 	rm -rf *.worker.js 2>/dev/null || true
@@ -233,7 +230,7 @@ $(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python+strings.
 	# Build JS files
 	sed -e 's/ENABLE_THREADING/$(ENABLE_THREADING)/g; s/FAST_AND_SMALL_BUT_NO_ASYNC/$(FAST_AND_SMALL_BUT_NO_ASYNC)/g; s/BROWSERFS/$(BROWSERFS)/g; s/JSZIP/$(JSZIP)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g; s/MODULE_NAME/$(MODULE_NAME)/g; s/PYVERSION/$(PYVERSION)/g; s/COLDBREW_VERSION/$(COLDBREW_VERSION)/g;' prejs.js.pre.js > prejs.js
 	# Build .js + .wasm + .data
-	$(CC) -o $@ sources+python+strings.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
+	$(CC) -o $@ sources+python.o -s EXPORTED_FUNCTIONS='["_main"]' $(LDFLAGS) $(ALLOWMEMORYGROWTHFLAGS) $(PREJSFLAGS) $(MODULARIZEFLAGS) $(ASYNCFLAGS) \
 		$(foreach d,$(wildcard root/*),$(EMCC_FILE_FLAG) $d@/$(notdir $d))
 	# Patch output files
 ifeq ($(NODE),false)
@@ -292,7 +289,7 @@ stub_removed_modules.bc: ../customize/coldbrew_settings.py
 	$(CC) -o stub_removed_modules.bc /tmp/stub_removed_modules.c $(CFLAGS)
 	rm /tmp/stub_removed_modules.c
 
-sources+python+strings.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o stub_removed_modules.bc
+sources+python.o: $(BCS) requirements.make Makefile main.c main.bc ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o stub_removed_modules.bc
 	echo '#include "Python.h"' > /tmp/stub_manual_compile_modules.c
 	echo "PyObject* PyInit__sqlite3(void); void __coldbrew_pyinit_stub__sqlite3() { PyInit__sqlite3(); }" >> /tmp/stub_manual_compile_modules.c
 	$(CC) -o stub_manual_compile_modules.bc /tmp/stub_manual_compile_modules.c $(CFLAGS)
@@ -302,9 +299,7 @@ ifeq ($(ENABLE_THREADING),true)
 else
 	llvm-link $(filter-out %.c.pre.bc,$(filter %.bc,$^)) stub_manual_compile_modules.bc --override=stub_removed_modules.bc $(subst $() $()../, $() $()--override=../,$(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so)) > sources.o
 endif
-	llvm-extract -rglob="\.str*" python.o > python-strings.o
-	llvm-link --only-needed sources.o python.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) --override=python.o > sources+python.o
-	llvm-link sources+python.o python-strings.o --override=python.o > sources+python+strings.o
+	llvm-link sources.o python.o $(call rwildcard, ../customize/requirements/lib/python/site-packages/, *-x86_64-linux-gnu.so) > sources+python.o
 
 clean:
 	rm -rf ../build || true
@@ -352,10 +347,10 @@ main.c: $(PYLIB) tools/add_requirements.py main.c.pre.c requirements.make
 
 
 %.bc: %.c $(PYLIB) Makefile
-	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
+	$(CC) -o $@ $< $(CFLAGS) -D__COLDBREW_ASYNC_DEBUG__=$(ASYNC_DEBUG)
 
 main.bc: main.c $(PYLIB) Makefile
-	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION)
+	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION) -D__COLDBREW_ASYNC_DEBUG__=$(ASYNC_DEBUG)
 
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
 	rm -rf root || true

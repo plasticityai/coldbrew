@@ -31,7 +31,7 @@ def putheader(self, header, *args):
 
 def endheaders(self, message_body=None, *, encode_chunked=False):
     if not Coldbrew.is_async():
-        Coldbrew._error("Python tried to make an HTTP request. Since you are not running in asynchronous mode, this is not allowed.")
+        Coldbrew._error("Python tried to make an HTTP request. Since you are not running in asynchronous mode, this is not allowed. "+Coldbrew._async_advise('should'))
     self._coldbrew_body = message_body or ""
     timeout = None
     if type(self.timeout) == int:

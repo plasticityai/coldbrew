@@ -277,6 +277,16 @@ console.log(c.blue); // Prints "3"
 console.log(c.mostCommon(2)); // Prints "[('blue', 3), ('red', 2)]"
 ```
 
+If you use `Coldbrew.getVariableAsync` you can get the variable asynchronously. Meaning all interaction and methods run on the underlying Python object will be run asynchronously. For example, making [HTTP requests](#accessing-http-in-python) requires running asynchronously:
+```javascript
+Coldbrew.run("import urllib.request");
+var urllib = Coldbrew.getVariableAsync('urllib');
+urllib.request.urlopen("http://coldbrew.plasticity.ai/remote/example.txt").read().toString().then(function(contents) {
+  console.log(contents);
+});
+```
+
+
 You can also go the other way too. You can export a JavaScript class like the [`Date`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) class from JavaScript to Python and it will behave like it were a Python class:
 ```javascript
 Coldbrew.run("Date = Coldbrew.get_variable('Date')");

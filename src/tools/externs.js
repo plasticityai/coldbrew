@@ -1,6 +1,11 @@
 /**
  * @suppress {undefinedVars}
  */
+var abort;
+
+/**
+ * @suppress {undefinedVars}
+ */
 var IS_WORKER_SCRIPT;
 
 /**

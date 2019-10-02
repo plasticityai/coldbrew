@@ -8,7 +8,6 @@ ROOT=$(abspath ..)
 HOSTINSTALL=$(ROOT)/build/$(PYVERSION)/host
 HOSTBUILD=$(HOSTINSTALL)/Python-$(PYVERSION)
 HOSTPYTHON=$(HOSTINSTALL)/bin/python3$(EXE)
-HOSTPGEN=$(HOSTINSTALL)/bin/pgen$(EXE)
 
 BUILD=$(ROOT)/build/$(PYVERSION)/Python-$(PYVERSION)
 INSTALL=$(ROOT)/installs/python-$(PYVERSION)
@@ -31,14 +30,13 @@ $(TARBALL):
 	wget -q -O $@ $(URL)
 
 
-$(HOSTPYTHON) $(HOSTPGEN): $(TARBALL)
+$(HOSTPYTHON): $(TARBALL)
 	mkdir -p $(HOSTINSTALL)
 	[ -d $(HOSTBUILD) ] || (mkdir -p $(HOSTBUILD); tar -C $(HOSTBUILD) --strip-components 1 -xf $(TARBALL))
 	( \
 		cd $(HOSTBUILD); \
 		./configure --prefix=$(HOSTINSTALL) && \
 		make install && \
-		cp Parser/pgen$(EXE) $(HOSTINSTALL)/bin/ && \
 		make distclean \
 	)
 
@@ -65,15 +63,18 @@ $(BUILD)/Modules/_sqlite/_sqlite.o: $(BUILD)/.patched
 		emcc -DNDEBUG -DMODULE_NAME="\"sqlite3\"" -DSQLITE_OMIT_LOAD_EXTENSION=0 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS3_PARENTHESIS=1 -DSQLITE_ENABLE_FTS4=1 -DSQLITE_ENABLE_FTS5=1 -DSQLITE_ENABLE_JSON1=1 -I./Modules/_sqlite -I./Include/ -I./ -o Modules/_sqlite/_sqlite.o Modules/_sqlite/sqlite3.c Modules/_sqlite/cache.c Modules/_sqlite/connection.c Modules/_sqlite/cursor.c Modules/_sqlite/microprotocols.c Modules/_sqlite/module.c Modules/_sqlite/prepare_protocol.c Modules/_sqlite/row.c Modules/_sqlite/statement.c Modules/_sqlite/util.c $(CFLAGS) \
 	)
 
-$(BUILD)/$(LIB): $(BUILD)/Makefile $(HOSTPYTHON) $(HOSTPGEN) Setup.local $(BUILD)/Modules/_sqlite/_sqlite.o
+$(BUILD)/$(LIB): $(BUILD)/Makefile $(HOSTPYTHON) Setup.local $(BUILD)/Modules/_sqlite/_sqlite.o
 	cp Setup.local $(BUILD)/Modules/
+	cp -r ../third_party/zlib $(BUILD)/Modules/zlib
+	cp -r _coldbrew_stubs.c $(BUILD)/Modules/_coldbrew_stubs.c
 	( \
 		cd $(BUILD)/Modules/zlib; \
 		emconfigure ./configure --static \
 	)
 	( \
 		cd $(BUILD); \
-		emmake make HOSTPYTHON=$(HOSTPYTHON) HOSTPGEN=$(HOSTPGEN) CROSS_COMPILE=yes $(LIB) -j8 \
+		sed -i -e 's/#ifdef HAVE_POSIX_SPAWNP/#if 0/g; s/#ifdef HAVE_POSIX_SPAWN/#if 0/g;' Modules/posixmodule.c; \
+		emmake make HOSTPYTHON=$(HOSTPYTHON) CROSS_COMPILE=yes $(LIB) CFLAGS='-DHAVE_SIGSET_T=1' \
 	)
 
 install: $(BUILD)/$(LIB)
@@ -82,5 +83,5 @@ install: $(BUILD)/$(LIB)
 		sed -i -e 's/libinstall:.*/libinstall:/' Makefile; \
 		emmake make HOSTPYTHON=$(HOSTPYTHON) PYTHON_FOR_BUILD=$(HOSTPYTHON) CROSS_COMPILE=yes inclinstall libinstall $(LIB) -j8 && \
 		cp $(LIB) $(INSTALL)/lib/ && \
-		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata.py $(INSTALL)/lib/python$(PYMINOR)/ \
+		cp $(HOSTINSTALL)/lib/python$(PYMINOR)/_sysconfigdata__linux_x86_64-linux-gnu.py $(INSTALL)/lib/python$(PYMINOR)/ \
 	)

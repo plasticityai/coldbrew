@@ -11,8 +11,8 @@ MODULE_NAME = "Coldbrew"
 # If you want to build for Node.js, turn this property on
 NODE = False
 
-# Controls the default amount of memory (must be a multiple of 64KB or 524288) to allocate for the program (it can grow beyond this)
-DEFAULT_MEMORY = 524288 * 30
+# Controls the default amount of memory (must be a multiple of 64KB) to allocate for the program (it can grow beyond this)
+DEFAULT_MEMORY = (64*1024) * 320
 
 # Enable threading support
 ENABLE_THREADING = True
@@ -30,7 +30,7 @@ DEBUG_MODE = False
 # Controls whether to disable assertions (when debug mode is enabled)
 NO_ASSERTIONS = False
 
-# You can mark built-in modules as unused, so that we can delete them
+# You can mark built in modules as unused, so that we can delete them
 # when building to save space.
 UNUSED_BUILTIN_MODULES = []
 
