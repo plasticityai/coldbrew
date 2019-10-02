@@ -1396,6 +1396,9 @@ function finalizeMainOptions(options) {
   };
   if (ENABLE_THREADING) {
     defaultOptions.threadWorkers = 1;
+    if (FAST_AND_SMALL_BUT_NO_ASYNC && options.worker) {
+      throw new Error("You cannot use worker mode because you built Coldbrew with async functionality disabled.");
+    }
     if (options.threadWorkers <= 0) {
       throw new Error("The 'threadWorkers' option must be greater than 0.");
     }
@@ -1454,7 +1457,15 @@ MODULE_NAME._load = function(arg1, arg2) {
         })(oldFSFunction);
       }
     });
-    MODULE_NAME.getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
+    MODULE_NAME._getAsyncYieldRate = MODULE_NAME.Module.cwrap('export_getAsyncYieldRate', 'number', []);
+    MODULE_NAME.getAsyncYieldRate = function() {
+      var asyncYieldRate = MODULE_NAME._getAsyncYieldRate();
+      if (asyncYieldRate >= 2147483647) {
+        return Infinity;
+      } else {
+        return asyncYieldRate;
+      }
+    };
     MODULE_NAME._setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
     MODULE_NAME.setAsyncYieldRate = function(rate) {
       if (MODULE_NAME._finalizedOptions.worker) {
@@ -1867,7 +1878,6 @@ MODULE_NAME._load = function(arg1, arg2) {
 MODULE_NAME.unload = function(arg1, arg2) {
   if (MODULE_NAME.loaded) {
     MODULE_NAME.run('pass');
-    COLDBREW_TOP_SCOPE.Worker.terminateAllWorkers();
     Object.getOwnPropertyNames(MODULE_NAME).forEach(function (prop) {
       delete MODULE_NAME[prop];
     });
@@ -1876,6 +1886,7 @@ MODULE_NAME.unload = function(arg1, arg2) {
       oldModule = module;
       module = {exports: {}};
     }
+    COLDBREW_TOP_SCOPE.Worker.terminateAllWorkers(true);
     COLDBREW_TOP_SCOPE_FUNC(false, MODULE_NAME);
     if (IS_NODE_JS) {
       module = oldModule;

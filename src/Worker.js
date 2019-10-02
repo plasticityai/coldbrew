@@ -29,15 +29,25 @@ var Worker = new Proxy(function(){}, {
   },
   get: function(target, prop) {
     if (prop === 'terminateAllWorkers') {
-      return function() {
-        _coldbrew_allWorkers.forEach(function(worker) {
-          if (worker.underlyingWorker && worker.underlyingWorker.kill) {
-            worker.underlyingWorker.kill();
-          }
-          if (worker.terminate) {
-            worker.terminate();
-          }
-        });
+      return function(defer = false) {
+        function _terminateWorkers(workers) {
+          workers.forEach(function(worker) {
+            if (worker.underlyingWorker && worker.underlyingWorker.kill) {
+              worker.underlyingWorker.kill();
+            }
+            if (worker.terminate) {
+              worker.terminate();
+            }
+          });
+        }
+        if (defer) {
+          var _terminateWorkersBinded = _terminateWorkers.bind(null, [..._coldbrew_allWorkers]);
+          setTimeout(function() {
+            _terminateWorkersBinded();
+          }, 1);
+        } else {
+          _terminateWorkers(_coldbrew_allWorkers);
+        }
         _coldbrew_allWorkers = [];
       };
     }
