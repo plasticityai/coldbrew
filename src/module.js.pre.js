@@ -562,10 +562,10 @@ var _MODULE_NAME_coldbrew_internal_fs_configure = (function() {
 function createVariableProxy(obj) {
   if (obj && obj._internal_coldbrew_python_object) {
     if (!/^[A-Za-z0-9_\.]+$/.test(obj.type)) {
-      throw new Error("Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
+      throw new Error("Coldbrew Error: Cannot proxy a Python variable with a type with special characters in type name: "+ obj.type);
     }
     if (!/^[A-Za-z0-9_\.]+$/.test(obj.name)) {
-      throw new Error("Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
+      throw new Error("Coldbrew Error: Cannot proxy a Python variable with a name with special characters in type name: "+obj.name);
     }
     var getVariable = MODULE_NAME.getVariable;
     var run = MODULE_NAME.run;
@@ -787,7 +787,7 @@ function createVariableProxy(obj) {
           if (!isPromise(tprop)) {
             return MODULE_NAME.getVariable("(hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+") or Coldbrew._unserialize_from_js("+serializeToPython(prop)+") in Coldbrew._vars['"+obj.uid+"']) if (hasattr(Coldbrew._vars['"+obj.uid+"'], '__contains__')) and type(Coldbrew._vars['"+obj.uid+"']) != type else hasattr(Coldbrew._vars['"+obj.uid+"'], "+JSON.stringify(tprop)+")");
           } else {
-            throw new Error("Cannot run 'has' operation (or `in` operator) on PythonVariable when using worker mode.");
+            throw new Error("Coldbrew Error: Cannot run 'has' operation (or `in` operator) on PythonVariable when using worker mode.");
           }
         },
         deleteProperty: function(target, prop) {
@@ -1397,19 +1397,19 @@ function finalizeMainOptions(options) {
   if (ENABLE_THREADING) {
     defaultOptions.threadWorkers = 1;
     if (FAST_AND_SMALL_BUT_NO_ASYNC && options.worker) {
-      throw new Error("You cannot use worker mode because you built Coldbrew with async functionality disabled.");
+      throw new Error("Coldbrew Error: You cannot use worker mode because you built Coldbrew with async functionality disabled.");
     }
     if (options.threadWorkers <= 0) {
-      throw new Error("The 'threadWorkers' option must be greater than 0.");
+      throw new Error("Coldbrew Error: The 'threadWorkers' option must be greater than 0.");
     }
   } else if (options.threadWorkers) {
-    throw new Error("You are trying to load with the 'threadWorkers' option when threading is disabled. Please enable threading in the settings file.");
+    throw new Error("Coldbrew Error: You are trying to load with the 'threadWorkers' option when threading is disabled. Please enable threading in the settings file.");
   }
   return Object.assign(options, Object.assign({}, defaultOptions, options));
 }
 MODULE_NAME._load = function(arg1, arg2) {
   if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
-    throw new Error("You are trying to run this HTML file under a `file://` URL. This is not supported. You must run this file under a HTTP server under a `http://` or `https://` protocol. On most computers, you can do this by opening terminal, navigating to where this HTML file is, and running either `python -m SimpleHTTPServer` for Python 2 or `python3 -m http.server` for Python 3. Then, you can navigate to `http://localhost:8000` in a web browser to see this file. Alternatively, if you have downloaded the Coldbrew source code, you can just run `./serve.sh` from the project root and navigate to `http://localhost:8000` in a web browser to see this file after building.");
+    throw new Error("Coldbrew Error: You are trying to run this HTML file under a `file://` URL. This is not supported. You must run this file under a HTTP server under a `http://` or `https://` protocol. On most computers, you can do this by opening terminal, navigating to where this HTML file is, and running either `python -m SimpleHTTPServer` for Python 2 or `python3 -m http.server` for Python 3. Then, you can navigate to `http://localhost:8000` in a web browser to see this file. Alternatively, if you have downloaded the Coldbrew source code, you can just run `./serve.sh` from the project root and navigate to `http://localhost:8000` in a web browser to see this file after building.");
   } 
   var onReadyFunc = null;
   var options = {};
@@ -1469,8 +1469,11 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME._setAsyncYieldRate = MODULE_NAME.Module.cwrap('export_setAsyncYieldRate', null, ['number']);
     MODULE_NAME.setAsyncYieldRate = function(rate) {
       if (MODULE_NAME._finalizedOptions.worker) {
-        MODULE_NAME.run('Coldbrew._warn("Ignoring manually setting the async yield rate. When workers mode is enabled, we automatically set the yield rate to a very high number for you to improve performance. =)")');
+        MODULE_NAME.run('Coldbrew._warn("Ignoring manually setting the async yield rate. When workers mode is enabled, we automatically set the yield rate to infinity for you to improve performance. =)")');
         return null;
+      }
+      if (rate >= 2147483647) {
+        rate = 2147483647;
       }
       return MODULE_NAME._setAsyncYieldRate(rate);
     };
@@ -1733,7 +1736,7 @@ MODULE_NAME._load = function(arg1, arg2) {
             }
           });
         } else {
-          reject(new Error("The file system was not configured to persist any paths."));
+          reject(new Error("Coldbrew Error: The file system was not configured to persist any paths."));
         }
       });
     };
@@ -1756,7 +1759,7 @@ MODULE_NAME._load = function(arg1, arg2) {
             }
           });
         } else {
-          reject(new Error("The file system was not configured to persist any paths."));
+          reject(new Error("Coldbrew Error: The file system was not configured to persist any paths."));
         }
       });
     };

@@ -371,20 +371,12 @@ describe('Core Coldbrew Functionality', () => {
       return expect(rate).to.eventually.equal(1337);
     });
 
-    it('should not allow you to set the async yield rate for workers', async function () {
-      var rate = utils.eval(this, () => {
-        Coldbrew.unload();
-        return Coldbrew.load({asyncYieldRate:1337, worker: true}).then(() => Coldbrew.getAsyncYieldRate());
-      });
-      return expect(rate).to.eventually.equal(2147483647);
-    });
-
     it('should not allow you to set the async yield rate at load in worker mode', async function () {
       var rate = utils.eval(this, () => {
         Coldbrew.unload();
         return Coldbrew.load({asyncYieldRate:1337, worker: true}).then(() => Coldbrew.getAsyncYieldRate());
       });
-      return expect(rate).to.eventually.equal(2147483647);
+      return expect(rate).to.eventually.equal(Infinity);
     });
 
     it('should not allow you to set the async yield rate in worker mode', async function () {
@@ -395,7 +387,7 @@ describe('Core Coldbrew Functionality', () => {
           return Coldbrew.getAsyncYieldRate()
         });
       });
-      return expect(rate).to.eventually.equal(2147483647);
+      return expect(rate).to.eventually.equal(Infinity);
     });
 
     it('should be significantly faster with a higher yield rate', async function () {

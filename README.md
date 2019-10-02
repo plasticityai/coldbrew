@@ -442,7 +442,7 @@ Coldbrew.loadFiles();
 ### Extra Performance by using Workers
 You can run the Coldbrew library in a separate worker thread (Web Workers in the browser and Worker threads in Node.js) by passing `worker: true` to the Coldbrew `load` method. 
 
-This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. When running in asynchronous mode, the yield rate is automatically set very high, since you never need to yield back as it is running on a separate thread. [A high yield rate increases performance as well](#performance-and-size-benchmarks).
+This will make it so that even synchronous Python execution doesn't block the browser's UI thread or the main JavaScript event loop as it will be running in its own thread. This also means it can utilize multiple cores on a machine with multiple cores. When running in asynchronous mode, the yield rate is automatically set to infinity, since you never need to yield back as it is running on a separate thread. [A high yield rate increases performance as well](#performance-and-size-benchmarks).
 
 Note that when running in workers, every method on the `Coldbrew` object returns a `Promise` since the main thread has to asynchronously communicate back and forth with the worker thread. For example, you would get return values like so:
 ```javascript
