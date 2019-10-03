@@ -1326,7 +1326,6 @@ MODULE_NAME.onStandardInReadAsync = function(size) {
 };
 MODULE_NAME._onRuntimeInitialized = function(Module) {
   Module.callMain();
-  MODULE_NAME._ORIGINAL_ENV_ = Object.assign({}, Module.ENV);
   var oldLoaded = MODULE_NAME.loaded;
   MODULE_NAME.loaded = true;
   if (!oldLoaded) {
@@ -1613,11 +1612,24 @@ MODULE_NAME._load = function(arg1, arg2) {
         return MODULE_NAME.getVariableAsync('Coldbrew._call_func('+functionExpression+','+args.map(arg => serializeToPython(arg)).join(',')+')');
       };
     }
-    MODULE_NAME.getenv = function() { return MODULE_NAME.Module.ENV };
-    MODULE_NAME.setenv = MODULE_NAME.Module.cwrap('export_setenv', 'number', ['string', 'string']);
-    MODULE_NAME.unsetenv = MODULE_NAME.Module.cwrap('export_unsetenv', 'number', ['string']);
+    MODULE_NAME.getenv = function() { 
+      return MODULE_NAME.getVariable('{k:v for k,v in Coldbrew.os.environ.items()}') 
+    };
+    MODULE_NAME.setenv = function(envVar, val) {
+      return MODULE_NAME.runFunction('Coldbrew.os.environ.__setitem__', envVar, val);
+    };
+    MODULE_NAME.unsetenv = function(envVar, val) {
+      return MODULE_NAME.runFunction('(lambda x: Coldbrew._try(lambda: Coldbrew.os.environ.__delitem__(x)))', envVar);
+    };
     MODULE_NAME.getcwd = MODULE_NAME.runFunction.bind(MODULE_NAME, 'Coldbrew._getcwd');
-    MODULE_NAME.chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
+    MODULE_NAME._chdir = MODULE_NAME.Module.cwrap('export_chdir', 'number', ['string']);
+    MODULE_NAME.chdir = function(path) {
+      var ret = MODULE_NAME._chdir(path);
+      if (ret === -2) {
+        throw getColdbrewConcurrencyError();
+      }
+      return;
+    };
     MODULE_NAME.listFiles = function(path='/') {
       return MODULE_NAME.Module.FS.$readdir(path)
         .filter(function(file) {
@@ -1839,6 +1851,9 @@ MODULE_NAME._load = function(arg1, arg2) {
         MODULE_NAME.setenv(key, finalizedOptions.env[key]);
       });
       var ret = MODULE_NAME._runFile(path);
+      if (ret === -2) {
+        throw getColdbrewConcurrencyError();
+      }
       MODULE_NAME.chdir(oldcwd);
       return ret;
     };
@@ -1864,6 +1879,9 @@ MODULE_NAME._load = function(arg1, arg2) {
         });
         var retp = MODULE_NAME._runFileAsync(path);
         return retp.then(function(ret) {
+          if (ret === -2) {
+            throw getColdbrewConcurrencyError();
+          }
           MODULE_NAME.chdir(oldcwd);
           return ret;
         }).then(defer);
@@ -1888,6 +1906,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       }
       var res = MODULE_NAME.run('Coldbrew._clear_argv()');
       res = res + MODULE_NAME.runFunction('Coldbrew._append_argv', 'MODULE_NAME_LOWER.py');
+      MODULE_NAME._ORIGINAL_ENV_ = MODULE_NAME.getenv();
       if (res === 0) {
         MODULE_NAME.initialized = true;
         if (!finalizedOptions.hideWarnings) {
@@ -1901,6 +1920,9 @@ MODULE_NAME._load = function(arg1, arg2) {
     MODULE_NAME.reset = function() {
       MODULE_NAME._standardInTell = 0;
       var ret = MODULE_NAME._reset();
+      if (ret === -2) {
+        throw getColdbrewConcurrencyError();
+      }
       MODULE_NAME._initializer();
       return ret;
     };

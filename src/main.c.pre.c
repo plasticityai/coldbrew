@@ -95,16 +95,6 @@ int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
     return rval;
 }
 
-int EMSCRIPTEN_KEEPALIVE export_setenv(char *key, char *val) {
-    if (guard_concurrency() < 0) return -2;
-    return setenv(key, val, 1);
-}
-
-int EMSCRIPTEN_KEEPALIVE export_unsetenv(char *key) {
-    if (guard_concurrency() < 0) return -2;
-    return unsetenv(key);
-}
-
 int EMSCRIPTEN_KEEPALIVE export_chdir(char *path) {
     if (guard_concurrency() < 0) return -2;
     return chdir(path);
