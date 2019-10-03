@@ -174,7 +174,7 @@ describe('Bridge Variables', function() {
     it('should allow getting all types of Python variables in JavaScript via run_function arguments', async function () {
       var {a, b, c, d, e, f, g} = await utils.eval(this, () => {
         var result;
-        window.get_vars = function(a, b, c, d, e, f, g) {
+        window.getVars = function(a, b, c, d, e, f, g) {
           result = {a, b, c, d, e, f: f === Date, g: Coldbrew.PythonVariable.isPythonVariable(g)};
         };
         Coldbrew.run("a = 5");
@@ -185,7 +185,7 @@ describe('Bridge Variables', function() {
         Coldbrew.run("f = Coldbrew.get_variable('Date')");
         Coldbrew.run("from collections import Counter");
         Coldbrew.run("g = Counter");
-        Coldbrew.run("Coldbrew.run_function('get_vars', a, b, c, d, e, f, g)");
+        Coldbrew.run("Coldbrew.run_function('getVars', a, b, c, d, e, f, g)");
         return result;
       });
       expect(a).to.equal(5);
@@ -200,7 +200,7 @@ describe('Bridge Variables', function() {
     it('should allow getting all types of Python variables in JavaScript via asynchronous run_function arguments', async function () {
       var {a, b, c, d, e, f, g} = await utils.eval(this, async () => {
         var result;
-        window.get_vars = async function(a, b, c, d, e, f, g) {
+        window.getVars = async function(a, b, c, d, e, f, g) {
           result = {a, b, c, d, e, f: f === Date, g: (await Coldbrew.PythonVariable.isPythonVariable(g)) && Coldbrew.PythonVariable.isPythonVariable(g.__raw_promise__ && await g)};
         };
         Coldbrew.run("a = 5");
@@ -211,7 +211,7 @@ describe('Bridge Variables', function() {
         Coldbrew.run("f = Coldbrew.get_variable('Date')");
         Coldbrew.run("from collections import Counter");
         Coldbrew.run("g = Counter");
-        await Coldbrew.runAsync("Coldbrew.run_function('get_vars', a, b, c, d, e, f, g)");
+        await Coldbrew.runAsync("Coldbrew.run_function('getVars', a, b, c, d, e, f, g)");
         return result;
       });
       expect(a).to.equal(5);
@@ -412,7 +412,7 @@ describe('Bridge Variables', function() {
       });
       var {a, b, c, d, e, f, g} = await utils.eval(this, async () => {
         var result;
-        window.get_vars = async function(a, b, c, d, e, f, g) {
+        window.getVars = async function(a, b, c, d, e, f, g) {
           var test1 = await Coldbrew.PythonVariable.isPythonVariable(g);
           var test2 = Coldbrew.PythonVariable.isPythonVariable(g.__raw_promise__ && await g);
           result = {a, b, c, d, e, f: f === Date, g: test1 && test2};
@@ -425,7 +425,7 @@ describe('Bridge Variables', function() {
         await Coldbrew.run("f = Coldbrew.get_variable('Date')");
         await Coldbrew.run("from collections import Counter");
         await Coldbrew.run("g = Counter");
-        await Coldbrew.run("Coldbrew.run_function('get_vars', a, b, c, d, e, f, g)");
+        await Coldbrew.run("Coldbrew.run_function('getVars', a, b, c, d, e, f, g)");
         return result;
       });
       expect(a).to.equal(5);
@@ -444,7 +444,7 @@ describe('Bridge Variables', function() {
       });
       var {a, b, c, d, e, f, g} = await utils.eval(this, async () => {
         var result;
-        window.get_vars = async function(a, b, c, d, e, f, g) {
+        window.getVars = async function(a, b, c, d, e, f, g) {
           var test1 = await Coldbrew.PythonVariable.isPythonVariable(g);
           var test2 = Coldbrew.PythonVariable.isPythonVariable(g.__raw_promise__ && await g);
           result = {a, b, c, d, e, f: f === Date, g: test1 && test2};
@@ -457,7 +457,7 @@ describe('Bridge Variables', function() {
         await Coldbrew.run("f = Coldbrew.get_variable('Date')");
         await Coldbrew.run("from collections import Counter");
         await Coldbrew.run("g = Counter");
-        await Coldbrew.runAsync("Coldbrew.run_function('get_vars', a, b, c, d, e, f, g)");
+        await Coldbrew.runAsync("Coldbrew.run_function('getVars', a, b, c, d, e, f, g)");
         return result;
       });
       expect(a).to.equal(5);

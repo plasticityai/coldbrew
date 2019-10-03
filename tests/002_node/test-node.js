@@ -15,6 +15,19 @@ describe('Node.js Support', function() {
     return expect(this.test.Coldbrew.load()).to.eventually.equal(undefined);
   });
 
+  it('should reset the files and python library directory on each load', async function() {
+    expect(!!this.test.Coldbrew.pathExists('/files/a.txt')).to.be.false;
+    this.test.Coldbrew.addFile('/files/a.txt', 'Hello World!');
+    expect(!!this.test.Coldbrew.pathExists('/files/a.txt')).to.be.true;
+    expect(!!this.test.Coldbrew.pathExists(`/usr/local/lib/${this.test.Coldbrew.listFiles('/usr/local/lib')[0].name}/a.txt`)).to.be.false;
+    this.test.Coldbrew.addFile(`/usr/local/lib/${this.test.Coldbrew.listFiles('/usr/local/lib')[0].name}/a.txt`, 'Hello World!');
+    expect(!!this.test.Coldbrew.pathExists(`/usr/local/lib/${this.test.Coldbrew.listFiles('/usr/local/lib')[0].name}/a.txt`)).to.be.true;
+    this.test.Coldbrew.unload();
+    await this.test.Coldbrew.load({hideWarnings: true});
+    expect(!!this.test.Coldbrew.pathExists('/files/a.txt')).to.be.false;
+    expect(!!this.test.Coldbrew.pathExists(`/usr/local/lib/${this.test.Coldbrew.listFiles('/usr/local/lib')[0].name}/a.txt`)).to.be.false;
+  });
+
   it('should throw a PythonError for bad Python code in Node.js', async function () {
     var isPythonError = false;
     this.test.Coldbrew.onStandardErr = function(line) {};

@@ -18,7 +18,7 @@ FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../c
 
 ASYNC_DEBUG=0
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript'
-ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc\n_PyObject_GenericGetAttrWithDict\nproperty_descr_get\n_PyObject_FastCall_Prepend\nslot_mp_subscript\nPyObject_GetItem'
+ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc\n_PyObject_GenericGetAttrWithDict\nproperty_descr_get\n_PyObject_FastCall_Prepend\nslot_mp_subscript\nPyObject_GetItem\ntupledealloc'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
 
 DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str((DEBUG_MODE or bool(int('$(ASYNC_DEBUG)')))).lower())")
@@ -120,6 +120,9 @@ dist.make: $(MODULE_NAME_LOWER).js.make Makefile index.html ../README.md ../pack
 ifeq ($(NODE),true)
 		sed -e 's/0.0.0/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package.json > ../$(COLDBREW_DIST_DIR)/package.json
 		sed -e 's/0.0.0/$(COLDBREW_VERSION)/g; s/MODULE_NAME_LOWER/$(MODULE_NAME_LOWER)/g;' ../package-lock.json > ../$(COLDBREW_DIST_DIR)/package-lock.json
+		cp -R node_root ../$(COLDBREW_DIST_DIR)/node_root
+		cp -R node_root/usr ../$(COLDBREW_DIST_DIR)/usr
+		cp -R node_root/files ../$(COLDBREW_DIST_DIR)/files
 		( \
 			cd ../$(COLDBREW_DIST_DIR); \
 		)
@@ -216,7 +219,7 @@ endif
 
 	touch $(MODULE_NAME_LOWER).js.make
 
-$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python.o prejs.js.pre.js tools/embed_thread_script.py
+$(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python.o prejs.js.pre.js tools/embed_thread_script.py node_root
 	rm -rf *.wasm 2>/dev/null || true
 	rm -rf *.data 2>/dev/null || true
 	rm -rf *.worker.js 2>/dev/null || true
@@ -352,10 +355,30 @@ main.c: $(PYLIB) tools/add_requirements.py main.c.pre.c requirements.make
 main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION) -D__COLDBREW_ASYNC_DEBUG__=$(ASYNC_DEBUG)
 
+node_root: root Makefile
+	rm -rf root || true
+	rm -rf root || true
+	rm -rf root || true
+	rm -rf node_root || true
+	rm -rf node_root || true
+	rm -rf node_root || true
+	cp -R root_orig root
+ifeq ($(NODE),true)
+	cp -R root node_root
+	rm -rf root/files
+	rm -rf root/usr/local/lib/python$(PYMINOR)
+	rm -rf node_root/coldbrew
+else
+	mkdir -p node_root
+endif
+
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
 	rm -rf root || true
 	rm -rf root || true
 	rm -rf root || true
+	rm -rf root_orig || true
+	rm -rf root_orig || true
+	rm -rf root_orig || true
 
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root
 	rm root/files/.gitkeep 2>/dev/null || true
@@ -374,6 +397,7 @@ root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o 
 	rm -rf root/usr/local/lib/python$(PYMINOR)/unittest/test || true # Remove these unneeded files taking up space
 	rm -rf root/usr/local/lib/python$(PYMINOR)/lib2to3/tests || true # Remove these unneeded files taking up space
 	python tools/slim_data_bundle.py
+	cp -R root root_orig
 
 root.make: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py
 	touch root.make

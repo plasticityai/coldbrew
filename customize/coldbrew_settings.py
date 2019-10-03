@@ -14,12 +14,6 @@ NODE = False
 # Controls the default amount of memory (must be a multiple of 64KB) to allocate for the program (it can grow beyond this)
 DEFAULT_MEMORY = (64*1024) * 320
 
-# Enable threading support
-ENABLE_THREADING = True
-
-# Controls whether to enable the JSZip attachment
-JSZIP = True
-
 # This can be helpful for asm.js, but does more harm than good when using WASM
 # AGGRESSIVE_VARIABLE_ELIMINATION="-s AGGRESSIVE_VARIABLE_ELIMINATION=1"
 AGGRESSIVE_VARIABLE_ELIMINATION = ""
@@ -34,9 +28,28 @@ NO_ASSERTIONS = False
 # when building to save space.
 UNUSED_BUILTIN_MODULES = []
 
-# Optional Optimizations
-COMPRESS_NETWORK_FILES = True # Compresses the supporting distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web. It's recommended you load Coldbrew with {worker: true} mode when using this, to offload the decompression into its own web worker.
-FAST_AND_SMALL_BUT_NO_ASYNC = False # Reduces the code size emitted and executes faster, but removes asynchronous execution functionality
+######################################################################
+### Optional Optimizations
+######################################################################
+### You can change settings here to make your build run faster or use
+### less space by trading off against other resources / disabling
+### features. Unless you really need to eek out more performance,
+### it's recommended you leave the values below as they are.
+######################################################################
+# Compresses the supporting distribution files (.wasm, .data) with zip so that they are smaller and load faster when downloading over the web. 
+# It's recommended you load Coldbrew with {worker: true} mode when using this, to offload the decompression into its own web worker.
+COMPRESS_NETWORK_FILES = True
+
+# Reduces the code size emitted and executes faster, but removes asynchronous execution functionality.
+FAST_AND_SMALL_BUT_NO_ASYNC = False
+
+# Controls whether to enable the JSZip attachment (can make the output smaller, but disables all functions that handle ZIP files).
+# Note: If COMPRESS_NETWORK_FILES is True, then JSZIP will be True, even if you set it to False.
+JSZIP = True
+
+# Controls whether to enable threading support.
+# If you turn this off, the output size is smaller, but threading support will be gone.
+ENABLE_THREADING = True
 
 ######################################################################
 ### Internal Settings 

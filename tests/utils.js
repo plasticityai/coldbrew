@@ -98,6 +98,18 @@ beforeEach(async function() {
   this.currentTest.browser = await utils.getNewBrowser();
   this.currentTest.page = await utils.getNewPage(this, 'http://localhost:8000');
   await utils.eval({test: this.currentTest}, () => {
+    window.defer = function(val, time = 1) {
+      return new Promise(function(resolve, reject) {
+        setTimeout(function() {
+          resolve(val);
+        }, time);
+      });
+    };
+    window.assert = function(val) {
+      if (!val) {
+        throw new Error("Assertion Failed. (from assert())");
+      }
+    };
     window.consoleWarns = [];
     var oldConsoleWarn = console.warn;
     console.warn = function(...args) {

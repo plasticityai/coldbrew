@@ -61,6 +61,23 @@ describe('Core Coldbrew Functionality', () => {
       expect(logs[0][0]).to.equal('6');
       return expect(logs[1][0]).to.equal('11');
     });
+
+    // Works in Firefox, but not Chrome at the time of writing this test, skip until fixed
+    it.skip('should be able to grow the WebAssembly memory', async function() {
+      var result = utils.eval(this, () => {
+        try {
+          Coldbrew.run('memory = []');
+          // Allocate 100MB
+          for (var i = 0; i < 10; i++) {
+            Coldbrew.run('memory.append([0]*(1024*1024*10))');
+          }
+        } catch (e) {
+          return JSON.stringify([e.message, e.stack]);
+        }
+        return
+      });
+      return expect(result).to.eventually.be.true;
+    });
   });
 
   describe('Basic Cross Language Interaction', () => {
@@ -1007,11 +1024,6 @@ describe('Core Coldbrew Functionality', () => {
       return expect(logs[0][0]).to.include('Hello World!');
     });
   });
-
-  // Bridge
-  // Make sure bridge variables work (get_variable, run_function, getVariable, runFunction, return values, arguments, keyword arguments, bridge variables, undefined, null, Promise, number, string, array, object, infinity, passbacks)
-  // Make sure PythonVariable classes work with worker mode
-
 
   describe('POSIX Threads', () => {
     it.skip('should support synchronous execution in threads', async function () {

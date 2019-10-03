@@ -165,6 +165,12 @@ function parseUrl(string, prop) {
 // to load assets for the wasm like (.data, .embin, .wasm) files.
 COLDBREW_TOP_SCOPE.parseUrl = parseUrl;
 
+function stringifyToJson(obj) {
+  return JSON.stringify(obj, function(k, v) {
+    return v === undefined ? null : v;
+  });
+};
+
 function randid() {
   return 'rxxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
@@ -576,6 +582,9 @@ function createVariableProxy(obj) {
     var transformProp = function(prop, reverse=null) {
       if (!(reverse instanceof Array) && MODULE_NAME._finalizedOptions.transformVariableCasing) {
         if (/^[A-Za-z0-9]+(_[A-Za-z0-9]*)*$/.test(prop)) {
+          if (prop === 'to_json') {
+            return 'toJSON';
+          }
           return prop.replace(/([-_][a-z0-9])/ig, function ($1) {
             return $1.toUpperCase()
               .replace('-', '')
@@ -769,7 +778,7 @@ function createVariableProxy(obj) {
           return value;
         },
         ownKeys: function(target) {
-          var reflectRes = Reflect.ownKeys(target);
+          var reflectRes = [...PythonVariable.internalKeyDefs];
           var res = MODULE_NAME.getVariable("dir(Coldbrew._vars['"+obj.uid+"'])");
           if (!isPromise(res)) {
             res = res.map(transformProp);
@@ -878,12 +887,15 @@ function createVariableProxy(obj) {
         }
         $newProxy.__proto__ = {}; // not using Object.setPrototypeOf($newProxy, proxy); as it quashes debugging information in the console
         $keyDefs.concat(MODULE_NAME.PythonVariable.internalSecretKeyDefs).forEach(function(keyDef) {
-          Object.defineProperty($newProxy.__proto__, keyDef, {
-            configurable: false,
-            enumerable: true,
-            get: $handler.get.bind($handler, {}, keyDef),
-            set: $handler.set.bind($handler, {}, keyDef),
-          });
+          try {
+            Object.defineProperty($newProxy.__proto__, keyDef, {
+              configurable: false,
+              enumerable: true,
+              get: $handler.get.bind($handler, {}, keyDef),
+              set: $handler.set.bind($handler, {}, keyDef),
+            });
+          } catch (e) {
+          }
         });
         return $newProxy;
       }
@@ -985,17 +997,17 @@ function serializeToPython(obj, _export = false, resolvePromises = false) {
   if (typeof obj === 'undefined') {
     obj = null;
   } else if (isPromise(obj)) {
-    obj = primitize(obj.then(function(obj) {
+    return obj.then(function(obj) {
       return serializeToPython(obj, _export, resolvePromises);
-    }), _export, resolvePromises);
+    });
   }
   if (obj && obj._internal_coldbrew_python_object) {
-    return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify({
+    return 'Coldbrew.json.loads('+JSON.stringify(stringifyToJson({
       '_internal_coldbrew_var': true,
       'uid': obj.uid,
     }))+')';
   }
-  return 'Coldbrew.json.loads('+JSON.stringify(JSON.stringify(obj))+')';
+  return 'Coldbrew.json.loads('+JSON.stringify(stringifyToJson(obj))+')';
 }
 
 function unserializeFromPython(arg) {
@@ -1080,16 +1092,31 @@ function makePromiseChainable(p, attachDebuggingInformation=true, executePromise
       if (await PythonVariable.isPythonVariable(val)) {
         varObj['__type__'] = await val.__type__;
         if (attachDebuggingInformation) {
-          var keyDefs = (await val.__inspect__()).filter(function(keyDef) {
-            return !PythonVariable.internalKeyDefs.includes(keyDef);
-          });
+          var keyDefs = [];
+          try {
+            keyDefs = (await val.__inspect__()).filter(function(keyDef) {
+              return !PythonVariable.internalKeyDefs.includes(keyDef);
+            });
+          } catch (e) {
+            // Ignore concurrency errors, attaching debugging information isn't that important
+            if (!e.coldbrewConcurrencyError) {
+              throw e;
+            }
+          }
           keyDefs.concat(PythonVariable.internalKeyDefs.filter(function(internalKeyDef) {
             return internalKeyDef !== '__type__';
           })).forEach(async function(keyDef) {
-            if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
-              varObj[keyDef] = await val[keyDef];
-            } else {
-              varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+            try {
+              if (MODULE_NAME.PythonVariable.internalKeyDefs.includes(keyDef)) {
+                varObj[keyDef] = await val[keyDef];
+              } else {
+                varObj[keyDef] = new PythonDynamicallyEvaluatedValue();
+              }
+            } catch (e) {
+              // Ignore concurrency errors, attaching debugging information isn't that important
+              if (!e.coldbrewConcurrencyError) {
+                throw e;
+              }
             }
           });
         }
@@ -1127,7 +1154,9 @@ function makePromiseChainable(p, attachDebuggingInformation=true, executePromise
         var stackHeight = (((new Error()).stack || '').match(/\n/g) || []).length;
         if (stackHeight == 1) {
           // Detected Chrome access
-          return undefined;
+          return function() {
+            return 'ChainablePromise - use .then() to access its value or you can chain methods and use .then() at the end.';
+          }
         }
       }
       if (Object.getOwnPropertyNames(Object.getPrototypeOf(p)).includes(prop) && prop != 'toString') {
@@ -1315,6 +1344,32 @@ MODULE_NAME._fsReady = function(cb) {
     MODULE_NAME._mountFS = function(Module) {
       var prefix = '.filesystem';
       Module.FS.$createFolder(Module.FS.root, prefix, true, true);
+
+      if (IS_NODE_JS) {
+        // Load external files
+        var pyLibPath = '/usr/local/lib/python'+("PYVERSION".split('.').slice(0,2).join('.'));
+        var pyLibPathBuggy = '/usr/local/lib/python'+("PYVERSION".split('.').slice(0,1).join('.'));
+        mountPoints['/files'] = 2;
+        Module.FS.$mkdirTree('/usr/local/lib/');
+        mountPoints[pyLibPath] = 2;
+
+        // Sync the folders back to their original state before each load
+        var fs = require('fs');
+        var syncFolders = require("sync-folders");
+        syncFolders(__dirname+'/node_root/files', __dirname, {
+          onSync: (...args) => {
+            resolve();
+          }
+        });
+        fs.renameSync(__dirname+pyLibPath, __dirname+pyLibPathBuggy); // syncFolders has bug where it doesn't support dots in the file name
+        syncFolders(__dirname+'/node_root'+pyLibPath, __dirname+'/usr/local/lib/', {
+          onSync: (...args) => {
+            resolve();
+          }
+        });
+        fs.renameSync(__dirname+pyLibPathBuggy, __dirname+pyLibPath); // syncFolders has bug where it doesn't support dots in the file name
+      }
+
       Object.keys(mountPoints).forEach(function(mountPoint) {
         var fsNamespace = 'coldbrew_fs_';
         var isShared = mountPoints[mountPoint] & 1;
@@ -1324,6 +1379,7 @@ MODULE_NAME._fsReady = function(cb) {
         if (!isShared) {
           fsNamespace += 'MODULE_NAME_';
         }
+        var mountSource = '/'+prefix+'/'+fsNamespace+mountPoint.trim().replace(/\//g, '_s_');
         if (isPersist) {
           if (IS_NODE_JS) {
             filesystem = Module.FS.filesystems.NODEFS;
@@ -1344,7 +1400,7 @@ MODULE_NAME._fsReady = function(cb) {
         try {
           Module.FS.$rmdir(mountPoint);
         } catch (e) {};
-        Module.FS.$createFolder(Module.FS.root, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), true, true);
+        Module.FS.$createFolder(Module.FS.root, mountSource, true, true);
         var old = filesystem.mount;
         if (mountPoints[mountPoint]) {
           if (!COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes) {
@@ -1357,11 +1413,11 @@ MODULE_NAME._fsReady = function(cb) {
               return COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes[mountPoint]; 
             };
           }
-          Module.FS.$mount(filesystem, filesystemOptions, '/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1));
+          Module.FS.$mount(filesystem, filesystemOptions, mountSource);
         } else if (BROWSERFS) {
           // Handle BrowserFS here
         }
-        Module.FS.$symlink('/'+prefix+'/'+fsNamespace+mountPoint.trim().substring(1), mountPoint);
+        Module.FS.$symlink(mountSource, mountPoint);
       });
     }
     cb(err, mountPoints);
@@ -1993,7 +2049,6 @@ MODULE_NAME.load = function(options = {}) {
               Reflect.set(getvar, await unserializeFromJS(event.data.prop), unserializedValue);
               value = unserializedValue; 
             } else if (event.data._get_var_action === 'deleteProperty') {
-              var unserializedValue = await unserializeFromJS(event.data.value);
               Reflect.deleteProperty(getvar, await unserializeFromJS(event.data.prop));
               value = true; 
             }

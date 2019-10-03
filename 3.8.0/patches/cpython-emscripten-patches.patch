@@ -232,7 +232,7 @@ index 546a426..11e419f 100644
      for (;;) {
 +        /* Yield back to JavaScript every N Python bytecode instructions */
 +        if (!_coldbrew_no_yield && _coldbrew_async_yield_ops < 2147483647 && ++_coldbrew_yield_to_javascript_ops % _coldbrew_async_yield_ops == 0) {
-+        _coldbrew_yield_to_javascript();
++           _coldbrew_yield_to_javascript();
 +        }
 +
          assert(stack_pointer >= f->f_valuestack); /* else underflow */
