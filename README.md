@@ -360,7 +360,7 @@ To see an example of multi-threaded Python code running, you can run the [thread
 Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples' });
 ```
 
-**Note:** Node.js and some browsers do not support threading as it relies on a JavaScript feature called `SharedArrayBuffer`s which were disabled across many JavaScript engines due to the [Spectre][https://v8.dev/blog/spectre] attacks. Chrome has re-enabled them after fixing the issue, fixes for other browsers and Node.js are pending.
+**Note:** Node.js and some browsers do not support threading as it relies on a JavaScript feature called `SharedArrayBuffer`s which were disabled across many JavaScript engines due to the [Spectre](https://v8.dev/blog/spectre) attacks. Chrome has re-enabled them after fixing the issue, fixes for other browsers and Node.js are [pending](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
 
 ### Accessing the Virtual File System
 Python is not able to access the system's actual file system due to the limitations of the browser, but it can access a virtual file system.

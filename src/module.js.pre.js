@@ -8,6 +8,21 @@ if (typeof COLDBREW_GLOBAL_SCOPE._coldbrewMountPointNodes === 'undefined') {
 }
 
 /**********************************************************/
+/***************START SHARED MEMORY ERROR******************/
+/**********************************************************/
+if (typeof COLDBREW_GLOBAL_SCOPE.Atomics === 'undefined') {
+  var flagMessage = '';
+  if (navigator.userAgent.search("Firefox") >= 0) {
+    flagMessage = ' However, from version 57 in Firefox: this feature is behind the javascript.options.shared_memory preference (needs to be set to true). To change preferences in Firefox, visit about:config.';
+  }
+  throw new Error("This browser is currently not supported with Coldbrew due to threading support being enabled. See 'https://git.io/fjANP#using-multiple-threads-in-python' for more information. You can build a custom build of Coldbrew with threading disabled if you need to use this in environments that don't support threading yet."+flagMessage);
+}
+/**********************************************************/
+/****************END SHARED MEMORY ERROR*******************/
+/**********************************************************/
+
+
+/**********************************************************/
 /***************START MODULE DEFINITIONS*******************/
 /**********************************************************/
 // Since when 'window' is not available, some of the 
