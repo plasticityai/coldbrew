@@ -267,7 +267,7 @@ function isPromise(val) {
 }
 
 function getColdbrewConcurrencyError() {
-  var e = new Error('Coldbrew Error: The Coldbrew Python interpreter is already running asynchronously. You cannot run the Coldbrew Python interpreter concurrently. Please wait for all previous executions to finish.');
+  var e = new Error('Coldbrew Error: The Coldbrew Python interpreter is already running. You cannot run the Coldbrew Python interpreter concurrently. Please wait for all previous executions to finish.');
   e.coldbrewConcurrencyError = true;
   return e;
 }
@@ -723,7 +723,7 @@ function createVariableProxy(obj) {
             };
           } else if (prop === '__destroy__') {
             return (function() {
-              return MODULE_NAME.run("Coldbrew._delete_uid('"+obj.uid+"')");
+              return MODULE_NAME.run("try:\n\tdel Coldbrew._vars['"+obj.uid+"']\nexcept KeyError:\n\tpass");
             });
           } else if (prop === '__destroyed__') {
               return MODULE_NAME.getVariable("'"+obj.uid+"' not in Coldbrew._vars");
@@ -956,6 +956,10 @@ function primitize(obj, _export = false, resolvePromises = false) {
       return primitize(obj, false, true);
     });
   } else if (!isSerializable(obj)) {
+    if (obj && obj._internal_coldbrew_native_js_worker_proxy && MODULE_NAME._pending_main_thread_vars.has(obj._internal_coldbrew_get_var_id)) {
+      MODULE_NAME._pending_main_thread_vars.delete(obj._internal_coldbrew_get_var_id)
+      delete MODULE_NAME._main_thread_vars[obj._internal_coldbrew_get_var_id];
+    }
     if (_export) {
       var uid = randid();
       MODULE_NAME._vars[uid] = obj;
@@ -970,7 +974,7 @@ function primitize(obj, _export = false, resolvePromises = false) {
     } else {
       var uid = randid();
       if (MODULE_NAME._finalizedOptions.worker && !IS_WORKER_SCRIPT) {
-        MODULE_NAME._get_vars[uid] = obj;
+        MODULE_NAME._main_thread_vars[uid] = obj;
         MODULE_NAME.worker.postMessage({
           '_internal_coldbrew_message': true, 
           '_get_var': uid,
@@ -980,7 +984,7 @@ function primitize(obj, _export = false, resolvePromises = false) {
           'name': (typeof obj.name !== 'undefined' ? obj.name : 'JavaScriptUnnamed'),
         });
       } else {
-        MODULE_NAME._get_vars[uid] = obj;
+        MODULE_NAME._main_thread_vars[uid] = obj;
       }
       return {
         '_internal_coldbrew_get_var': true,
@@ -1012,12 +1016,8 @@ function serializeToPython(obj, _export = false, resolvePromises = false) {
 
 function unserializeFromPython(arg) {
   arg = createVariableProxy(arg);
-  if (arg && arg._internal_coldbrew_get_var === true) {
-    var pyarg = MODULE_NAME.getVariable('Coldbrew._get_vars["'+arg['uid']+'"]'); // Grab the Python native variable argument
-    MODULE_NAME.run('del Coldbrew._get_vars["'+arg['uid']+'"]'); // Clean up the temporary reference
-    return pyarg;
-  } else if (arg && arg._internal_coldbrew_get_js_var === true) {
-    return MODULE_NAME._get_vars[arg['uid']];
+  if (arg && arg._internal_coldbrew_get_js_var === true) {
+    return MODULE_NAME._main_thread_vars[arg['uid']];
   } else if (arg && arg._internal_coldbrew_var === true) {
     return MODULE_NAME._vars[arg.uid];
   } else if (arg && arg._internal_coldbrew_error) {
@@ -1041,7 +1041,7 @@ function serializeToJS(obj) {
 
 function unserializeFromJS(arg) {
   if (arg && arg._internal_coldbrew_get_var && MODULE_NAME._finalizedOptions.worker && IS_WORKER_SCRIPT) {
-    return MODULE_NAME._get_vars[arg.uid];
+    return MODULE_NAME._main_thread_vars[arg.uid];
   } else {
     return unserializeFromPython(arg);
   }
@@ -1251,9 +1251,10 @@ MODULE_NAME.PythonKeywords = function(keywords) {
 };
 MODULE_NAME.pyversion =  "PYVERSION";
 MODULE_NAME.version =  "COLDBREW_VERSION";
-MODULE_NAME._slots = {}; // Stores references to JavaScript variables, while Python has proxy objects that shim them.
-MODULE_NAME._vars = {}; // Stores proxy JavaScript objects that shim Python variables.
-MODULE_NAME._get_vars = {}; // Stores references to main thread JavaScript variables, while the worker thread has proxy objects that shim them.
+MODULE_NAME._slots = {};  // Temporarily stores the JSON serialized version of anything being transferred to JavaScript from Python, before it is returned to the caller.
+MODULE_NAME._promises_resolved_values = {};  // Temporarily stores the resolved values of Promises that need to be resolved before being transferred to Python.
+MODULE_NAME._vars = {}; // Stores references to JavaScript variables, while Python has proxy objects that shim them.
+MODULE_NAME._main_thread_vars = {}; // In the main thread, stores references to main thread JavaScript variables, while the worker thread has proxy objects that shim them. In the worker thread, temporarily holds Proxy objects to main thread JavaScript variables, but later they get moved to _vars.
 MODULE_NAME._isPromise = isPromise;
 MODULE_NAME._convertError = function (e) {
   return {
@@ -1483,6 +1484,7 @@ MODULE_NAME._load = function(arg1, arg2) {
   }
   MODULE_NAME._fsReady(function(err, mountPoints) {
     if (IS_WORKER_SCRIPT) {
+      MODULE_NAME._pending_main_thread_vars = new Set();
       MODULE_NAME._getMainVariableResponsePromises = {}
       MODULE_NAME._getMainVariable = function(varName) {
         var uid = randid();
@@ -1490,6 +1492,9 @@ MODULE_NAME._load = function(arg1, arg2) {
         return new Promise(function(resolve, reject) {
           MODULE_NAME._getMainVariableResponsePromises[uid] = resolve;
         });
+      };
+      MODULE_NAME._runMain = function(expression) {
+        postMessage({'_internal_coldbrew_message': true, '_run_main': expression});
       };
     }
     MODULE_NAME._usedFiles = new Set();
@@ -1575,7 +1580,7 @@ MODULE_NAME._load = function(arg1, arg2) {
     }
     MODULE_NAME.getVariable = function(expression, allowProxy = !finalizedOptions.worker) {
       var uid = randid();
-      MODULE_NAME.run('Coldbrew._run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._serialize_to_js('+expression+', True)))');
+      MODULE_NAME.run('Coldbrew._run(Coldbrew.module_name_var+"._slots.'+uid+' = "+Coldbrew.json.dumps(Coldbrew._serialize_to_js('+expression+')))');
       var ret = (typeof MODULE_NAME._slots[uid] !== 'undefined') ? JSON.parse(MODULE_NAME._slots[uid]) : null;
       delete MODULE_NAME._slots[uid];
       if (allowProxy) {
@@ -1599,7 +1604,7 @@ MODULE_NAME._load = function(arg1, arg2) {
       };
     }
     MODULE_NAME.destroyAllVariables = function() {
-      MODULE_NAME.run("for uid in list(Coldbrew._vars):\n\tColdbrew._delete_uid(uid)");
+      return MODULE_NAME.run("for uid in list(Coldbrew._vars):\n\ttry:\n\t\tdel Coldbrew._vars[uid]\n\texcept KeyError:\n\t\tpass");
     };
     MODULE_NAME.getExceptionInfo = function() {
       return MODULE_NAME.getVariable('Coldbrew._exception');
@@ -2040,7 +2045,7 @@ MODULE_NAME.load = function(options = {}) {
         } else if (event.data._internal_coldbrew_message && event.data._get_var_action) {
           (async function() {
             var value = null;
-            var getvar = MODULE_NAME._get_vars[event.data.uid];
+            var getvar = MODULE_NAME._main_thread_vars[event.data.uid];
             if (event.data._get_var_action === 'construct') {
               value = new getvar(...(await Promise.all(event.data.args.map(unserializeFromJS)))); 
             } else if (event.data._get_var_action === 'apply') {
@@ -2052,10 +2057,12 @@ MODULE_NAME.load = function(options = {}) {
             } else if (event.data._get_var_action === 'isPromise') {
               value = isPromise(getvar); 
             } else if (event.data._get_var_action === 'destroy') {
-              delete MODULE_NAME._get_vars[event.data.uid];
+              delete MODULE_NAME._main_thread_vars[event.data.uid];
               value = true; 
             } else if (event.data._get_var_action === 'typeofProp') {
               value = typeof (await Reflect.get(getvar, await unserializeFromJS(event.data.prop)));
+            } else if (event.data._get_var_action === 'hasProp') {
+              value = (await unserializeFromJS(event.data.prop)) in getvar;
             } else if (event.data._get_var_action === 'iterator') {
               value = await Reflect.get(getvar, await unserializeFromJS(Symbol.iterator));
               if (typeof value === "function") {
@@ -2081,6 +2088,8 @@ MODULE_NAME.load = function(options = {}) {
               'value': await serializeToJS(value)
             });
           })();
+        } else if (event.data._internal_coldbrew_message && event.data._run_main) {
+          eval(event.data._run_main);
         } else if (event.data._internal_coldbrew_message && event.data._get_main_var) {
           (async function () {
             var obj = await eval(event.data._get_main_var);
@@ -2099,7 +2108,7 @@ MODULE_NAME.load = function(options = {}) {
                 'uid': await obj.__uid__,
               };
             }
-            MODULE_NAME._get_vars[event.data.uid] = obj;
+            MODULE_NAME._main_thread_vars[event.data.uid] = obj;
             MODULE_NAME.worker.postMessage({
               '_internal_coldbrew_message': true, 
               '_get_var': event.data.uid,
@@ -2181,7 +2190,8 @@ if (IS_WORKER_SCRIPT) {
         delete responsePromises[event.data.actionId];
         resolve(unserializeFromJS(event.data.value));
       } else if (event.data._internal_coldbrew_message && event.data._get_var) {
-        MODULE_NAME._get_vars[event.data._get_var] = new Proxy(function() {}, {
+        MODULE_NAME._pending_main_thread_vars.add(event.data._get_var);
+        MODULE_NAME._main_thread_vars[event.data._get_var] = new Proxy(function() {}, {
           construct: function(...args) {
             return (async function(target, args) {
               var actionId = randid();
@@ -2260,6 +2270,14 @@ if (IS_WORKER_SCRIPT) {
                   responsePromises[actionId] = resolve;
                 });
               };
+            } else if (prop === '_internal_coldbrew_has_prop') {
+              return async function(prop) {
+                var actionId = randid();
+                postMessage({'_internal_coldbrew_message': true, '_get_var_action': 'hasProp', 'uid': event.data._get_var, 'actionId': actionId, 'prop': await serializeToJS(prop)});
+                return new Promise(function (resolve, reject) {
+                  responsePromises[actionId] = resolve;
+                });
+              };
             } else if (prop === Symbol.iterator) {
               return (async function() {
                 var actionId = randid();
@@ -2303,10 +2321,10 @@ if (IS_WORKER_SCRIPT) {
         });
         if (typeof MODULE_NAME._getMainVariableResponsePromises[event.data._get_var] !== 'undefined') {
           if (event.data.serializable) {
-            delete MODULE_NAME._get_vars[event.data._get_var];
+            delete MODULE_NAME._main_thread_vars[event.data._get_var];
             MODULE_NAME._getMainVariableResponsePromises[event.data._get_var](event.data.serializable_obj);
           } else if (event.data._internal_coldbrew_var) {
-            delete MODULE_NAME._get_vars[event.data._get_var];
+            delete MODULE_NAME._main_thread_vars[event.data._get_var];
             MODULE_NAME._getMainVariableResponsePromises[event.data._get_var](event.data._internal_coldbrew_var);
           } else {
             MODULE_NAME._getMainVariableResponsePromises[event.data._get_var]({

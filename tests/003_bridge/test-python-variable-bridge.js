@@ -51,6 +51,10 @@ describe('Bridge Variables', function() {
           Counter.__destroy__();
           assert(Counter.__destroyed__ === true);
           assert(Coldbrew.getVariable('"'+Counter.__uid__+'" in Coldbrew._vars') === false);
+          assert(Object.keys(Coldbrew.getVariable('Coldbrew._vars')).length !== 0);
+          Coldbrew.destroyAllVariables();
+          assert(Object.keys(Coldbrew.getVariable('Coldbrew._vars')).length === 0);
+          Coldbrew.run('assert Coldbrew._get_variable("Object.keys(Coldbrew._slots).length") == 0');
         } catch (e) {
           return JSON.stringify([e.message, e.stack]);
         }
@@ -112,6 +116,10 @@ describe('Bridge Variables', function() {
           Coldbrew.run("import urllib.request");
           var urllib = Coldbrew.getVariableAsync('urllib');
           assert((await urllib.request.urlopen("http://coldbrew.plasticity.ai/remote/example.txt").read().toString()).indexOf('downloaded from a remote server') > -1);
+          assert(Object.keys(await Coldbrew.getVariableAsync('Coldbrew._vars')).length !== 0);
+          Coldbrew.destroyAllVariables();
+          assert(Object.keys(await Coldbrew.getVariableAsync('Coldbrew._vars')).length === 0);
+          await Coldbrew.runAsync('assert Coldbrew._get_variable("Object.keys(Coldbrew._slots).length") == 0');
         } catch (e) {
           return JSON.stringify([e.message, e.stack]);
         }
@@ -174,6 +182,10 @@ describe('Bridge Variables', function() {
           await Coldbrew.run("import urllib.request");
           var urllib = Coldbrew.getVariable('urllib');
           assert((await urllib.request.urlopen("http://coldbrew.plasticity.ai/remote/example.txt").read().toString()).indexOf('downloaded from a remote server') > -1);
+          assert(Object.keys(await Coldbrew.getVariable('Coldbrew._vars')).length !== 0);
+          await Coldbrew.destroyAllVariables();
+          assert(Object.keys(await Coldbrew.getVariable('Coldbrew._vars')).length === 0);
+          await Coldbrew.run('assert Coldbrew._get_variable("Object.keys(Coldbrew._slots).length") == 0');
         } catch (e) {
           return JSON.stringify([e.message, e.stack]);
         }
@@ -236,6 +248,10 @@ describe('Bridge Variables', function() {
           await Coldbrew.run("import urllib.request");
           var urllib = Coldbrew.getVariableAsync('urllib');
           assert((await urllib.request.urlopen("http://coldbrew.plasticity.ai/remote/example.txt").read().toString()).indexOf('downloaded from a remote server') > -1);
+          assert(Object.keys(await Coldbrew.getVariableAsync('Coldbrew._vars')).length !== 0);
+          await Coldbrew.destroyAllVariables();
+          assert(Object.keys(await Coldbrew.getVariableAsync('Coldbrew._vars')).length === 0);
+          await Coldbrew.runAsync('assert Coldbrew._get_variable("Object.keys(Coldbrew._slots).length") == 0');
         } catch (e) {
           return JSON.stringify([e.message, e.stack]);
         }

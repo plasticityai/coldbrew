@@ -438,10 +438,8 @@ describe('Bridge Variables', function() {
     });
 
     it('should allow getting all types of Python variables in JavaScript via asynchronous run_function arguments in worker mode', async function () {
-      await utils.eval(this, async () => {
-        Coldbrew.unload();
-        return Coldbrew.load({worker: true});
-      });
+
+
       var {a, b, c, d, e, f, g} = await utils.eval(this, async () => {
         var result;
         window.getVars = async function(a, b, c, d, e, f, g) {

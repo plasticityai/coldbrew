@@ -14,7 +14,7 @@
 void* _coldbrew_stack_start = 0;
 int _coldbrew_no_yield = 1;
 int _coldbrew_is_async = 0;
-int _coldbrew_is_async_paused = 0;
+int _coldbrew_is_sync = 0;
 int _coldbrew_async_yield_ops = 100; // By default, yield back to the JavaScript event loop every 100 Python bytecode instructions
 void* _coldbrew_main_thread_id = 0;
 
@@ -25,7 +25,7 @@ PyMODINIT_FUNC PyInit__sqlite3(void);
 
 // Guard for concurrency
 int guard_concurrency() {
-    if (_coldbrew_is_async) {
+    if (_coldbrew_is_async || _coldbrew_is_sync) {
         return -1;
     }
     return 0;
@@ -62,11 +62,11 @@ void _coldbrew_yield_to_javascript() {
     set_asyncify_stack_size(calculate_coldbrew_stack_size());
     #if __COLDBREW_ASYNC_DEBUG__
     printf("ASNYNCIFY STACK SIZE: %zu bytes\n", calculate_coldbrew_stack_size());
-    emscripten_run_script("console.error('ASYNCIFY BEFORE SLEEP')");
+    emscripten_run_script("console.error('ASYNCIFY BEFORE SLEEP (YIELD)')");
     #endif
     emscripten_sleep(1);
     #if __COLDBREW_ASYNC_DEBUG__
-    emscripten_run_script("console.error('ASYNCIFY AFTER SLEEP')");
+    emscripten_run_script("console.error('ASYNCIFY AFTER SLEEP (YIELD)')");
     #endif
 
 }
@@ -78,8 +78,10 @@ int EMSCRIPTEN_KEEPALIVE export_run(char *str) {
     _coldbrew_stack_start = (void*)&p;
     _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
-    _coldbrew_is_async_paused = 0;
-    return PyRun_SimpleString(str);
+    _coldbrew_is_sync = 1;
+    int rval = PyRun_SimpleString(str);
+    _coldbrew_is_sync = 0;
+    return rval;
 }
 
 int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
@@ -88,7 +90,6 @@ int EMSCRIPTEN_KEEPALIVE export_runAsync(char *str) {
     _coldbrew_stack_start = (void*)&p;
     _coldbrew_no_yield = 0;
     _coldbrew_is_async = 1;
-    _coldbrew_is_async_paused = 0;
     int rval = PyRun_SimpleString(str);
     _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
@@ -111,8 +112,10 @@ int EMSCRIPTEN_KEEPALIVE export__runFile(char *path) {
     }
     _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
-    _coldbrew_is_async_paused = 0;
-    return PyRun_AnyFileEx(fp, path, 1);
+    _coldbrew_is_sync = 1;
+    int rval = PyRun_AnyFileEx(fp, path, 1);
+    _coldbrew_is_sync = 0;
+    return rval;
 }
 
 int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
@@ -126,7 +129,6 @@ int EMSCRIPTEN_KEEPALIVE export__runFileAsync(char *path) {
     }
     _coldbrew_no_yield = 0;
     _coldbrew_is_async = 1;
-    _coldbrew_is_async_paused = 0;
     int rval = PyRun_AnyFileEx(fp, path, 1);
     _coldbrew_no_yield = 1;
     _coldbrew_is_async = 0;
@@ -138,11 +140,7 @@ int EMSCRIPTEN_KEEPALIVE export_getAsyncYieldRate() {
 }
 
 void EMSCRIPTEN_KEEPALIVE export_setAsyncYieldRate(int ops) {
-    if (ops <= 0) {
-      _coldbrew_no_yield = 0;
-    } else {
-      _coldbrew_async_yield_ops = ops;
-    }
+    _coldbrew_async_yield_ops = ops;
 }
 
 int _coldbrew_python_initialize() {
@@ -170,9 +168,12 @@ int _coldbrew_python_initialize() {
 
 int EMSCRIPTEN_KEEPALIVE export_reset() {
     if (guard_concurrency() < 0) return -2;
+    int before_yield_ops = _coldbrew_async_yield_ops;
+    _coldbrew_async_yield_ops = 2147483647;
     int rcode1 = PyRun_SimpleString("Coldbrew.run_function('"STRINGIFY(MODULE_NAME)".resetenv')");
     int rcode2 = PyRun_SimpleString("_coldbrew_restore_context()");
     _coldbrew_python_initialize();
+    _coldbrew_async_yield_ops = before_yield_ops;
     return rcode1 | rcode2;
 }
 

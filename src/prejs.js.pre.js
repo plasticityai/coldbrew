@@ -12,7 +12,11 @@ var _coldbrew_resumeReportError = function(e) {
   // If this error keeps coming up over and over again, you can add all
   // of the functions in CPython to ASYNC_FUNCS. This should prevent this error from
   // coming up again. Unfortunately, this will increase the .wasm size significantly.
-  console.error("FATAL – Coldbrew tried to true sleep using Asyncify, with a function pointer on the stack before unwinding. Please report an issue at https://git.io/fjANP and share the *full stack trace with DEBUG mode on* of this error.");
+  if (e.message.indexOf('unreachable') >= 0) {
+    console.error("FATAL – Coldbrew tried to true sleep using Asyncify, with a function pointer on the stack before unwinding. Please report an issue at https://git.io/fjANP and share the *full stack trace with DEBUG mode on* of this error.");
+  }
+  console.error("Encountered an error: ", e);
+  throw e;
 };
 var _coldbrew_oldSetTimeout = setTimeout;
 var _coldbrew_newSetTimeout = function(_coldbrew_oldSetTimeout) {
@@ -79,7 +83,7 @@ Module.print = function(text) {
     if (!IS_WORKER_SCRIPT) {
       MODULE_NAME.onStandardOut(text);
     } else {
-      MODULE_NAME._getMainVariable('MODULE_NAME.onStandardOut('+JSON.stringify(text)+')');
+      MODULE_NAME._runMain('MODULE_NAME.onStandardOut('+JSON.stringify(text)+')');
     }
   }
 };
@@ -89,7 +93,7 @@ Module.printErr = function(text) {
     if (!IS_WORKER_SCRIPT) {
       MODULE_NAME.onStandardErr(text);
     } else {
-      MODULE_NAME._getMainVariable('MODULE_NAME.onStandardErr('+JSON.stringify(text)+')');
+      MODULE_NAME._runMain('MODULE_NAME.onStandardErr('+JSON.stringify(text)+')');
     }
   }
 };

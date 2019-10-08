@@ -423,6 +423,18 @@ describe('Core Coldbrew Functionality', () => {
       return expect(timeDifference).to.eventually.be.below(.5);
     });
 
+    it('should error if starting new synchronous execution with synchronous execution already in flight', async function () {
+      var errorMessage = await utils.eval(this, () => {
+        window.clearConsole();
+        try {
+          Coldbrew.run('Coldbrew.run("Coldbrew.run(\'print(1)\')")');
+        } catch (e) {
+          return e.message;
+        }
+      });
+      return expect(errorMessage).to.include('already running');
+    });
+
     it('should error if starting new synchronous execution with asynchronous execution already in flight', async function () {
       var errorMessage = await utils.eval(this, () => {
         window.clearConsole();
@@ -433,7 +445,7 @@ describe('Core Coldbrew Functionality', () => {
           return e.message;
         }
       });
-      return expect(errorMessage).to.include('already running asynchronously');
+      return expect(errorMessage).to.include('already running');
     });
 
     it('should error if starting new synchronous execution of Python file with asynchronous execution already in flight', async function () {
@@ -450,7 +462,7 @@ describe('Core Coldbrew Functionality', () => {
           return e.message;
         }
       });
-      return expect(errorMessage).to.include('already running asynchronously');
+      return expect(errorMessage).to.include('already running');
     });
 
     it('should error if starting new asynchronous execution with one already in flight', async function () {
@@ -463,7 +475,7 @@ describe('Core Coldbrew Functionality', () => {
           return e.message;
         }
       });
-      return expect(errorMessage).to.include('already running asynchronously');
+      return expect(errorMessage).to.include('already running');
     });
 
     it('should error if starting new asynchronous execution of Python file with one already in flight', async function () {
@@ -480,7 +492,7 @@ describe('Core Coldbrew Functionality', () => {
           return e.message;
         }
       });
-      return expect(errorMessage).to.include('already running asynchronously');
+      return expect(errorMessage).to.include('already running');
     });
 
     it('should warn if sleeping without running asynchronously', async function () {
@@ -1026,7 +1038,7 @@ describe('Core Coldbrew Functionality', () => {
   });
 
   describe('POSIX Threads', () => {
-    it.skip('should support synchronous execution in threads', async function () {
+    it('should support synchronous execution in threads', async function () {
       var logs = await utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples' });
@@ -1072,7 +1084,7 @@ describe('Core Coldbrew Functionality', () => {
     // sleep should work (if not remove ASYNCIFY_WHITELIST and if still not maybe thread lock)
     // http should work if the threading guards in Coldbrew.py are disabled for HTTP stuff only
     
-    it.skip('should support thread worker pool re-use', async function () {
+    it('should support thread worker pool re-use', async function () {
       utils.eval(this, () => {
         window.clearConsole();
         Coldbrew.runFile('threads.py', { cwd: '/coldbrew/examples', args: ['1'] });

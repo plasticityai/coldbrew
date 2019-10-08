@@ -17,8 +17,8 @@ COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../custom
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
 ASYNC_DEBUG=0
-ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript'
-ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc\n_PyObject_GenericGetAttrWithDict\nproperty_descr_get\n_PyObject_FastCall_Prepend\nslot_mp_subscript\nPyObject_GetItem\ntupledealloc'
+ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\n_Coldbrew__run'
+ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc\n_PyObject_GenericGetAttrWithDict\nproperty_descr_get\n_PyObject_FastCall_Prepend\nslot_mp_subscript\nPyObject_GetItem\ntupledealloc\n_PyObject_GetMethod\ncfunction_vectorcall_FASTCALL\ncfunction_vectorcall_O\nbuiltin_repr\nPyObject_Repr\nslot_tp_repr\nPyObject_SetAttr\nslot_tp_setattro\nbuiltin_next\nPyObject_SetItem\nslot_mp_ass_subscript\nPyObject_DelItem\nlist___init__\nlist_extend\nPyObject_LengthHint\nslot_sq_length\ndict_ass_sub\n_PyDict_DelItem_KnownHash\nslot_tp_call\nbuiltin_dir\nslot_sq_contains\nPyDict_SetItem\ninsertdict'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
 
 DEBUG_MODE=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str((DEBUG_MODE or bool(int('$(ASYNC_DEBUG)')))).lower())")
@@ -96,6 +96,8 @@ BCS := $(SRCS:.c=.bc)
 
 rwildcard=$(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2) $(filter $(subst *,%,$2),$d))
 
+
+SHELL:=/bin/bash
 
 all: dist.make $(MODULE_NAME_LOWER).js.make index.html
 
@@ -356,29 +358,25 @@ main.bc: main.c $(PYLIB) Makefile
 	$(CC) -o $@ $< $(CFLAGS) -DMODULE_NAME=$(MODULE_NAME) -DMODULE_NAME_LOWER=$(MODULE_NAME_LOWER) -DPYVERSION=$(PYVERSION) -DCOLDBREW_VERSION=$(COLDBREW_VERSION) -D__COLDBREW_ASYNC_DEBUG__=$(ASYNC_DEBUG)
 
 node_root: root Makefile
-	rm -rf root || true
-	rm -rf root || true
-	rm -rf root || true
-	rm -rf node_root || true
-	rm -rf node_root || true
-	rm -rf node_root || true
-	cp -R root_orig root
+	while [[ -d root ]]; do rm -rf root; sleep 1; done
+	while [[ -d node_root ]]; do rm -rf node_root; sleep 1; done
+	while [[ -d root.tmp ]]; do rm -rf root.tmp; sleep 1; done
+	while [[ -d node_root.tmp ]]; do rm -rf node_root.tmp; sleep 1; done
+	cp -R root_orig root.tmp
 ifeq ($(NODE),true)
-	cp -R root node_root
-	rm -rf root/files
-	rm -rf root/usr/local/lib/python$(PYMINOR)
-	rm -rf node_root/coldbrew
+	cp -R root.tmp node_root.tmp
+	rm -rf root.tmp/files
+	rm -rf root.tmp/usr/local/lib/python$(PYMINOR)
+	rm -rf node_root.tmp/coldbrew
+	mv node_root.tmp node_root
 else
 	mkdir -p node_root
 endif
+	mv root.tmp root
 
 root: $(PYLIB) ../installs/python-$(PYVERSION)/lib/linked/libpython$(PYMINOR).o Coldbrew.py shims/*.py examples/*.py tools/slim_data_bundle.py requirements.make $(CUSTOMIZED_FILES)
-	rm -rf root || true
-	rm -rf root || true
-	rm -rf root || true
-	rm -rf root_orig || true
-	rm -rf root_orig || true
-	rm -rf root_orig || true
+	while [[ -d root ]]; do rm -rf root; sleep 1; done
+	while [[ -d root_orig ]]; do rm -rf root_orig; sleep 1; done
 
 	rsync -rv --exclude=.DS_Store --exclude="*.pyc" $(CUSTOMIZED_FILES) root
 	rm root/files/.gitkeep 2>/dev/null || true

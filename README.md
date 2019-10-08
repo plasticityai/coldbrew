@@ -643,9 +643,11 @@ A lot of these things can be "shimmed" in the future just like the virtual file 
 Even though on Node.js, it is possible to access some of these features, we still limit the ability of Coldbrew to access these features to maintain compatibility with the browser version of Coldbrew.
 
 ## Security
-When using Coldbrew in the browser, all Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, or accessing the network.
+When using Coldbrew in the browser, all Python code does execute in the browser, so it is fairly safe to execute arbitrary Python code in comparison to executing arbitrary Python code server-side on your backend servers. However, you should treat any Python code running on a page in the browser as " `eval()`-ed JavaScript". That means the Python code is *not* sandboxed from manipulating elements on the page, reading cookies, accessing the network, or accessing other site resources.
 
 When using Coldbrew in Node.js, you similarly want to protect against executing arbitrary Python code server-side as there is now an additional risk of code executing on your backend server performing Denial-of-Service attacks or accessing your backend system resources.
+
+Coldbrew is not sandboxed by design, however, if you need that functionality you could use other JavaScript sandboxing solutions like [sandboxed iframes](https://www.html5rocks.com/en/tutorials/security/sandboxed-iframes/) or [Realms-shim](https://github.com/Agoric/realms-shim) to create a JavaScript sandbox and run Coldbrew within that.
 
 ## Performance and Size Benchmarks
 To give a quick sense of how much of a performance hit running Python in JavaScript takes, a few different tests of running [`/coldbrew/examples/fib.py`](https://github.com/plasticityai/coldbrew/blob/master/src/examples/fib.py) are shown below. All tests were run on a MacBook Pro (Retina, 15-inch, Mid 2014) 2.2GHz quad-core Intel Core i7 @ 16GB RAM on SSD with the Google Chrome Browser:

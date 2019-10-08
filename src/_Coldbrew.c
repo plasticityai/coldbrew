@@ -58,11 +58,11 @@ _Coldbrew__sleep(PyObject* self, PyObject* args)
       set_asyncify_stack_size(calculate_coldbrew_stack_size());
       #if __COLDBREW_ASYNC_DEBUG__
       printf("ASNYNCIFY STACK SIZE: %zu bytes\n", calculate_coldbrew_stack_size());
-      emscripten_run_script("console.error('ASYNCIFY BEFORE SLEEP (YIELD)')");
+      emscripten_run_script("console.error('ASYNCIFY BEFORE SLEEP')");
       #endif
       emscripten_sleep((long) (time*1000));
       #if __COLDBREW_ASYNC_DEBUG__
-      emscripten_run_script("console.error('ASYNCIFY AFTER SLEEP (YIELD)')");
+      emscripten_run_script("console.error('ASYNCIFY AFTER SLEEP')");
       #endif
     }
     Py_RETURN_NONE;
