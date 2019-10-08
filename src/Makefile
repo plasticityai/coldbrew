@@ -16,7 +16,7 @@ JSZIP=$(shell python -c "import sys; sys.path.append('../customize/'); from cold
 COMPRESS_NETWORK_FILES=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(COMPRESS_NETWORK_FILES and not '$(NODE)' == 'true').lower())")
 FAST_AND_SMALL_BUT_NO_ASYNC=$(shell python -c "import sys; sys.path.append('../customize/'); from coldbrew_settings import *; print(str(FAST_AND_SMALL_BUT_NO_ASYNC).lower())")
 
-ASYNC_DEBUG=0
+ASYNC_DEBUG ?= 0
 ALWAYS_ASYNC_FUNCS='export_runAsync\nexport__runFileAsync\n_Coldbrew__sleep\n_coldbrew_yield_to_javascript\n_Coldbrew__run'
 ASYNC_FUNCS='PyCFunction_Call\nPyObject_Call\nPyEval_EvalCode\nPyEval_EvalCodeEx\nPyEval_EvalFrame\nPyEval_EvalFrameEx\nPyImport_ExecCodeModule\nPyImport_ExecCodeModuleEx\nPyImport_ExecCodeModuleObject\nPyImport_ExecCodeModuleWithPathnames\nPyImport_ImportFrozenModule\nPyImport_ImportFrozenModuleObject\nPyRun_AnyFile\nPyRun_AnyFileEx\nPyRun_AnyFileExFlags\nPyRun_AnyFileFlags\nPyRun_File\nPyRun_FileEx\nPyRun_FileExFlags\nPyRun_FileFlags\nPyRun_InteractiveLoop\nPyRun_InteractiveLoopFlags\nPyRun_InteractiveOne\nPyRun_InteractiveOneFlags\nPyRun_InteractiveOneObject\nPyRun_SimpleFile\nPyRun_SimpleFileEx\nPyRun_SimpleFileExFlags\nPyRun_SimpleString\nPyRun_SimpleStringFlags\nPyRun_String\nPyRun_StringFlags\nPy_FrozenMain\nPy_Initialize\nPy_InitializeEx\nPy_Main\nPy_NewInterpreter\n_PyEval_EvalCodeWithName\n_PyGen_Finalize\n_PyGen_Send\n_Py_InitializeEx_Private\n_imp_init_frozen\nbuiltin___build_class__\nbuiltin_eval\nbuiltin_exec\ncoro_wrapper_close\ncoro_wrapper_iternext\ncoro_wrapper_send\ncoro_wrapper_throw\nfast_function\nframe_clear\nfunction_call\ngen_close\ngen_close_iter\ngen_iternext\ngen_send_ex\ngen_throw\nimport_init\nzipimporter_load_module\nPyFile_GetLine\nbuiltin_input\n_PyEval_EvalFrameDefault\nPyImport_ImportModuleLevelObject\n_PyObject_CallMethodIdObjArgs\nobject_vacall\n_PyFunction_Vectorcall\nfunction_code_fastcall\ncall_function\nPyVectorcall_Call\nmethod_vectorcall\ncfunction_call_varargs\n_PyObject_MakeTpCall\n_PyObject_FastCallDict\n_PyObject_Call_Prepend\nslot_tp_init\ntype_call\ncfunction_vectorcall_FASTCALL_KEYWORDS\nslot_tp_getattr_hook\nPyObject_CallFunctionObjArgs\nslot_tp_finalize\nsubtype_dealloc\nframe_dealloc\n_PyObject_GenericGetAttrWithDict\nproperty_descr_get\n_PyObject_FastCall_Prepend\nslot_mp_subscript\nPyObject_GetItem\ntupledealloc\n_PyObject_GetMethod\ncfunction_vectorcall_FASTCALL\ncfunction_vectorcall_O\nbuiltin_repr\nPyObject_Repr\nslot_tp_repr\nPyObject_SetAttr\nslot_tp_setattro\nbuiltin_next\nPyObject_SetItem\nslot_mp_ass_subscript\nPyObject_DelItem\nlist___init__\nlist_extend\nPyObject_LengthHint\nslot_sq_length\ndict_ass_sub\n_PyDict_DelItem_KnownHash\nslot_tp_call\nbuiltin_dir\nslot_sq_contains\nPyDict_SetItem\ninsertdict'
 ASYNC_WHITELIST=$(shell (echo -n '["'; (echo $(ALWAYS_ASYNC_FUNCS); echo $(ASYNC_FUNCS)) | cat | sed -e ':a;N;$$!ba;s/\n/",\n"/g'; echo -n '"]') | sed -e ':a;N;$$!ba;s/\n"]/"]/g')
@@ -225,6 +225,12 @@ $(MODULE_NAME_LOWER).js: tools/externs.js root root.make sources+python.o prejs.
 	rm -rf *.wasm 2>/dev/null || true
 	rm -rf *.data 2>/dev/null || true
 	rm -rf *.worker.js 2>/dev/null || true
+	# Detect outdated cache
+ifeq ($(ENABLE_THREADING),true)
+	(llvm-nm /root/.emscripten_cache/wasm-obj/*.a 1>/dev/null 2>/dev/null && (llvm-nm /root/.emscripten_cache/wasm-obj/*.a 2>/dev/null | grep 'T __atomic_compare_exchange' 1>/dev/null) || (echo -e "\nDetected outdated cache! Deleting...\n" && rm -rf /root/.emscripten_cache/wasm-obj/)) || echo -e "\nNo cache files.\n"
+else
+	(llvm-nm /root/.emscripten_cache/wasm-obj/*.a 1>/dev/null 2>/dev/null && (llvm-nm /root/.emscripten_cache/wasm-obj/*.a 2>/dev/null | grep 'T __atomic_compare_exchange' 1>/dev/null) && (echo -e "\nDetected outdated cache! Deleting...\n" && rm -rf /root/.emscripten_cache/wasm-obj/)) || echo -e "\nNo cache files.\n"
+endif
 	# Restore externs for closure compiler
 	mv $(EMSCRIPTEN_PATH)/src/closure-externs.js.bak $(EMSCRIPTEN_PATH)/src/closure-externs.js || true
 	# Patch externs for closure compiler
@@ -267,10 +273,12 @@ ifeq ($(COMPRESS_NETWORK_FILES),true)
 	mv $(MODULE_NAME_LOWER).wasm.tmp $(MODULE_NAME_LOWER).wasm;
 	zip -9 -j $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
 	mv $(MODULE_NAME_LOWER).data.tmp $(MODULE_NAME_LOWER).data;
+ifeq ($(ENABLE_THREADING),true)
 	# Disable WebAssembly.instantiateStreaming since we are using a zipped .wasm file
 	sed -e 's/typeof WebAssembly.instantiateStreaming/undefined/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
 	mv $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
+endif
 	# Unzip the .wasm file
 	sed -e 's/response\["arrayBuffer"\]()/Promise.resolve(response["arrayBuffer"]()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g; s/response.arrayBuffer()/Promise.resolve(response.arrayBuffer()).then(JSZip.loadAsync).then(function(zip) { return zip.files[Object.keys(zip.files)].async("arraybuffer") })/g;' $(MODULE_NAME_LOWER).js > $(MODULE_NAME_LOWER).js.tmp
 	! cmp -s $(MODULE_NAME_LOWER).js.tmp $(MODULE_NAME_LOWER).js
@@ -446,6 +454,6 @@ requirements.make: ../customize/requirements.txt ../installs/python-$(PYVERSION)
 	)
 	if [ -f "$(BUILD)/Modules/_sqlite/_sqlite.o" ]; then cp $(BUILD)/Modules/_sqlite/_sqlite.o ../installs/python-$(PYVERSION)/lib/_sqlite.o; fi
 	cp ../installs/python-$(PYVERSION)/lib/_sqlite.o ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/_sqlite.o
-	# rm -rf $(BUILD)
-	# rm -rf $(DOWNLOADS)
+	rm -rf $(BUILD)
+	rm -rf $(DOWNLOADS)
 	touch ../installs/python-$(PYVERSION)/lib/libpython$(PYMINOR)/lib.make
