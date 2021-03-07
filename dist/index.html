@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style type="text/css">
+            body {
+                width: 600px;
+                margin: 0 auto;
+                padding-top: 20px;
+                text-align: center;
+                font-family: Roboto, Avenir, Myriad Pro, Futura, "Helvetica Neue", Helvetica, Arial, sans-serif;
+            }
+
+            .pre-code {
+                padding: 5px 0;
+            }
+
+            .hide-true {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <img src="images/coldbrew.png" alt="coldbrew" height="120">
+        <h1>Coldbrew: Run Python in JavaScript</h1>
+        <p>
+            Coldbrew is installed on this page through <a href="coldbrew.js"><code>coldbrew.js</code></a>.<br/><br/>Open the browser console and try running some of these examples in the console.<br/><br/>Start by loading Coldbrew with:
+            <div class="pre-code"></div>
+            <code>
+                Coldbrew.load().then(function() { console.log("Finished loading Coldbrew!") });
+            </code>
+        </p>
+        <hr />
+        <p>
+            Once loaded, you can interact with Python. For example, to print the version of Python run the following in the browser console:<br/>
+            <div class="pre-code"></div>
+            <code>
+                Coldbrew.run("import sys");<br/>
+                Coldbrew.run("print('The current Python version is:', sys.version)");
+            </code>
+        </p>
+        <hr />
+        <p>
+            You can also issue multiple commands in the same function call, to see this, run the following in the browser console:<br/>
+            <div class="pre-code"></div>
+            <code>
+                Coldbrew.run(["x = [i for i in range(10)]","print(x)"].join("\n"));
+            </code>
+        </p>
+        <hr />
+        <p>
+            You can run a Python file like <a href="https://github.com/plasticityai/coldbrew/blob/master/src/examples/add.py">add.py</a> with arguments and environment variables specified, to see this, run the following in the browser console:<br/>
+            <div class="pre-code"></div>
+            <code>
+                Coldbrew.runFile('add.py', {cwd:'/coldbrew/examples', env:{}, args:['5', '15', '-v']});
+            </code>
+        </p>
+        <hr />
+        <p class="hide-SMALL_BUT_NO_ASYNC">
+            You can access HTTP connections in Python and the requests will be handled by JavaScript's XHR / AJAX requests:<br/>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
+                Coldbrew.runAsync('import urllib.request; print(urllib.request.urlopen("http://localhost:8000/remote/example.txt").read())');
+            </code>
+        </p>
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
+        <p class="hide-SMALL_BUT_NO_ASYNC">
+            You can export Python variables (objects, classes, functions, modules, primitives, etc.) and use them like a native JavaScript variable using Coldbrew's <a href="https://github.com/plasticityai/coldbrew#bridge-variables">bridge variables</a>, like, for example, the <a href="https://docs.python.org/3.1/library/collections.html#counter-objects">Counter</a> class:<br/>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
+               Coldbrew.run("from collections import Counter");<br/>
+               var Counter = Coldbrew.getVariable("Counter");<br/>
+               var c = new Counter(['red', 'blue', 'red', 'green', 'blue', 'blue']);<br/>
+               console.log(c.mostCommon(2));
+            </code>
+        </p>
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
+        <p class="hide-SMALL_BUT_NO_ASYNC">
+            You can run Python code asynchronously, which won't lock up the browser for long-running code. <br/><br/>See the difference between running this:<br/>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
+                for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
+                Coldbrew.<b>runAsync</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
+            </code>
+            <p class="hide-SMALL_BUT_NO_ASYNC">And this:</p>
+            <div class="pre-code hide-SMALL_BUT_NO_ASYNC"></div>
+            <code class="hide-SMALL_BUT_NO_ASYNC">
+                for(var i=0; i<5; i++) { setTimeout(function() { console.log("Every 1 second for 5 seconds from JavaScript.") }, (i+1)*1000); }<br/>
+                Coldbrew.<b>run</b>('from time import sleep\nfor i in range(5):\n\tsleep(1)\n\tprint("Every 1 second for 5 seconds from Python.")');
+            </code>
+        </p>
+        <hr class="hide-SMALL_BUT_NO_ASYNC"/>
+        <p>
+            See more documentation on <a href="https://github.com/plasticityai/coldbrew">GitHub</a> <br />for more information on interacting with the virtual filesystem, installing modules, interacting with the environment, running Python asynchronously, communicating bi-directionally between the two languages, building a custom Coldbrew Python environment, and more.
+        </p>
+
+        <script src='coldbrew.js'></script>
+        <script>
+            console.warn("Coldbrew is loading...");
+            Coldbrew.load({threadWorkers: 4});
+        </script>
+    </body>
+</html>
