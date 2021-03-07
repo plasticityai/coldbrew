@@ -49,7 +49,7 @@ JSZIP = True
 
 # Controls whether to enable threading support.
 # If you turn this off, the output size is smaller, but threading support will be gone.
-ENABLE_THREADING = True
+ENABLE_THREADING = False
 
 ######################################################################
 ### Internal Settings 
